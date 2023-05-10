@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.21)
 ########################################################################################################################
 
 project(
-	MiniMap
+	DragonsEyeMinimap
 	VERSION 0.1.0
 	LANGUAGES CXX
 )
@@ -36,13 +36,14 @@ set(headers
 	include/RE/L/LoadedAreaBound.h
 	include/RE/L/LocalMapMenu.h
 	include/RE/R/RenderPassCache.h
+	include/RE/T/TES.h
 	include/RE/RTTI.h
 	include/utils/Trampoline.h
 	include/utils/INISettingCollection.h
 	include/utils/Logger.h
 	include/utils/Setting.h
 	include/Hooks.h
-	include/MiniMap.h
+	include/Minimap.h
 	include/pch.h
 	include/Settings.h
 )
@@ -54,7 +55,7 @@ set(sources
 	source/Hooks.cpp
 	source/main.cpp
 	source/MessageListeners.cpp
-	source/MiniMap.cpp
+	source/Minimap.cpp
 	source/pch.cpp
 	source/Settings.cpp
 )

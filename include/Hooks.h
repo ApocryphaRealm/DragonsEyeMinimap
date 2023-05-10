@@ -6,10 +6,6 @@ void AcceptHUDMenu(RE::HUDMenu* a_hudMenu, RE::FxDelegateHandler::CallbackProces
 void AdvanceMovieHUDMenu(RE::HUDMenu* a_hudMenu, float a_interval, std::uint32_t a_currentTime);
 void PreDisplayHUDMenu(RE::HUDMenu* a_hudMenu);
 
-bool WorldPtToScreenPt3(RE::NiCamera* a_camera, const RE::NiPoint3& a_location, float& a_xOut, float& a_yOut, float& a_zOut, float a_zeroTolerance);
-
-void LocalMapMenuTest(RE::LocalMapMenu* a_localMapMenu, const char* a_fileName);
-
 namespace hooks
 {
 	class HUDMenu

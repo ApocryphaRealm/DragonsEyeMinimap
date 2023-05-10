@@ -1,6 +1,6 @@
 #include "Settings.h"
 
-#include "MiniMap.h"
+#include "Minimap.h"
 
 #include "IUI/API.h"
 
@@ -21,6 +21,35 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 		{
 			logger::error("Infinity UI installation not detected. Please, go to ... to get it");
 		}
+	}
+}
+
+template <logger::level logLevel = logger::level::debug>
+void LogMapMembers(const IUI::API::PostPatchInstanceMessage* a_msg)
+{
+	RE::GFxValue value;
+	logger::at_level(logLevel, "{}", "Logging WorldMap...");
+	if (!a_msg->movie->GetVariable(&value, "WorldMap"))
+	{
+		logger::error("Could not get WorldMap");
+	}
+	else
+	{
+		IUI::GFxMemberLogger<logLevel> memberLogger;
+
+		memberLogger.LogMembersOf(value);
+	}
+
+	logger::at_level(logLevel, "{}", "Logging WorldMap.LocalMapMenu...");
+	if (!a_msg->movie->GetVariable(&value, "WorldMap.LocalMapMenu"))
+	{
+		logger::error("Could not get WorldMap.LocalMapMenu");
+	}
+	else
+	{
+		IUI::GFxMemberLogger<logLevel> memberLogger;
+
+		memberLogger.LogMembersOf(value);
 	}
 }
 
@@ -59,36 +88,9 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 
 					if (pathToNew == "_level0.map")
 					{
-						auto tesSingleton = RE::TES::GetSingleton();
+						DEM::Minimap::InitSingleton(msg->newInstance);
 
-						MiniMap::InitSingleton(msg->newInstance);
-
-						RE::GFxValue value;
-						logger::info("Logging WorldMap...");
-						if (!msg->movie->GetVariable(&value, "WorldMap"))
-						{
-							logger::error("Could not get WorldMap");
-						}
-						else
-						{
-							IUI::GFxMemberLogger<logger::level::info> memberLogger;
-
-							memberLogger.LogMembersOf(value);
-						}
-
-						logger::info("Logging WorldMap.LocalMapMenu...");
-						if (!msg->movie->GetVariable(&value, "WorldMap.LocalMapMenu"))
-						{
-							logger::error("Could not get WorldMap.LocalMapMenu");
-						}
-						else
-						{
-							IUI::GFxMemberLogger<logger::level::info> memberLogger;
-
-							memberLogger.LogMembersOf(value);
-						}
-
-						logger::info("Setup minimap");
+						LogMapMembers<logger::level::debug>(msg);
 					}
 				}
 				break;
@@ -107,7 +109,7 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 				{
 					auto hudMenu = static_cast<RE::HUDMenu*>(msg->menu);
 
-					hudMenu->GetRuntimeData().objects.push_back(MiniMap::GetSingleton());
+					hudMenu->GetRuntimeData().objects.push_back(DEM::Minimap::GetSingleton());
 				}
 				logger::info("Finished loading HUD patches");
 				break;

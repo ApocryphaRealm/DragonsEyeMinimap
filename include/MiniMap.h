@@ -2,88 +2,46 @@
 
 #include "IUI/GFxDisplayObject.h"
 
-#include "RE/B/BSScaleformManager.h"
-#include "RE/B/BSScaleformImageLoader.h"
 #include "RE/H/HUDObject.h"
-#include "RE/L/LocalMapMenu.h"
-#include "RE/L/LoadedAreaBound.h"
 
-class MiniMap : public RE::HUDObject
+namespace DEM
 {
-public:
-
-	// override HUDObject
-	void Update() override { };								 // 01
-	bool ProcessMessage(RE::UIMessage* a_message) override;	 // 02 - { return false; }
-
-	static void InitSingleton(const IUI::GFxDisplayObject& a_map)
+	class Minimap : public RE::HUDObject
 	{
-		if (!singleton)
+	public:
+
+		// override HUDObject
+		void Update() override{};								 // 01
+		bool ProcessMessage(RE::UIMessage* a_message) override;	 // 02
+
+		static void InitSingleton(const IUI::GFxDisplayObject& a_map)
 		{
-			static MiniMap singletonInstance{ a_map };
-			singleton = &singletonInstance;
-		}
-	}
-
-	static MiniMap* GetSingleton() { return singleton; }
-
-	static void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs)
-	{
-		singleton->SetLocalMapExtentsImpl(a_delegateArgs);
-	}
-
-	bool InitLocalMap()
-	{
-		if (!localMap)
-		{
-			if (loadedAreaBound = reinterpret_cast<RE::LoadedAreaBound*>(RE::TES::GetSingleton()->unk2B0))
+			if (!singleton)
 			{
-				if (loadedAreaBound->maxExtent.x)
-				{
-					struct LocalMapMenuBytes
-					{
-						std::uint8_t bytes[sizeof(RE::LocalMapMenu)];
-					};
-
-					localMap = reinterpret_cast<RE::LocalMapMenu*>(new LocalMapMenuBytes);
-					localMap->Ctor();
-
-					return true;
-				}
+				static Minimap singletonInstance{ a_map };
+				singleton = &singletonInstance;
 			}
 		}
 
-		return false;
-	}
+		static Minimap* GetSingleton() { return singleton; }
 
-	RE::LocalMapMenu* GetLocalMap() { return localMap; }
+		void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs);
 
-	void RemoveLocalMap()
-	{
-		if (localMap)
-		{
-			struct LocalMapMenuBytes
-			{
-				std::uint8_t bytes[sizeof(RE::LocalMapMenu)];
-			};
+		void Advance(RE::HUDMenu* a_hudMenu);
+		void PreRender(RE::HUDMenu* a_hudMenu);
 
-			localMap->Dtor();
-			delete reinterpret_cast<LocalMapMenuBytes*>(localMap);
-			localMap = nullptr;
-		}
-	}
+		void RenderOffscreen(RE::LocalMapMenu::LocalMapCullingProcess& a_cullingProcess);
 
-private:
+	private:
+		Minimap(const IUI::GFxDisplayObject& a_map) :
+			RE::HUDObject{ a_map.GetMovieView() }
+		{}
 
-	MiniMap(const IUI::GFxDisplayObject& a_map) :
-		HUDObject{ a_map.GetMovieView() }
-	{}
-	
-	void SetLocalMapExtentsImpl(const RE::FxDelegateArgs& a_delegateArgs);
+		void InitLocalMap();
 
-	static inline MiniMap* singleton = nullptr;
+		static inline Minimap* singleton = nullptr;
 
-	RE::LoadedAreaBound* loadedAreaBound;
-
-	RE::LocalMapMenu* localMap;
-};
+		// members
+		RE::LocalMapMenu* localMap = nullptr;
+	};
+}

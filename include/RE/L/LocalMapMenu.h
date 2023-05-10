@@ -52,6 +52,22 @@ namespace RE
 			};
 			static_assert(sizeof(Data) == 0x48);
 
+			LocalMapCullingProcess* Ctor()
+			{
+				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::Ctor);
+				REL::Relocation<func_t> func{ RELOCATION_ID(16092, 0) };
+
+				return func(this);
+			}
+
+			void Dtor()
+			{
+				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::Dtor);
+				REL::Relocation<func_t> func{ RELOCATION_ID(16093, 0) };
+
+				func(this);
+			}
+
 			[[nodiscard]] inline LocalMapCamera* GetLocalMapCamera() const noexcept
 			{
 				return &REL::RelocateMember<LocalMapCamera>(this, 0x30260, 0x30270);
@@ -210,7 +226,7 @@ namespace RE
 		}
 
 		// members
-		BSTArray<MapMarker> unk00000;				 // 00000
+		BSTArray<MapMarker> mapMarkers;				 // 00000
 		GFxValue markerData;						 // 00018
 		GPointF topLeft;							 // 00030
 		GPointF bottomRight;						 // 00038
