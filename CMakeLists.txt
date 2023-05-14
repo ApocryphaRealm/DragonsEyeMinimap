@@ -38,6 +38,7 @@ set(headers
 	include/RE/I/ImageSpaceShaderParam.h
 	include/RE/L/LoadedAreaBound.h
 	include/RE/L/LocalMapMenu.h
+	include/RE/R/RendererShadowState.h
 	include/RE/R/RenderPassCache.h
 	include/RE/R/RenderTargetManager.h
 	include/RE/S/ShadowSceneNode.h

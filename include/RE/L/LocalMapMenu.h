@@ -37,6 +37,12 @@ namespace RE
 		struct LocalMapCullingProcess
 		{
 		public:
+			struct UnkData
+			{
+				LocalMapCullingProcess* ptr;
+				bool unk8;
+			};
+
 			[[nodiscard]] inline LocalMapCamera* GetLocalMapCamera() const noexcept
 			{
 				return &REL::RelocateMember<LocalMapCamera>(this, 0x30260, 0x30270);
@@ -63,23 +69,21 @@ namespace RE
 				func(this);
 			}
 
-			static std::uint32_t CollectGridCellData(RE::GridCellArray* a_gridCells,
-				LocalMapMenu::LocalMapCullingProcess** a_cullingProcess,
+			static std::uint32_t GetTerrainData(RE::GridCellArray* a_gridCells, UnkData* a_unkData,
 				TESObjectCELL* a_cell)
 			{
-				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::CollectGridCellData);
+				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::GetTerrainData);
 				REL::Relocation<func_t> func{ RELOCATION_ID(16098, 0) };
 
-				return func(a_gridCells, a_cullingProcess, a_cell);
+				return func(a_gridCells, a_unkData, a_cell);
 			}
 
-			static std::uint32_t AddCellData(LocalMapMenu::LocalMapCullingProcess** a_cullingProcess,
-				TESObjectCELL* a_cell)
+			static std::uint32_t GetCellObjectsData(UnkData* a_unkData, TESObjectCELL* a_cell)
 			{
-				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::AddCellData);
+				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::GetCellObjectsData);
 				REL::Relocation<func_t> func{ RELOCATION_ID(16100, 0) };
 
-				return func(a_cullingProcess, a_cell);
+				return func(a_unkData, a_cell);
 			}
 
 			[[nodiscard]] inline NiPointer<BSShaderAccumulator>& GetShaderAccumulator() const noexcept
@@ -92,9 +96,9 @@ namespace RE
 				return REL::RelocateMember<ImageSpaceShaderParam>(this, 0x302D0, 0x302E0);
 			}
 
-			[[nodiscard]] inline NiPointer<NiNode>& GetFogOfWarOverlay() const noexcept
+			[[nodiscard]] inline NiPointer<NiAVObject>& GetFogOfWarOverlay() const noexcept
 			{
-				return REL::RelocateMember<NiPointer<NiNode>>(this, 0x30358, 0x30368);
+				return REL::RelocateMember<NiPointer<NiAVObject>>(this, 0x30358, 0x30368);
 			}
 
 			// members
