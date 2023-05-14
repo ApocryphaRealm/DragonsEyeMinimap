@@ -6,124 +6,124 @@ namespace RE
 	{
 		enum RENDER_TARGET
 		{
-			kNONE = static_cast<std::underlying_type_t<RENDER_TARGET>>(-1),
-			kFRAMEBUFFER = 0,
-			kMAIN,
-			kMAIN_COPY,
-			kMAIN_ONLY_ALPHA,
-			kNORMAL_TAAMASK_SSRMASK,
-			kNORMAL_TAAMASK_SSRMASK_SWAP,
-			kNORMAL_TAAMASK_SSRMASK_DOWNSAMPLED,
-			kMOTION_VECTOR,
-			kWATER_DISPLACEMENT,
-			kWATER_DISPLACEMENT_SWAP,
-			kWATER_REFLECTIONS,
-			kWATER_FLOW,
-			kUNDERWATER_MASK,
-			kREFRACTION_NORMALS,
-			kMENUBG,
-			kPLAYER_FACEGEN_TINT,
-			kLOCAL_MAP,
-			kLOCAL_MAP_SWAP,
-			kSHADOW_MASK,
-			kGETHIT_BUFFER,
-			kGETHIT_BLURSWAP,
-			kBLURFULL_BUFFER,
-			kHDR_BLURSWAP,
-			kLDR_BLURSWAP,
-			kHDR_BLOOM,
-			kLDR_DOWNSAMPLE0,
-			kHDR_DOWNSAMPLE0,
-			kHDR_DOWNSAMPLE1,
-			kHDR_DOWNSAMPLE2,
-			kHDR_DOWNSAMPLE3,
-			kHDR_DOWNSAMPLE4,
-			kHDR_DOWNSAMPLE5,
-			kHDR_DOWNSAMPLE6,
-			kHDR_DOWNSAMPLE7,
-			kHDR_DOWNSAMPLE8,
-			kHDR_DOWNSAMPLE9,
-			kHDR_DOWNSAMPLE10,
-			kHDR_DOWNSAMPLE11,
-			kHDR_DOWNSAMPLE12,
-			kHDR_DOWNSAMPLE13,
-			kLENSFLAREVIS,
-			kIMAGESPACE_TEMP_COPY,
-			kIMAGESPACE_TEMP_COPY2,
-			kIMAGESPACE_VOLUMETRIC_LIGHTING,
-			kIMAGESPACE_VOLUMETRIC_LIGHTING_PREVIOUS,
-			kIMAGESPACE_VOLUMETRIC_LIGHTING_COPY,
+			kNone = static_cast<std::underlying_type_t<RENDER_TARGET>>(-1),
+			kFrameBuffer = 0,
+			kMain,
+			kMainCopy,
+			kMainOnlyAlpha,
+			kNormalTAAMaskSSRMask,
+			kNormalTAAMaskSSRMaskSwap,
+			kNormalTAAMaskSSRMaskDownsampled,
+			kMotionVector,
+			kWaterDisplacement,
+			kWaterDisplacementSwap,
+			kWaterReflections,
+			kWaterFlow,
+			kUnderwaterMask,
+			kRefractionNormals,
+			kMenuBG,
+			kPlayerFacegenTint,
+			kLocalMap,
+			kLocalMapSwap,
+			kShadowMask,
+			kGetHitBuffer,
+			kGetHitBlurSwap,
+			kBlurFullBuffer,
+			kHDRBlurSwap,
+			kLDRBlurSwap,
+			kHDRBloom,
+			kLDRDownsample0,
+			kHDRDownsample0,
+			kHDRDownsample1,
+			kHDRDownsample2,
+			kHDRDownsample3,
+			kHDRDownsample4,
+			kHDRDownsample5,
+			kHDRDownsample6,
+			kHDRDownsample7,
+			kHDRDownsample8,
+			kHDRDownsample9,
+			kHDRDownsample10,
+			kHDRDownsample11,
+			kHDRDownsample12,
+			kHDRDownsample13,
+			kLensFlareVIS,
+			kImagespaceTempCopy,
+			kImagespaceTempCopy2,
+			kImagespaceVolumetricLighting,
+			kImagespaceVolumetricLightingPrevoius,
+			kImagespaceVolumetricLightingCopy,
 			kSAO,
-			kSAO_DOWNSCALED,
-			kSAO_CAMERAZ_MIP_LEVEL_0_ESRAM,
-			kSAO_CAMERAZ,
-			kSAO_CAMERAZ_MIP_LEVEL_0,
-			kSAO_CAMERAZ_MIP_LEVEL_1,
-			kSAO_CAMERAZ_MIP_LEVEL_2,
-			kSAO_CAMERAZ_MIP_LEVEL_3,
-			kSAO_CAMERAZ_MIP_LEVEL_4,
-			kSAO_CAMERAZ_MIP_LEVEL_5,
-			kSAO_CAMERAZ_MIP_LEVEL_6,
-			kSAO_CAMERAZ_MIP_LEVEL_7,
-			kSAO_CAMERAZ_MIP_LEVEL_8,
-			kSAO_CAMERAZ_MIP_LEVEL_9,
-			kSAO_CAMERAZ_MIP_LEVEL_10,
-			kSAO_CAMERAZ_MIP_LEVEL_11,
-			kSAO_RAWAO,
-			kSAO_RAWAO_DOWNSCALED,
-			kSAO_RAWAO_PREVIOUS,
-			kSAO_RAWAO_PREVIOUS_DOWNSCALED,
-			kSAO_TEMP_BLUR,
-			kSAO_TEMP_BLUR_DOWNSCALED,
-			kINDIRECT,
-			kINDIRECT_DOWNSCALED,
-			kRAWINDIRECT,
-			kRAWINDIRECT_DOWNSCALED,
-			kRAWINDIRECT_PREVIOUS,
-			kRAWINDIRECT_PREVIOUS_DOWNSCALED,
-			kRAWINDIRECT_SWAP,
-			kSAVE_GAME_SCREENSHOT,
-			kSCREENSHOT,
-			kVOLUMETRIC_LIGHTING_HALF_RES,
-			kVOLUMETRIC_LIGHTING_BLUR_HALF_RES,
-			kVOLUMETRIC_LIGHTING_QUARTER_RES,
-			kVOLUMETRIC_LIGHTING_BLUR_QUARTER_RES,
-			kTEMPORAL_AA_ACCUMULATION_1,
-			kTEMPORAL_AA_ACCUMULATION_2,
-			kTEMPORAL_AA_UI_ACCUMULATION_1,
-			kTEMPORAL_AA_UI_ACCUMULATION_2,
-			kTEMPORAL_AA_MASK,
-			kTEMPORAL_AA_WATER_1,
-			kTEMPORAL_AA_WATER_2,
-			kRAW_WATER,
-			kWATER_1,
-			kWATER_2,
-			kIBLENSFLARES_LIGHTS_FILTER,
-			kIBLENSFLARES_DOWNSAMPLE_4X_4X_PING,
-			kIBLENSFLARES_DOWNSAMPLE_4X_4X_PONG,
-			kIBLENSFLARES_DOWNSAMPLE_16X_4Y_PING,
-			kIBLENSFLARES_DOWNSAMPLE_16X_4Y_PONG,
-			kIBLENSFLARES_DOWNSAMPLE_16X_4Y_BLUR,
-			kIBLENSFLARES_DOWNSAMPLE_16X_4Y_BLUR_SWAP,
-			kIBLENSFLARES_DOWNSAMPLE_32X_4Y_PING,
-			kIBLENSFLARES_DOWNSAMPLE_32X_4Y_PONG,
-			kIBLENSFLARES_DOWNSAMPLE_32X_4Y_BLUR,
-			kIBLENSFLARES_DOWNSAMPLE_32X_4Y_BLUR_SWAP,
-			kIBLENSFLARES_DOWNSAMPLE_16X_16X_PING,
-			kIBLENSFLARES_DOWNSAMPLE_16X_16X_PONG,
-			kIBLENSFLARES_DOWNSAMPLE_16X_16X_SWAP,
-			kBOOK_TEXT_0,
-			kBOOK_TEXT_1,
-			kBOOK_TEXT_2,
-			kBOOK_TEXT_3,
+			kSAODownscaled,
+			kSAOCameraZMIPLevel0ESRAM,
+			kSAOCameraZ,
+			kSAOCameraZMIPLevel0,
+			kSAOCameraZMIPLevel1,
+			kSAOCameraZMIPLevel2,
+			kSAOCameraZMIPLevel3,
+			kSAOCameraZMIPLevel4,
+			kSAOCameraZMIPLevel5,
+			kSAOCameraZMIPLevel6,
+			kSAOCameraZMIPLevel7,
+			kSAOCameraZMIPLevel8,
+			kSAOCameraZMIPLevel9,
+			kSAOCameraZMIPLevel10,
+			kSAOCameraZMIPLevel11,
+			kSAORawAO,
+			kSAORawAODownscaled,
+			kSAORawAOPrevious,
+			kSAORawAOPreviousDownscaled,
+			kSAOTempBlur,
+			kSAOTempBlurDownscaled,
+			kIndirect,
+			kIndirectDownscaled,
+			kRAWIndirect,
+			kRAWIndirectDownscaled,
+			kRAWIndirectPrevious,
+			kRAWIndirectPREVIOUS_Downscaled,
+			kRAWIndirectSwap,
+			kSaveGameScreenshot,
+			kScreenShot,
+			kVolumetricLightingHalfRes,
+			kVolumetricLightingBlurHalfRes,
+			kVolumetricLightingQuarterRes,
+			kVolumetricLightingBlurQuarterRes,
+			kTemporalAAAccumulation1,
+			kTemporalAAAccumulation2,
+			kTemporalAAUIAccumulation1,
+			kTemporalAAUIAccumulation2,
+			kTemporalAAMask,
+			kTemporalAAWater1,
+			kTemporalAAWater2,
+			kRAWWater,
+			kWater1,
+			kWater2,
+			kIBLensFlaresLightsFilter,
+			kIBLensFlaresDownsample4x4xPing,
+			kIBLensFlaresDownsample4x4xPong,
+			kIBLensFlaresDownsample16x4yPing,
+			kIBLensFlaresDownsample16x4yPong,
+			kIBLensFlaresDownsample16x4yBlur,
+			kIBLensFlaresDownsample16x4yBlurSwap,
+			kIBLensFlaresDownsample32x4yPing,
+			kIBLensFlaresDownsample32x4yPong,
+			kIBLensFlaresDownsample32x4yBlur,
+			kIBLensFlaresDownsample32x4yBlurSwap,
+			kIBLensFlaresDownsample16x16xPing,
+			kIBLensFlaresDownsample16x16xPong,
+			kIBLensFlaresDownsample16x16xSwap,
+			kBookText0,
+			kBookText1,
+			kBookText2,
+			kBookText3,
 			kSSR,
-			kSSR_RAW,
-			kSSR_BLURRED0,
-			kSNOW_SPECALPHA,
-			kSNOW_SWAP,
+			kSSRRaw,
+			kSSRBlurRed0,
+			kSnowSpecAlpha,
+			kSnowSwap,
 
-			kTOTAL,
-			kFRAMEBUFFER_TOTAL = kMAIN,
+			kTotal,
+			kFrameBufferTotal = kMain,
 		};
 	};
 	using RENDER_TARGET = RENDER_TARGETS::RENDER_TARGET;
@@ -132,10 +132,10 @@ namespace RE
 	{
 		enum RENDER_TARGET_CUBEMAP
 		{
-			kNONE = static_cast<std::underlying_type_t<RENDER_TARGET_CUBEMAP>>(-1),
-			kREFLECTIONS = 0,
+			kNone = static_cast<std::underlying_type_t<RENDER_TARGET_CUBEMAP>>(-1),
+			kReflections = 0,
 
-			kTOTAL,
+			kTotal,
 		};
 	};
 	using RENDER_TARGET_CUBEMAP = RENDER_TARGETS_CUBEMAP::RENDER_TARGET_CUBEMAP;
@@ -149,7 +149,7 @@ namespace RE
 			kVOLUMETRIC_LIGHTING_ACCUMULATION_COPY,
 			kVOLUMETRIC_LIGHTING_NOISE,
 
-			kTOTAL,
+			kTotal,
 		};
 	};
 	using RENDER_TARGET_3D = RENDER_TARGETS_3D::RENDER_TARGET_3D;
@@ -172,8 +172,46 @@ namespace RE
 			kPRECIPITATION_OCCLUSION_MAP,
 			kFOCUS_NEO,
 
-			kTOTAL,
+			kTotal,
 		};
 	};
 	using RENDER_TARGET_DEPTHSTENCIL = RENDER_TARGETS_DEPTHSTENCIL::RENDER_TARGET_DEPTHSTENCIL;
+
+	namespace BSGraphics
+	{
+		struct RenderTargetProperties
+		{
+			std::uint32_t width;		  // 00
+			std::uint32_t height;		  // 04
+			std::uint32_t format;		  // 08
+			bool copyable;				  // 0C
+			bool supportUnorderedAccess;  // 0D
+			bool allowMipGeneration;	  // 0E
+			bool unk0F;					  // 0F
+			std::int32_t mipLevel;		  // 10
+			std::uint32_t textureTarget;  // 14
+			std::uint32_t unk18;		  // 18
+		};
+		static_assert(sizeof(RenderTargetProperties) == 0x1C);
+
+		struct DepthStencilTargetProperties
+		{
+			std::uint32_t width;	  // 00
+			std::uint32_t height;	  // 04
+			std::uint32_t arraySize;  // 08
+			bool unk0C;				  // 0C
+			bool stencil;			  // 0D
+			bool use16BitsDepth;	  // 0E
+			std::uint8_t pad0F;		  // 0F
+		};
+		static_assert(sizeof(DepthStencilTargetProperties) == 0x10);
+
+		struct CubeMapRenderTargetProperties
+		{
+			std::uint32_t width;   // 0
+			std::uint32_t height;  // 4
+			std::uint32_t format;  // 8
+		};
+		static_assert(sizeof(CubeMapRenderTargetProperties) == 0xC);
+	}
 }

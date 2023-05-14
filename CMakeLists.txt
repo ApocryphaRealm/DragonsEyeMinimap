@@ -27,15 +27,20 @@ set(headers
 	include/IUI/GFxDisplayObject.h
 	include/IUI/GFxLoggers.h
 	include/IUI/GFxObject.h
+	include/RE/B/BSCullingProcess.h
+	include/RE/B/BSShaderAccumulator.h
 	include/RE/B/BSShaderRenderTargets.h
 	include/RE/B/BSScaleformImageLoader.h
 	include/RE/G/GFxImageLoader.h
 	include/RE/G/GFxValue.h
 	include/RE/H/HUDData.h
 	include/RE/I/ImageData.h
+	include/RE/I/ImageSpaceShaderParam.h
 	include/RE/L/LoadedAreaBound.h
 	include/RE/L/LocalMapMenu.h
 	include/RE/R/RenderPassCache.h
+	include/RE/R/RenderTargetManager.h
+	include/RE/S/ShadowSceneNode.h
 	include/RE/T/TES.h
 	include/RE/RTTI.h
 	include/utils/Trampoline.h

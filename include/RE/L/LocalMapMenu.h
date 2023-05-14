@@ -14,6 +14,7 @@
 namespace RE
 {
 	class BSShaderAccumulator;
+	class GridCellArray;
 	class NiNode;
 
 	class MapMarker
@@ -36,38 +37,6 @@ namespace RE
 		struct LocalMapCullingProcess
 		{
 		public:
-			struct Data
-			{
-			public:
-				// members
-				NiPointer<BSShaderAccumulator> shaderAccumulator;  // 00
-				NiPointer<NiNode> unk08;						   // 08
-				NiPointer<NiCamera> camera;						   // 10
-				std::uint64_t unk18;							   // 18
-				std::uint64_t unk20;							   // 20
-				std::uint64_t unk28;							   // 28
-				std::uint64_t unk30;							   // 30
-				std::uint64_t unk38;							   // 38
-				NiPointer<NiNode> unk40;						   // 40
-			};
-			static_assert(sizeof(Data) == 0x48);
-
-			LocalMapCullingProcess* Ctor()
-			{
-				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::Ctor);
-				REL::Relocation<func_t> func{ RELOCATION_ID(16092, 0) };
-
-				return func(this);
-			}
-
-			void Dtor()
-			{
-				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::Dtor);
-				REL::Relocation<func_t> func{ RELOCATION_ID(16093, 0) };
-
-				func(this);
-			}
-
 			[[nodiscard]] inline LocalMapCamera* GetLocalMapCamera() const noexcept
 			{
 				return &REL::RelocateMember<LocalMapCamera>(this, 0x30260, 0x30270);
@@ -94,15 +63,44 @@ namespace RE
 				func(this);
 			}
 
-			[[nodiscard]] inline NiPointer<NiNode> GetFogOfWarOverlay() const noexcept
+			static std::uint32_t CollectGridCellData(RE::GridCellArray* a_gridCells,
+				LocalMapMenu::LocalMapCullingProcess** a_cullingProcess,
+				TESObjectCELL* a_cell)
+			{
+				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::CollectGridCellData);
+				REL::Relocation<func_t> func{ RELOCATION_ID(16098, 0) };
+
+				return func(a_gridCells, a_cullingProcess, a_cell);
+			}
+
+			static std::uint32_t AddCellData(LocalMapMenu::LocalMapCullingProcess** a_cullingProcess,
+				TESObjectCELL* a_cell)
+			{
+				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::AddCellData);
+				REL::Relocation<func_t> func{ RELOCATION_ID(16100, 0) };
+
+				return func(a_cullingProcess, a_cell);
+			}
+
+			[[nodiscard]] inline NiPointer<BSShaderAccumulator>& GetShaderAccumulator() const noexcept
+			{
+				return REL::RelocateMember<NiPointer<BSShaderAccumulator>>(this, 0x302C8, 0x302D8);
+			}
+
+			[[nodiscard]] inline ImageSpaceShaderParam& GetImageSpaceShaderParam() const noexcept
+			{
+				return REL::RelocateMember<ImageSpaceShaderParam>(this, 0x302D0, 0x302E0);
+			}
+
+			[[nodiscard]] inline NiPointer<NiNode>& GetFogOfWarOverlay() const noexcept
 			{
 				return REL::RelocateMember<NiPointer<NiNode>>(this, 0x30358, 0x30368);
 			}
 
 			// members
 			BSCullingProcess cullingProcess;  // 00000
-			Data unk301F8;					  // 301F8
-			std::uint64_t unk30240;			  // 30240
+			BSCullingProcess::Data data;	  // 301F8
+			BSTArray<void*>* unk30240;		  // 30240
 			std::uint64_t unk30248;			  // 30248
 #ifndef ENABLE_SKYRIM_VR
 			std::uint64_t unk30250;					  // 30250

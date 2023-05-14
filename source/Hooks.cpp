@@ -49,7 +49,7 @@ void LocalMapMenuTest(RE::LocalMapMenu* a_localMapMenu, const char* a_fileName)
 {
 	RE::BSFixedString fileName = a_fileName;
 
-	a_localMapMenu->GetRuntimeData().imageData.BindToVirtualTarget(fileName, RE::RENDER_TARGET::kLOCAL_MAP);
+	a_localMapMenu->GetRuntimeData().imageData.BindToVirtualTarget(fileName, RE::RENDER_TARGET::kLocalMap);
 
 	RE::NiPoint3 maxExtentExtra{ 0, 0, 40000 };
 
