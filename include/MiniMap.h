@@ -30,6 +30,8 @@ namespace DEM
 		void Advance(RE::HUDMenu* a_hudMenu);
 		void PreRender(RE::HUDMenu* a_hudMenu);
 
+		void Setup(RE::LocalMapMenu::LocalMapCullingProcess* a_cullingProcess);
+
 		void RenderOffscreen(RE::LocalMapMenu::LocalMapCullingProcess* a_cullingProcess);
 
 	private:

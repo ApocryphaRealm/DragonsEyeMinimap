@@ -96,7 +96,7 @@ namespace RE
 				return REL::RelocateMember<ImageSpaceShaderParam>(this, 0x302D0, 0x302E0);
 			}
 
-			[[nodiscard]] inline NiPointer<NiAVObject>& GetFogOfWarOverlay() const noexcept
+			[[nodiscard]] inline NiPointer<NiAVObject>& GetFogOfWarOverlayHolder() const noexcept
 			{
 				return REL::RelocateMember<NiPointer<NiAVObject>>(this, 0x30358, 0x30368);
 			}

@@ -23,20 +23,20 @@ namespace RE
 				return func(this);
 			}
 
-			void sub_140D74CF0(std::int32_t a_unk0, RENDER_TARGET a_renderTarget, std::int32_t a_unk2, bool a_unk3)
+			void SetModeForRenderTarget(std::uint32_t a_renderTargetIndex, RENDER_TARGET a_renderTarget, SetRenderTargetMode a_renderTargetMode, bool a_unk3)
 			{
-				using func_t = decltype(&RenderTargetManager::sub_140D74CF0);
+				using func_t = decltype(&RenderTargetManager::SetModeForRenderTarget);
 				REL::Relocation<func_t> func{ RELOCATION_ID(75646, 0) };
 
-				func(this, a_unk0, a_renderTarget, a_unk2, a_unk3);
+				func(this, a_renderTargetIndex, a_renderTarget, a_renderTargetMode, a_unk3);
 			}
 
-			void sub_140D74D10(std::int32_t a_depthStencil, std::int32_t a_depthStencilMode, std::int32_t a_depthStencilSlice)
+			void sub_140D74D10(std::int32_t a_depthStencil, std::int32_t a_depthStencilMode, std::int32_t a_depthStencilSlice, bool a_unk4)
 			{
 				using func_t = decltype(&RenderTargetManager::sub_140D74D10);
 				REL::Relocation<func_t> func{ RELOCATION_ID(75647, 0) };
 
-				func(this, a_depthStencil, a_depthStencilMode, a_depthStencilSlice);
+				func(this, a_depthStencil, a_depthStencilMode, a_depthStencilSlice, a_unk4);
 			}
 
 			// members

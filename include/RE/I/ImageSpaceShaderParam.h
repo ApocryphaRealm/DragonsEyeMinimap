@@ -14,12 +14,12 @@ namespace RE
 
 		~ImageSpaceShaderParam() override;	// 00
 
-		 void* sub_1412D66F0(std::int32_t a_unk0, float a_invWidth, float a_invHeight, std::int32_t a_unk3, std::int32_t a_unk4)
+		 void sub_1412D66F0(std::uint32_t a_unk0, float a_invWidth, float a_invHeight, float a_unk3, float a_unk4)
 		{
 			using func_t = decltype(&ImageSpaceShaderParam::sub_1412D66F0);
 			REL::Relocation<func_t> func{ RELOCATION_ID(100198, 0) };
 
-			return func(this, a_unk0, a_invWidth, a_invHeight, a_unk3, a_unk4);
+			func(this, a_unk0, a_invWidth, a_invHeight, a_unk3, a_unk4);
 		}
 
 		// members

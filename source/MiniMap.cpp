@@ -34,7 +34,7 @@ namespace RE
         void* sub_1412979E0(std::int32_t a_effectIndex, RENDER_TARGET a_swap, RENDER_TARGET a_target, ImageSpaceShaderParam* a_param)
         {
 			using func_t = decltype(&TESImageSpaceManager::sub_1412979E0);
-			REL::Relocation<func_t> func{ RELOCATION_ID(75463, 0) };
+			REL::Relocation<func_t> func{ RELOCATION_ID(99025, 0) };
 
 			return func(this, a_effectIndex, a_swap, a_target, a_param);
         }
@@ -161,9 +161,14 @@ namespace DEM
 
 			if (diff > 40ms)
 			{
-				localMap->localCullingProcess.Setup();
+				auto fogOfWarOverlayHolder = static_cast<RE::NiNode*>(localMap->localCullingProcess.GetFogOfWarOverlayHolder().get());
 
-				//localMap->localCullingProcess.RenderOffScreen();
+				if (fogOfWarOverlayHolder)
+				{
+					fogOfWarOverlayHolder->DetachChildAt(0);
+				}
+
+				localMap->localCullingProcess.Setup();
 
                 RenderOffscreen(&localMap->localCullingProcess);
 
@@ -179,21 +184,132 @@ namespace DEM
 					}
 				}
 
-				logger::debug("Total: {}", usedPasses);
+				//logger::debug("Total: {}", usedPasses);
 
 				last = now;
 			}
 		}
 	}
 
+	void Minimap::Setup(RE::LocalMapMenu::LocalMapCullingProcess* a_cullingProcess)
+	{
+//		NiNode* v2;															  // rax
+//		NiNode* fogOfWarOverlay;											  // rcx
+//		NiNode* fogOfWarOverlay_2;											  // rax
+//		TES* v5;															  // r15
+//		TESObjectCELL* interiorCell;										  // rdx
+//		unsigned __int16 v7;												  // ax
+//		GridCellArray* gridCells;											  // rdi
+//		int v9;																  // esi
+//		unsigned int gridX;													  // ebp
+//		unsigned int gridLength;											  // eax
+//		unsigned int gridY;													  // ebx
+//		TESObjectCELL* v13;													  // rdx
+//		TESWorldSpace* worldSpace;											  // rcx
+//		TESObjectCELL* SkyCell;												  // rax
+//		NiNode* fogOfWarOverlay_1;											  // rax
+//		float y;															  // xmm1_4
+//		float v18;															  // xmm2_4
+//		LocalMapCullingProcessSetupStruct localMapCullingProcessSetupStruct;  // [rsp+28h] [rbp-50h] BYREF
+//		NiUpdateData a2;													  // [rsp+88h] [rbp+10h] BYREF
+//
+//		if (MemoryManager::state != 2) {
+//			MemoryManager::Constructor(&MemoryManager::singleton, &MemoryManager::state);
+//		}
+//		v2 = (NiNode*)MemoryManager::Allocate(&MemoryManager::singleton, sizeof(NiNode), 0, 0);
+//		if (v2) {
+//			v2 = NiNode::NiNode(v2, 0);
+//		}
+//		fogOfWarOverlay = this->fogOfWarOverlayHolder;
+//		if (fogOfWarOverlay != v2) {
+//			if (v2) {
+//				_InterlockedIncrement(&v2->refCount);
+//			}
+//			this->fogOfWarOverlayHolder = v2;
+//			if (fogOfWarOverlay && _InterlockedExchangeAdd(&fogOfWarOverlay->refCount, -1u) == 1) {
+//				fogOfWarOverlay->DeleteThis(fogOfWarOverlay);
+//			}
+//		}
+//		fogOfWarOverlay_2 = this->fogOfWarOverlayHolder;
+//		fogOfWarOverlay_2->flags |= NiAVObject_Flag_AlwaysDraw;
+//		fogOfWarOverlay_2->worldBound.radius = 1.0;
+//		v5 = TES::pSingleton;
+//		interiorCell = TES::pSingleton->interiorCell;
+//		localMapCullingProcessSetupStruct.fogOfWarOverlayHolder = this->fogOfWarOverlayHolder;
+//		v7 = 16;
+//		if (interiorCell) {
+//			v7 = 32;
+//		}
+//		localMapCullingProcessSetupStruct.v20 = v7;
+//		if (interiorCell) {
+//			localMapCullingProcessSetupStruct.minExtent = this->camera.minExtent;
+//			localMapCullingProcessSetupStruct.maxExtent = this->camera.maxExtent;
+//		}
+//
+//		if (interiorCell) {
+//			goto LABEL_29;
+//		}
+//
+//		gridCells = TES::pSingleton->gridCells;
+//		v9 = 1;
+//		gridX = 0;
+//		gridLength = gridCells->length;
+//		if (!gridLength) {
+//			goto LABEL_27;
+//		}
+//
+//		do {
+//			gridY = 0;
+//			if (gridLength) {
+//				do {
+//					if (v9 != 1) {
+//						break;
+//					}
+//					v13 = *GridCellArray::GetCell(gridCells, gridX, gridY);
+//					if (v13 && v13->cellState == TESObjectCELL_State_Attached) {
+//						v9 = sub_1401F6EC0(&localMapCullingProcessSetupStruct, v13);
+//					}
+//					++gridY;
+//				} while (gridY < gridCells->length);
+//			}
+//			++gridX;
+//			gridLength = gridCells->length;
+//		} while (gridX < gridLength);
+//
+//		if (v9 == 1) {
+//LABEL_27:
+//			worldSpace = v5->worldSpace;
+//			if (worldSpace) {
+//				SkyCell = TESWorldSpace::GetSkyCell(worldSpace);
+//				if (SkyCell) {
+//					if (SkyCell->cellState == TESObjectCELL_State_Attached) {
+//						interiorCell = SkyCell;
+//LABEL_29:
+//						sub_1401F6EC0(&localMapCullingProcessSetupStruct, interiorCell);
+//					}
+//				}
+//			}
+//		}
+//		fogOfWarOverlay_1 = this->fogOfWarOverlayHolder;
+//		y = fogOfWarOverlay_1->local.translate.y;
+//		v18 = (float)(this->camera.maxExtent.z - this->camera.minExtent.z) * 0.5;
+//		fogOfWarOverlay_1->local.translate.x = fogOfWarOverlay_1->local.translate.x;
+//		fogOfWarOverlay_1->local.translate.y = y;
+//		fogOfWarOverlay_1->local.translate.z = v18;
+//		a2.time = 0.0;
+//		a2.flags = NiUpdateData_Flag_None;
+//		NiAVObject::Update(this->fogOfWarOverlayHolder, &a2);
+	}
+
+	// WORKING!!!
 	void Minimap::RenderOffscreen(RE::LocalMapMenu::LocalMapCullingProcess* a_cullingProcess)
 	{
 		// 1. Setup culling step ///////////////////////////////////////////////////////////////////////////////////////////
 
 		RE::ShadowSceneNode* mainShadowSceneNode = RE::ShadowSceneNode::GetMain();
 
-		bool prevUnk219 = mainShadowSceneNode->GetRuntimeData().unk219;
-		mainShadowSceneNode->GetRuntimeData().unk219 = true;
+		//bool prevUnk219 = mainShadowSceneNode->GetRuntimeData().unk219;
+		//mainShadowSceneNode->GetRuntimeData().unk219 = true;
 
         RE::NiPointer<RE::BSShaderAccumulator>& shaderAccumulator = a_cullingProcess->GetShaderAccumulator();
 
@@ -201,24 +317,24 @@ namespace DEM
 
 		RE::NiTObjectArray<RE::NiPointer<RE::NiAVObject>>& mainShadowSceneChildren = mainShadowSceneNode->GetChildren();
 
-		RE::NiPointer<RE::NiAVObject>& objectLODRoot = mainShadowSceneChildren[3];
+		//RE::NiPointer<RE::NiAVObject>& objectLODRoot = mainShadowSceneChildren[3];
 
-		bool areObjectLODsHidden = objectLODRoot->GetFlags().any(RE::NiAVObject::Flag::kHidden);
+		//bool areObjectLODsHidden = objectLODRoot->GetFlags().any(RE::NiAVObject::Flag::kHidden);
 
-		objectLODRoot->GetFlags().reset(RE::NiAVObject::Flag::kHidden);
+		//objectLODRoot->GetFlags().reset(RE::NiAVObject::Flag::kHidden);
 
-		bool& byte_1431D1D30 = *REL::Relocation<bool*>{ RELOCATION_ID(527793, 0) };
-		bool& byte_141E0DC5C = *REL::Relocation<bool*>{ RELOCATION_ID(513141, 0) };
-		bool& byte_141E0DC5D = *REL::Relocation<bool*>{ RELOCATION_ID(513142, 0) };
-		std::uint32_t& dword_1431D0D8C = *REL::Relocation<std::uint32_t*>{ RELOCATION_ID(527629, 0) };
-		
-		bool prevByte_1431D1D30 = byte_1431D1D30;
-		bool prevByte_141E0DC5C = byte_141E0DC5C;
+		//bool& byte_1431D1D30 = *REL::Relocation<bool*>{ RELOCATION_ID(527793, 0) };
+		//bool& byte_141E0DC5C = *REL::Relocation<bool*>{ RELOCATION_ID(513141, 0) };
+		//bool& byte_141E0DC5D = *REL::Relocation<bool*>{ RELOCATION_ID(513142, 0) };
+		//std::uint32_t& dword_1431D0D8C = *REL::Relocation<std::uint32_t*>{ RELOCATION_ID(527629, 0) };
+		//
+		//bool prevByte_1431D1D30 = byte_1431D1D30;
+		//bool prevByte_141E0DC5C = byte_141E0DC5C;
 
-		byte_1431D1D30 = true;
-		byte_141E0DC5C = false;
-		byte_141E0DC5D = false;
-		dword_1431D0D8C = 0;
+		//byte_1431D1D30 = true;
+		//byte_141E0DC5C = false;
+		//byte_141E0DC5D = false;
+		//dword_1431D0D8C = 0;
 
         RE::BSRenderManager* renderManager = RE::BSRenderManager::GetSingleton();
 
@@ -290,7 +406,6 @@ namespace DEM
             if (portalGraph)
             {
 				a_cullingProcess->data.unk48 = &portalGraph->unk58;
-
                 a_cullingProcess->data.UseForCulling(1, 0);
             }
         }
@@ -298,113 +413,116 @@ namespace DEM
         if (mainShadowSceneChildren.capacity() > 9)
         {
 			RE::NiPointer<RE::NiAVObject>& portalSharedNode = mainShadowSceneChildren[9];
-            if (portalSharedNode)
-            {
-				cullingData.currentCulledObject = portalSharedNode;
-				cullingData.UseForCulling(0, 0);
-            }
+			cullingData.currentCulledObject = portalSharedNode;
         }
+		else
+		{
+			cullingData.currentCulledObject = nullptr;
+		}
+		cullingData.UseForCulling(0, 0);
 
         if (mainShadowSceneChildren.capacity() > 8)
         {
 			RE::NiPointer<RE::NiAVObject>& multiBoundNode = mainShadowSceneChildren[8];
-            if (multiBoundNode)
-            {
-				cullingData.currentCulledObject = multiBoundNode;
-				cullingData.UseForCulling(0, 0);
-            }
+			cullingData.currentCulledObject = multiBoundNode;
         }
+		else
+		{
+			cullingData.currentCulledObject = nullptr; 
+		}
+		cullingData.UseForCulling(0, 0);
 
 		// 3. Rendering step ///////////////////////////////////////////////////////////////////////////////////////////////
 
         RE::BSGraphics::RenderTargetManager* renderTargetManager = RE::BSGraphics::RenderTargetManager::GetSingleton();
 
         int depthStencil = renderTargetManager->GetDepthStencil();
-        renderTargetManager->sub_140D74D10(depthStencil, 0, 0);
+        renderTargetManager->sub_140D74D10(depthStencil, 0, 0, false);
 
-		renderTargetManager->sub_140D74CF0(0, RE::RENDER_TARGET::kLocalMapSwap, 0, true);
+		renderTargetManager->SetModeForRenderTarget(0, RE::RENDER_TARGET::kLocalMapSwap, RE::BSGraphics::SetRenderTargetMode::kClear, true);
 		RE::NiCamera__Accumulate(a_cullingProcess->GetLocalMapCamera()->camera.get(), shaderAccumulator.get(), 0);
 
 		// 4. Post process step (Add fog of war) ///////////////////////////////////////////////////////////////////////////
 
-		shaderAccumulator->sub_1412CCF90(false);
+		static constexpr bool isFogOfWarEnabled = true;
 
-		//RE::BSShaderAccumulator::SetRenderMode(19);
-
-		RE::NiPointer<RE::NiAVObject>& fogOfWarOverlay = a_cullingProcess->GetFogOfWarOverlay();
-		if (fogOfWarOverlay)
+		if constexpr (isFogOfWarEnabled)
 		{
-			cullingData.currentCulledObject = fogOfWarOverlay;
+			shaderAccumulator->sub_1412CCF90(false);
+
+			RE::BSShaderAccumulator::SetRenderMode(19);
+
+			RE::NiPointer<RE::NiAVObject> fogOfWarOverlayHolder = a_cullingProcess->GetFogOfWarOverlayHolder();
+			cullingData.currentCulledObject = fogOfWarOverlayHolder;
 			cullingData.UseForCulling(0, 0);
-		}
 
-		RE::BSGraphics::RendererShadowState* rendererShadowState = RE::BSGraphics::RendererShadowState::GetSingleton();
+			RE::BSGraphics::RendererShadowState* rendererShadowState = RE::BSGraphics::RendererShadowState::GetSingleton();
 
-		if (rendererShadowState->alphaBlendWriteMode != 8)
-		{
-			rendererShadowState->alphaBlendWriteMode = 8;
-			rendererShadowState->stateUpdateFlags |= 0x80;
-		}
-
-		if (rendererShadowState->depthStencilDepthMode != RE::BSGraphics::DepthStencilDepthMode::kDisabled)
-		{
-			rendererShadowState->depthStencilDepthMode = RE::BSGraphics::DepthStencilDepthMode::kDisabled;
-			if (rendererShadowState->depthStencilUnknown)
+			if (rendererShadowState->alphaBlendWriteMode != 8)
 			{
-				rendererShadowState->stateUpdateFlags |= 4;
+				rendererShadowState->alphaBlendWriteMode = 8;
+				rendererShadowState->stateUpdateFlags |= 0x80;
 			}
-			else
+
+			if (rendererShadowState->depthStencilDepthMode != RE::BSGraphics::DepthStencilDepthMode::kDisabled)
 			{
-				rendererShadowState->stateUpdateFlags &= ~4;
+				rendererShadowState->depthStencilDepthMode = RE::BSGraphics::DepthStencilDepthMode::kDisabled;
+				if (rendererShadowState->depthStencilUnknown)
+				{
+					rendererShadowState->stateUpdateFlags |= 4;
+				}
+				else
+				{
+					rendererShadowState->stateUpdateFlags &= ~4;
+				}
+			}
+
+			renderTargetManager->SetModeForRenderTarget(0, RE::RENDER_TARGET::kLocalMapSwap, RE::BSGraphics::SetRenderTargetMode::kRestore, true);
+			RE::NiCamera__Accumulate(a_cullingProcess->GetLocalMapCamera()->camera.get(), shaderAccumulator.get(), 0);
+
+			if (rendererShadowState->depthStencilDepthMode != RE::BSGraphics::DepthStencilDepthMode::kTestWrite)
+			{
+				rendererShadowState->depthStencilDepthMode = RE::BSGraphics::DepthStencilDepthMode::kTestWrite;
+				if (rendererShadowState->depthStencilUnknown != 3)
+				{
+					rendererShadowState->stateUpdateFlags |= 4;
+				}
+				else
+				{
+					rendererShadowState->stateUpdateFlags &= ~4;
+				}
+			}
+
+			if (rendererShadowState->alphaBlendWriteMode != 1)
+			{
+				rendererShadowState->alphaBlendWriteMode = 1;
+				rendererShadowState->stateUpdateFlags |= 0x80;
 			}
 		}
-
-		renderTargetManager->sub_140D74CF0(0, RE::RENDER_TARGET::kLocalMapSwap, 3, true);
-		RE::NiCamera__Accumulate(a_cullingProcess->GetLocalMapCamera()->camera.get(), shaderAccumulator.get(), 0);
-
-		if (rendererShadowState->depthStencilDepthMode != RE::BSGraphics::DepthStencilDepthMode::kTestWrite)
-		{
-			rendererShadowState->depthStencilDepthMode = RE::BSGraphics::DepthStencilDepthMode::kTestWrite;
-			if (rendererShadowState->depthStencilUnknown != 3)
-			{
-				rendererShadowState->stateUpdateFlags |= 4;
-			}
-			else
-			{
-				rendererShadowState->stateUpdateFlags &= ~4;
-			}
-		}
-
-		if (rendererShadowState->alphaBlendWriteMode != 1)
-		{
-			rendererShadowState->alphaBlendWriteMode = 1;
-			rendererShadowState->stateUpdateFlags |= 0x80;
-		}
-
 		// 5. Finish rendering and dispatch ////////////////////////////////////////////////////////////////////////////////
 
-        renderTargetManager->sub_140D74D10(-1, 3, 0);
+        renderTargetManager->sub_140D74D10(-1, 3, 0, false);
 		RE::ImageSpaceShaderParam& imageSpaceShaderParam = a_cullingProcess->GetImageSpaceShaderParam();
 		RE::BSGraphics::RenderTargetProperties& renderLocalMapSwapData = renderTargetManager->renderTargetData[RE::RENDER_TARGET::kLocalMapSwap];
 		float localMapSwapWidth = renderLocalMapSwapData.width;
 		float localMapSwapHeight = renderLocalMapSwapData.height;
 
-		imageSpaceShaderParam.sub_1412D66F0(0, 1.0F / localMapSwapWidth, 1.0F / localMapSwapHeight, 0, 0);
+		imageSpaceShaderParam.sub_1412D66F0(0, 1.0 / localMapSwapWidth, 1.0 / localMapSwapHeight, 0.0, 0.0);
 		
         RE::TESImageSpaceManager* imageSpaceManager = RE::TESImageSpaceManager::GetSingleton();
 		imageSpaceManager->sub_1412979E0(98, RE::RENDER_TARGET::kLocalMapSwap, RE::RENDER_TARGET::kLocalMap, &imageSpaceShaderParam);
 
-		if (areObjectLODsHidden)
-		{
-			objectLODRoot->GetFlags().set(RE::NiAVObject::Flag::kHidden);
-		}
+		//if (areObjectLODsHidden)
+		//{
+		//	objectLODRoot->GetFlags().set(RE::NiAVObject::Flag::kHidden);
+		//}
 
-		mainShadowSceneNode->GetRuntimeData().unk219 = prevUnk219;
-		byte_141E0E350 = prevByte_141E0E350;
-		byte_1431D1D30 = prevByte_1431D1D30;
-		byte_141E0DC5C = prevByte_141E0DC5C;
-		byte_141E0DC5D = prevByte_141E0DC5C;
-		dword_1431D0D8C = 0;
+		//mainShadowSceneNode->GetRuntimeData().unk219 = prevUnk219;
+		//byte_141E0E350 = prevByte_141E0E350;
+		//byte_1431D1D30 = prevByte_1431D1D30;
+		//byte_141E0DC5C = prevByte_141E0DC5C;
+		//byte_141E0DC5D = prevByte_141E0DC5C;
+		//dword_1431D0D8C = 0;
 
         shaderAccumulator->sub_1412CCF90(false);
 	}
