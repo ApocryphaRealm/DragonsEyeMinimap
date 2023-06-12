@@ -29,7 +29,6 @@ set(headers
 	include/IUI/GFxObject.h
 	include/RE/B/BSCullingProcess.h
 	include/RE/B/BSShaderAccumulator.h
-	include/RE/B/BSShaderRenderTargets.h
 	include/RE/B/BSScaleformImageLoader.h
 	include/RE/G/GFxImageLoader.h
 	include/RE/G/GFxValue.h
@@ -79,7 +78,6 @@ source_group(
 ########################################################################################################################
 
 find_package(CommonLibSSE CONFIG REQUIRED)
-find_package(binary_io REQUIRED CONFIG)
 find_package(spdlog REQUIRED CONFIG)
 
 add_commonlibsse_plugin(${PROJECT_NAME} SOURCES ${headers} ${sources})

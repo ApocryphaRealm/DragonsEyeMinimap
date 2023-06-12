@@ -4,6 +4,7 @@
 
 #include "RE/B/BSShaderAccumulator.h"
 #include "RE/I/ImageSpaceShaderParam.h"
+#include "RE/R/Renderer.h"
 #include "RE/R/RendererShadowState.h"
 #include "RE/R/RenderPassCache.h"
 #include "RE/R/RenderTargetManager.h"
@@ -40,12 +41,15 @@ namespace RE
         }
     };
 
-	void BSRenderManager__sub_140D6A6D0(BSRenderManager* _this, float a_unk1, float a_unk2, float a_unk3, float a_unk4)
+	namespace BSGraphics
 	{
-		using func_t = decltype(&BSRenderManager__sub_140D6A6D0);
-		REL::Relocation<func_t> func{ RELOCATION_ID(75463, 0) };
+		void Renderer__sub_140D6A6D0(Renderer* _this, float a_unk1, float a_unk2, float a_unk3, float a_unk4)
+		{
+			using func_t = decltype(&Renderer__sub_140D6A6D0);
+			REL::Relocation<func_t> func{ RELOCATION_ID(75463, 0) };
 
-		func(_this, a_unk1, a_unk2, a_unk3, a_unk4);
+			func(_this, a_unk1, a_unk2, a_unk3, a_unk4);
+		}
 	}
 
     RE::BSPortalGraphEntry* Main__GetPortalGraphEntry(Main* _this)
@@ -336,9 +340,9 @@ namespace DEM
 		//byte_141E0DC5D = false;
 		//dword_1431D0D8C = 0;
 
-        RE::BSRenderManager* renderManager = RE::BSRenderManager::GetSingleton();
+        RE::BSGraphics::Renderer* renderer = RE::BSGraphics::Renderer::GetSingleton();
 
-		RE::BSRenderManager__sub_140D6A6D0(renderManager, 0.0F, 0.0F, 0.0F, 1.0F);
+		RE::BSGraphics::Renderer__sub_140D6A6D0(renderer, 0.0F, 0.0F, 0.0F, 1.0F);
 
 		bool& byte_141E0E350 = *REL::Relocation<bool*>{ RELOCATION_ID(513342, 0) };
 
@@ -439,7 +443,7 @@ namespace DEM
         int depthStencil = renderTargetManager->GetDepthStencil();
         renderTargetManager->sub_140D74D10(depthStencil, 0, 0, false);
 
-		renderTargetManager->SetModeForRenderTarget(0, RE::RENDER_TARGET::kLocalMapSwap, RE::BSGraphics::SetRenderTargetMode::kClear, true);
+		renderTargetManager->SetModeForRenderTarget(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::kClear, true);
 		RE::NiCamera__Accumulate(a_cullingProcess->GetLocalMapCamera()->camera.get(), shaderAccumulator.get(), 0);
 
 		// 4. Post process step (Add fog of war) ///////////////////////////////////////////////////////////////////////////
@@ -477,7 +481,7 @@ namespace DEM
 				}
 			}
 
-			renderTargetManager->SetModeForRenderTarget(0, RE::RENDER_TARGET::kLocalMapSwap, RE::BSGraphics::SetRenderTargetMode::kRestore, true);
+			renderTargetManager->SetModeForRenderTarget(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::kRestore, true);
 			RE::NiCamera__Accumulate(a_cullingProcess->GetLocalMapCamera()->camera.get(), shaderAccumulator.get(), 0);
 
 			if (rendererShadowState->depthStencilDepthMode != RE::BSGraphics::DepthStencilDepthMode::kTestWrite)
@@ -503,14 +507,14 @@ namespace DEM
 
         renderTargetManager->sub_140D74D10(-1, 3, 0, false);
 		RE::ImageSpaceShaderParam& imageSpaceShaderParam = a_cullingProcess->GetImageSpaceShaderParam();
-		RE::BSGraphics::RenderTargetProperties& renderLocalMapSwapData = renderTargetManager->renderTargetData[RE::RENDER_TARGET::kLocalMapSwap];
+		RE::BSGraphics::RenderTargetProperties& renderLocalMapSwapData = renderTargetManager->renderTargetData[RE::RENDER_TARGET::kLOCAL_MAP_SWAP];
 		float localMapSwapWidth = renderLocalMapSwapData.width;
 		float localMapSwapHeight = renderLocalMapSwapData.height;
 
 		imageSpaceShaderParam.sub_1412D66F0(0, 1.0 / localMapSwapWidth, 1.0 / localMapSwapHeight, 0.0, 0.0);
 		
         RE::TESImageSpaceManager* imageSpaceManager = RE::TESImageSpaceManager::GetSingleton();
-		imageSpaceManager->sub_1412979E0(98, RE::RENDER_TARGET::kLocalMapSwap, RE::RENDER_TARGET::kLocalMap, &imageSpaceShaderParam);
+		imageSpaceManager->sub_1412979E0(98, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::RENDER_TARGET::kLOCAL_MAP, &imageSpaceShaderParam);
 
 		//if (areObjectLODsHidden)
 		//{

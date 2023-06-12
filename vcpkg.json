@@ -2,15 +2,10 @@
     "name": "minimap",
     "version-string": "0.1.0",
     "description": "",
-    "homepage": "https://github.com/alexsylex/AnimationMotionRevolution",
+    "homepage": "https://github.com/alexsylex/DragonsEyeMinimap",
     "license": "MIT",
     "dependencies": [
-        "boost-atomic",
-        "boost-stl-interfaces",
-        "rsm-binary-io",
-        "span-lite",
-        "xbyak",
-        "tsl-ordered-map",
         "commonlibsse-ng"
-    ]
+    ],
+    "builtin-baseline": "638b1588be3a265a9c7ad5b212cef72a1cad336a"
 }

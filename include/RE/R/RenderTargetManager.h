@@ -1,6 +1,8 @@
 #pragma once
 
 #include "RE/B/BSShaderRenderTargets.h"
+#include "RE/R/RenderTargetProperties.h"
+#include "RE/R/RendererShadowState.h"
 
 namespace RE
 {
@@ -11,7 +13,7 @@ namespace RE
 		public:
 			static RenderTargetManager* GetSingleton()
 			{
-				REL::Relocation<RenderTargetManager*> instance{ RELOCATION_ID(524970, 0) };
+				REL::Relocation<RenderTargetManager*> instance{ RELOCATION_ID(524970, 411451) };
 				return instance.get();
 			}
 
@@ -40,9 +42,9 @@ namespace RE
 			}
 
 			// members
-			RenderTargetProperties renderTargetData[RENDER_TARGET::kTotal];							  // 000
-			DepthStencilTargetProperties depthStencilTargetData[RENDER_TARGET_DEPTHSTENCIL::kTotal];  // C78
-			CubeMapRenderTargetProperties cubeMapRenderTargetData[RENDER_TARGET_CUBEMAP::kTotal];	  // D38
+			RenderTargetProperties renderTargetData[RENDER_TARGET::kTOTAL];							   // 000
+			DepthStencilTargetProperties depthStencilTargetData[RENDER_TARGETS_DEPTHSTENCIL::kTOTAL];  // C78
+			CubeMapRenderTargetProperties cubeMapRenderTargetData[RENDER_TARGETS_CUBEMAP::kTOTAL];	   // D38
 		};
 		static_assert(sizeof(RenderTargetManager) == 0xD44);
 	}
