@@ -167,12 +167,9 @@ namespace DEM
 			{
 				auto fogOfWarOverlayHolder = static_cast<RE::NiNode*>(localMap->localCullingProcess.GetFogOfWarOverlayHolder().get());
 
-				if (fogOfWarOverlayHolder)
-				{
-					fogOfWarOverlayHolder->DetachChildAt(0);
-				}
+				//localMap->localCullingProcess.Setup();
 
-				localMap->localCullingProcess.Setup();
+				Setup(&localMap->localCullingProcess);
 
                 RenderOffscreen(&localMap->localCullingProcess);
 
@@ -197,6 +194,99 @@ namespace DEM
 
 	void Minimap::Setup(RE::LocalMapMenu::LocalMapCullingProcess* a_cullingProcess)
 	{
+		auto& fogOfWarOverlayHolder = reinterpret_cast< RE::NiPointer<RE::NiNode>&>(a_cullingProcess->GetFogOfWarOverlayHolder());
+
+		if (!fogOfWarOverlayHolder)
+		{
+			localMap->localCullingProcess.Setup();
+		}
+		else
+		{
+			struct FogOfWarData
+			{
+				int AddOverlayGrid(RE::TESObjectCELL* a_cell)
+				{
+					using func_t = decltype(&FogOfWarData::AddOverlayGrid);
+					REL::Relocation<func_t> func{ RELOCATION_ID(16101, 0) };
+
+					return func(this, a_cell);
+				}
+
+				RE::NiNode* holder;
+				std::uint16_t v20;
+				RE::NiPoint3 minExtent;
+				RE::NiPoint3 maxExtent;
+			};
+			static_assert(sizeof(FogOfWarData) == 0x28);
+
+			FogOfWarData fogOfWarData;
+			
+			std::uint32_t childrenSize = fogOfWarOverlayHolder->GetChildren().size();
+
+			for (std::uint32_t i = 0; i < childrenSize; i++)
+			{
+				fogOfWarOverlayHolder->DetachChildAt(i);
+			}
+
+			fogOfWarData.holder = fogOfWarOverlayHolder.get();
+
+			RE::TESObjectCELL* interiorCell = RE::TES::GetSingleton()->interiorCell;
+
+			RE::LocalMapCamera* localMapCamera = a_cullingProcess->GetLocalMapCamera();
+
+			if (interiorCell)
+			{
+				fogOfWarData.minExtent = localMapCamera->minExtent;
+				fogOfWarData.maxExtent = localMapCamera->maxExtent;
+				fogOfWarData.v20 = 32;
+		
+				fogOfWarData.AddOverlayGrid(interiorCell);
+			}
+			else
+			{
+				fogOfWarData.v20 = 16;
+		
+				RE::GridCellArray* gridCells = RE::TES::GetSingleton()->gridCells;
+				std::uint32_t gridLength = gridCells->length;
+		
+				if (gridLength)
+				{
+					for (std::uint32_t gridX = 0; gridX < gridLength; gridX++)
+					{	
+						for (std::uint32_t gridY = 0; gridY < gridLength; gridY++)
+						{					
+							RE::TESObjectCELL* cell = gridCells->GetCell(gridX, gridY);
+							if (cell && cell->IsAttached())
+							{
+								fogOfWarData.AddOverlayGrid(cell);
+							}
+						}
+					}
+				}
+
+				RE::TESWorldSpace* worldSpace = RE::TES::GetSingleton()->worldSpace;
+				if (worldSpace)
+				{
+					RE::TESObjectCELL* skyCell = worldSpace->GetSkyCell();
+					if (skyCell && skyCell->IsAttached())
+					{
+						fogOfWarData.AddOverlayGrid(skyCell);
+					}
+				}
+			}
+	
+			fogOfWarOverlayHolder->local.translate.z = (localMapCamera->maxExtent.z - localMapCamera->minExtent.z) * 0.5;
+			
+			RE::NiUpdateData niUpdateData;
+			niUpdateData.time = 0.0F;
+
+			fogOfWarOverlayHolder->Update(niUpdateData);
+		}
+
+		//RE::NiNode* fogOfWarOverlayHolder2 = RE::NiNode::Create(0);
+
+		//fogOfWarOverlayHolder = reinterpret_cast<RE::NiPointer<RE::NiNode>&>(fogOfWarOverlayHolder2);
+
 //		NiNode* v2;															  // rax
 //		NiNode* fogOfWarOverlay;											  // rcx
 //		NiNode* fogOfWarOverlay_2;											  // rax
@@ -312,55 +402,18 @@ namespace DEM
 
 		RE::ShadowSceneNode* mainShadowSceneNode = RE::ShadowSceneNode::GetMain();
 
-		//bool prevUnk219 = mainShadowSceneNode->GetRuntimeData().unk219;
-		//mainShadowSceneNode->GetRuntimeData().unk219 = true;
-
         RE::NiPointer<RE::BSShaderAccumulator>& shaderAccumulator = a_cullingProcess->GetShaderAccumulator();
 
 		shaderAccumulator->activeShadowSceneNode = mainShadowSceneNode;
 
 		RE::NiTObjectArray<RE::NiPointer<RE::NiAVObject>>& mainShadowSceneChildren = mainShadowSceneNode->GetChildren();
 
-		//RE::NiPointer<RE::NiAVObject>& objectLODRoot = mainShadowSceneChildren[3];
-
-		//bool areObjectLODsHidden = objectLODRoot->GetFlags().any(RE::NiAVObject::Flag::kHidden);
-
-		//objectLODRoot->GetFlags().reset(RE::NiAVObject::Flag::kHidden);
-
-		//bool& byte_1431D1D30 = *REL::Relocation<bool*>{ RELOCATION_ID(527793, 0) };
-		//bool& byte_141E0DC5C = *REL::Relocation<bool*>{ RELOCATION_ID(513141, 0) };
-		//bool& byte_141E0DC5D = *REL::Relocation<bool*>{ RELOCATION_ID(513142, 0) };
-		//std::uint32_t& dword_1431D0D8C = *REL::Relocation<std::uint32_t*>{ RELOCATION_ID(527629, 0) };
-		//
-		//bool prevByte_1431D1D30 = byte_1431D1D30;
-		//bool prevByte_141E0DC5C = byte_141E0DC5C;
-
-		//byte_1431D1D30 = true;
-		//byte_141E0DC5C = false;
-		//byte_141E0DC5D = false;
-		//dword_1431D0D8C = 0;
-
         RE::BSGraphics::Renderer* renderer = RE::BSGraphics::Renderer::GetSingleton();
 
 		RE::BSGraphics::Renderer__sub_140D6A6D0(renderer, 0.0F, 0.0F, 0.0F, 1.0F);
 
-		bool& byte_141E0E350 = *REL::Relocation<bool*>{ RELOCATION_ID(513342, 0) };
-
-		bool prevByte_141E0E350 = byte_141E0E350;
-
         RE::TES* tes = RE::TES::GetSingleton();
-        RE::TESObjectCELL* interiorCell = tes->interiorCell;
 		RE::TESWorldSpace* worldSpace = tes->worldSpace;
-
-		bool smallWorldSpace = worldSpace && worldSpace->flags.any(RE::TESWorldSpace::Flag::kSmallWorld);
-		if (interiorCell || smallWorldSpace)
-		{
-			byte_141E0E350 = false;
-		}
-		else
-		{
-			byte_141E0E350 = true;
-		}
 
 		RE::LocalMapMenu::LocalMapCullingProcess::UnkData unkData{ a_cullingProcess };
 
@@ -374,6 +427,8 @@ namespace DEM
 		}
 
         RE::TESObjectCELL* currentCell = nullptr;
+
+		RE::TESObjectCELL* interiorCell = tes->interiorCell;
 		if (interiorCell)
 		{
 			currentCell = interiorCell;
@@ -515,18 +570,6 @@ namespace DEM
 		
         RE::TESImageSpaceManager* imageSpaceManager = RE::TESImageSpaceManager::GetSingleton();
 		imageSpaceManager->sub_1412979E0(98, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::RENDER_TARGET::kLOCAL_MAP, &imageSpaceShaderParam);
-
-		//if (areObjectLODsHidden)
-		//{
-		//	objectLODRoot->GetFlags().set(RE::NiAVObject::Flag::kHidden);
-		//}
-
-		//mainShadowSceneNode->GetRuntimeData().unk219 = prevUnk219;
-		//byte_141E0E350 = prevByte_141E0E350;
-		//byte_1431D1D30 = prevByte_1431D1D30;
-		//byte_141E0DC5C = prevByte_141E0DC5C;
-		//byte_141E0DC5D = prevByte_141E0DC5C;
-		//dword_1431D0D8C = 0;
 
         shaderAccumulator->sub_1412CCF90(false);
 	}
