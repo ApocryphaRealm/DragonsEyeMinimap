@@ -82,6 +82,8 @@ namespace DEM
 		if (localMap)
 		{
 			localMap->Ctor();
+			cullingProcess = &localMap->localCullingProcess;
+			cameraContext = cullingProcess->GetLocalMapCamera();
 		}
 	}
 
@@ -117,9 +119,17 @@ namespace DEM
 
 			//localMap->GetRuntimeData().enabled = false;
 			localMap->Show(true);
+
+			//RE::GFxValue shown = true;
+			//localMap->GetRuntimeData().root.Invoke("Show", nullptr, &shown, 1);
 		}
 
 		return false;
+	}
+
+	void Advance()
+	{
+
 	}
 
 	void Minimap::Advance(RE::HUDMenu* a_hudMenu)
@@ -130,11 +140,9 @@ namespace DEM
 
 			RE::NiPoint3 playerPos = RE::PlayerCharacter::GetSingleton()->GetPosition();
 
-			RE::LocalMapCamera* localMapCamera = localMap->localCullingProcess.GetLocalMapCamera();
-
-			localMapCamera->defaultState->initialPosition.x = playerPos.x;
-			localMapCamera->defaultState->initialPosition.y = playerPos.y;
-			localMapCamera->defaultState->translation = { 0, 0, 0 };
+			cameraContext->defaultState->initialPosition.x = playerPos.x;
+			cameraContext->defaultState->initialPosition.y = playerPos.y;
+			cameraContext->defaultState->translation = { 0, 0, 0 };
 
 			localMap->Advance();
 		}
@@ -150,29 +158,45 @@ namespace DEM
 
 			RE::RenderPassCache::Pool& pool = renderPassCache->pools[0];
 
-			RE::LocalMapCamera* localMapCamera = localMap->localCullingProcess.GetLocalMapCamera();
 			RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->loadedAreaBound;
 			RE::NiPoint3 maxExtentExtra{ 0, 0, 40000 };
 
-			localMapCamera->minExtent = loadedAreaBound->minExtent;
-			localMapCamera->maxExtent = loadedAreaBound->maxExtent + maxExtentExtra;
+			cameraContext->minExtent = loadedAreaBound->minExtent;
+			cameraContext->maxExtent = loadedAreaBound->maxExtent + maxExtentExtra;
 
-			static std::chrono::time_point<system_clock> last;
+			static std::chrono::time_point<system_clock> lastUpdate;
+			static std::chrono::time_point<system_clock> lastLog;
+			static std::chrono::time_point<system_clock> start = system_clock::now();
 
 			std::chrono::time_point<system_clock> now = system_clock::now();
 
-			auto diff = duration_cast<milliseconds>(now - last);
+			auto diffUpdate = duration_cast<milliseconds>(now - lastUpdate);
+			auto diffLog = duration_cast<milliseconds>(now - lastLog);
+			auto diffStart = duration_cast<milliseconds>(now - start);
 
-			if (diff > 40ms)
+			bool doUpdate = false;
+
+			if (diffUpdate > 40ms)
 			{
-				auto fogOfWarOverlayHolder = static_cast<RE::NiNode*>(localMap->localCullingProcess.GetFogOfWarOverlayHolder().get());
+				lastUpdate = now;
+				doUpdate = true;
+			}
 
-				//localMap->localCullingProcess.Setup();
+			if (doUpdate)
+			{
+				UpdateFogOfWar();
+			}
 
-				Setup(&localMap->localCullingProcess);
+			static bool done = false;
+			//if (diffStart > 6s) // && !done)
+			//if (doUpdate)
+			{
+				RenderOffscreen();
+				done = true;
+			}
 
-                RenderOffscreen(&localMap->localCullingProcess);
-
+			if (diffLog > 500ms)				
+			{
 				size_t usedPasses = 0;
 
 				constexpr size_t passCount = 65535;
@@ -185,42 +209,23 @@ namespace DEM
 					}
 				}
 
-				//logger::debug("Total: {}", usedPasses);
+				logger::debug("Total: {}", usedPasses);
 
-				last = now;
+				lastLog = now;
 			}
 		}
 	}
 
-	void Minimap::Setup(RE::LocalMapMenu::LocalMapCullingProcess* a_cullingProcess)
+	void Minimap::UpdateFogOfWar()
 	{
-		auto& fogOfWarOverlayHolder = reinterpret_cast< RE::NiPointer<RE::NiNode>&>(a_cullingProcess->GetFogOfWarOverlayHolder());
+		auto& fogOfWarOverlayHolder = reinterpret_cast< RE::NiPointer<RE::NiNode>&>(cullingProcess->GetFogOfWarOverlayHolder());
 
 		if (!fogOfWarOverlayHolder)
 		{
-			localMap->localCullingProcess.Setup();
+			localMap->localCullingProcess.CreateFogOfWar();
 		}
 		else
-		{
-			struct FogOfWarData
-			{
-				int AddOverlayGrid(RE::TESObjectCELL* a_cell)
-				{
-					using func_t = decltype(&FogOfWarData::AddOverlayGrid);
-					REL::Relocation<func_t> func{ RELOCATION_ID(16101, 0) };
-
-					return func(this, a_cell);
-				}
-
-				RE::NiNode* holder;
-				std::uint16_t v20;
-				RE::NiPoint3 minExtent;
-				RE::NiPoint3 maxExtent;
-			};
-			static_assert(sizeof(FogOfWarData) == 0x28);
-
-			FogOfWarData fogOfWarData;
-			
+		{			
 			std::uint32_t childrenSize = fogOfWarOverlayHolder->GetChildren().size();
 
 			for (std::uint32_t i = 0; i < childrenSize; i++)
@@ -228,23 +233,23 @@ namespace DEM
 				fogOfWarOverlayHolder->DetachChildAt(i);
 			}
 
-			fogOfWarData.holder = fogOfWarOverlayHolder.get();
+			RE::LocalMapMenu::LocalMapCullingProcess::FogOfWar fogOfWar;
+
+			fogOfWar.overlayHolder = fogOfWarOverlayHolder.get();
 
 			RE::TESObjectCELL* interiorCell = RE::TES::GetSingleton()->interiorCell;
 
-			RE::LocalMapCamera* localMapCamera = a_cullingProcess->GetLocalMapCamera();
-
 			if (interiorCell)
 			{
-				fogOfWarData.minExtent = localMapCamera->minExtent;
-				fogOfWarData.maxExtent = localMapCamera->maxExtent;
-				fogOfWarData.v20 = 32;
+				fogOfWar.minExtent = cameraContext->minExtent;
+				fogOfWar.maxExtent = cameraContext->maxExtent;
+				fogOfWar.unk08 = 32;
 		
-				fogOfWarData.AddOverlayGrid(interiorCell);
+				cullingProcess->AttachFogOfWarOverlay(fogOfWar, interiorCell);
 			}
 			else
 			{
-				fogOfWarData.v20 = 16;
+				fogOfWar.unk08 = 16;
 		
 				RE::GridCellArray* gridCells = RE::TES::GetSingleton()->gridCells;
 				std::uint32_t gridLength = gridCells->length;
@@ -258,7 +263,7 @@ namespace DEM
 							RE::TESObjectCELL* cell = gridCells->GetCell(gridX, gridY);
 							if (cell && cell->IsAttached())
 							{
-								fogOfWarData.AddOverlayGrid(cell);
+								cullingProcess->AttachFogOfWarOverlay(fogOfWar, cell);
 							}
 						}
 					}
@@ -270,139 +275,27 @@ namespace DEM
 					RE::TESObjectCELL* skyCell = worldSpace->GetSkyCell();
 					if (skyCell && skyCell->IsAttached())
 					{
-						fogOfWarData.AddOverlayGrid(skyCell);
+						cullingProcess->AttachFogOfWarOverlay(fogOfWar, skyCell);
 					}
 				}
 			}
 	
-			fogOfWarOverlayHolder->local.translate.z = (localMapCamera->maxExtent.z - localMapCamera->minExtent.z) * 0.5;
+			fogOfWarOverlayHolder->local.translate.z = (cameraContext->maxExtent.z - cameraContext->minExtent.z) * 0.5;
 			
 			RE::NiUpdateData niUpdateData;
 			niUpdateData.time = 0.0F;
 
 			fogOfWarOverlayHolder->Update(niUpdateData);
 		}
-
-		//RE::NiNode* fogOfWarOverlayHolder2 = RE::NiNode::Create(0);
-
-		//fogOfWarOverlayHolder = reinterpret_cast<RE::NiPointer<RE::NiNode>&>(fogOfWarOverlayHolder2);
-
-//		NiNode* v2;															  // rax
-//		NiNode* fogOfWarOverlay;											  // rcx
-//		NiNode* fogOfWarOverlay_2;											  // rax
-//		TES* v5;															  // r15
-//		TESObjectCELL* interiorCell;										  // rdx
-//		unsigned __int16 v7;												  // ax
-//		GridCellArray* gridCells;											  // rdi
-//		int v9;																  // esi
-//		unsigned int gridX;													  // ebp
-//		unsigned int gridLength;											  // eax
-//		unsigned int gridY;													  // ebx
-//		TESObjectCELL* v13;													  // rdx
-//		TESWorldSpace* worldSpace;											  // rcx
-//		TESObjectCELL* SkyCell;												  // rax
-//		NiNode* fogOfWarOverlay_1;											  // rax
-//		float y;															  // xmm1_4
-//		float v18;															  // xmm2_4
-//		LocalMapCullingProcessSetupStruct localMapCullingProcessSetupStruct;  // [rsp+28h] [rbp-50h] BYREF
-//		NiUpdateData a2;													  // [rsp+88h] [rbp+10h] BYREF
-//
-//		if (MemoryManager::state != 2) {
-//			MemoryManager::Constructor(&MemoryManager::singleton, &MemoryManager::state);
-//		}
-//		v2 = (NiNode*)MemoryManager::Allocate(&MemoryManager::singleton, sizeof(NiNode), 0, 0);
-//		if (v2) {
-//			v2 = NiNode::NiNode(v2, 0);
-//		}
-//		fogOfWarOverlay = this->fogOfWarOverlayHolder;
-//		if (fogOfWarOverlay != v2) {
-//			if (v2) {
-//				_InterlockedIncrement(&v2->refCount);
-//			}
-//			this->fogOfWarOverlayHolder = v2;
-//			if (fogOfWarOverlay && _InterlockedExchangeAdd(&fogOfWarOverlay->refCount, -1u) == 1) {
-//				fogOfWarOverlay->DeleteThis(fogOfWarOverlay);
-//			}
-//		}
-//		fogOfWarOverlay_2 = this->fogOfWarOverlayHolder;
-//		fogOfWarOverlay_2->flags |= NiAVObject_Flag_AlwaysDraw;
-//		fogOfWarOverlay_2->worldBound.radius = 1.0;
-//		v5 = TES::pSingleton;
-//		interiorCell = TES::pSingleton->interiorCell;
-//		localMapCullingProcessSetupStruct.fogOfWarOverlayHolder = this->fogOfWarOverlayHolder;
-//		v7 = 16;
-//		if (interiorCell) {
-//			v7 = 32;
-//		}
-//		localMapCullingProcessSetupStruct.v20 = v7;
-//		if (interiorCell) {
-//			localMapCullingProcessSetupStruct.minExtent = this->camera.minExtent;
-//			localMapCullingProcessSetupStruct.maxExtent = this->camera.maxExtent;
-//		}
-//
-//		if (interiorCell) {
-//			goto LABEL_29;
-//		}
-//
-//		gridCells = TES::pSingleton->gridCells;
-//		v9 = 1;
-//		gridX = 0;
-//		gridLength = gridCells->length;
-//		if (!gridLength) {
-//			goto LABEL_27;
-//		}
-//
-//		do {
-//			gridY = 0;
-//			if (gridLength) {
-//				do {
-//					if (v9 != 1) {
-//						break;
-//					}
-//					v13 = *GridCellArray::GetCell(gridCells, gridX, gridY);
-//					if (v13 && v13->cellState == TESObjectCELL_State_Attached) {
-//						v9 = sub_1401F6EC0(&localMapCullingProcessSetupStruct, v13);
-//					}
-//					++gridY;
-//				} while (gridY < gridCells->length);
-//			}
-//			++gridX;
-//			gridLength = gridCells->length;
-//		} while (gridX < gridLength);
-//
-//		if (v9 == 1) {
-//LABEL_27:
-//			worldSpace = v5->worldSpace;
-//			if (worldSpace) {
-//				SkyCell = TESWorldSpace::GetSkyCell(worldSpace);
-//				if (SkyCell) {
-//					if (SkyCell->cellState == TESObjectCELL_State_Attached) {
-//						interiorCell = SkyCell;
-//LABEL_29:
-//						sub_1401F6EC0(&localMapCullingProcessSetupStruct, interiorCell);
-//					}
-//				}
-//			}
-//		}
-//		fogOfWarOverlay_1 = this->fogOfWarOverlayHolder;
-//		y = fogOfWarOverlay_1->local.translate.y;
-//		v18 = (float)(this->camera.maxExtent.z - this->camera.minExtent.z) * 0.5;
-//		fogOfWarOverlay_1->local.translate.x = fogOfWarOverlay_1->local.translate.x;
-//		fogOfWarOverlay_1->local.translate.y = y;
-//		fogOfWarOverlay_1->local.translate.z = v18;
-//		a2.time = 0.0;
-//		a2.flags = NiUpdateData_Flag_None;
-//		NiAVObject::Update(this->fogOfWarOverlayHolder, &a2);
 	}
 
-	// WORKING!!!
-	void Minimap::RenderOffscreen(RE::LocalMapMenu::LocalMapCullingProcess* a_cullingProcess)
+	void Minimap::RenderOffscreen()
 	{
 		// 1. Setup culling step ///////////////////////////////////////////////////////////////////////////////////////////
 
 		RE::ShadowSceneNode* mainShadowSceneNode = RE::ShadowSceneNode::GetMain();
 
-        RE::NiPointer<RE::BSShaderAccumulator>& shaderAccumulator = a_cullingProcess->GetShaderAccumulator();
+        RE::NiPointer<RE::BSShaderAccumulator>& shaderAccumulator = cullingProcess->GetShaderAccumulator();
 
 		shaderAccumulator->activeShadowSceneNode = mainShadowSceneNode;
 
@@ -415,7 +308,7 @@ namespace DEM
         RE::TES* tes = RE::TES::GetSingleton();
 		RE::TESWorldSpace* worldSpace = tes->worldSpace;
 
-		RE::LocalMapMenu::LocalMapCullingProcess::UnkData unkData{ a_cullingProcess };
+		RE::LocalMapMenu::LocalMapCullingProcess::UnkData unkData{ cullingProcess };
 
 		if (worldSpace && worldSpace->flags.any(RE::TESWorldSpace::Flag::kFixedDimensions))
 		{
@@ -429,6 +322,9 @@ namespace DEM
         RE::TESObjectCELL* currentCell = nullptr;
 
 		RE::TESObjectCELL* interiorCell = tes->interiorCell;
+
+		// 2. Culling step /////////////////////////////////////////////////////////////////////////////////////////////////
+
 		if (interiorCell)
 		{
 			currentCell = interiorCell;
@@ -438,8 +334,8 @@ namespace DEM
 			RE::TESObjectCELL* skyCell = worldSpace->GetSkyCell();
 			if (skyCell && skyCell->IsAttached())
             {
-				if (RE::LocalMapMenu::LocalMapCullingProcess::GetTerrainData(tes->gridCells, &unkData, nullptr) == 1)
-                {
+				if (cullingProcess->CullExteriorGround(tes->gridCells, unkData, nullptr) == 1)
+				{
 					currentCell = skyCell;
 				}
             }
@@ -447,15 +343,13 @@ namespace DEM
 
         if (currentCell)
         {
-			RE::LocalMapMenu::LocalMapCullingProcess::GetCellObjectsData(&unkData, currentCell);
+			cullingProcess->CullCellObjects(unkData, currentCell);
 		}
 
-		// 2. Culling step /////////////////////////////////////////////////////////////////////////////////////////////////
+        RE::BSCullingDelegate& cullingDelegate = cullingProcess->culler;
+		RE::NiPointer<RE::NiCamera> camera = cameraContext->camera;
 
-        RE::BSCullingProcess::Data& cullingData = a_cullingProcess->data;
-        RE::NiPointer<RE::NiCamera> localMapCamera = a_cullingProcess->GetLocalMapCamera()->camera;
-
-        cullingData.camera = localMapCamera;
+        cullingDelegate.camera = camera;
 
         RE::BSPortalGraphEntry* portalGraphEntry = RE::Main__GetPortalGraphEntry(RE::Main::GetSingleton());
 		
@@ -464,32 +358,32 @@ namespace DEM
 			RE::BSPortalGraph* portalGraph = portalGraphEntry->portalGraph;
             if (portalGraph)
             {
-				a_cullingProcess->data.unk48 = &portalGraph->unk58;
-                a_cullingProcess->data.UseForCulling(1, 0);
+				cullingDelegate.unk48 = &portalGraph->unk58;
+				cullingDelegate.Cull(1, 0);
             }
         }
 
         if (mainShadowSceneChildren.capacity() > 9)
         {
 			RE::NiPointer<RE::NiAVObject>& portalSharedNode = mainShadowSceneChildren[9];
-			cullingData.currentCulledObject = portalSharedNode;
+			cullingDelegate.currentCulledObject = portalSharedNode;
         }
 		else
 		{
-			cullingData.currentCulledObject = nullptr;
+			cullingDelegate.currentCulledObject = nullptr;
 		}
-		cullingData.UseForCulling(0, 0);
+		cullingDelegate.Cull(0, 0);
 
         if (mainShadowSceneChildren.capacity() > 8)
         {
 			RE::NiPointer<RE::NiAVObject>& multiBoundNode = mainShadowSceneChildren[8];
-			cullingData.currentCulledObject = multiBoundNode;
+			cullingDelegate.currentCulledObject = multiBoundNode;
         }
 		else
 		{
-			cullingData.currentCulledObject = nullptr; 
+			cullingDelegate.currentCulledObject = nullptr; 
 		}
-		cullingData.UseForCulling(0, 0);
+		cullingDelegate.Cull(0, 0);
 
 		// 3. Rendering step ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -498,22 +392,22 @@ namespace DEM
         int depthStencil = renderTargetManager->GetDepthStencil();
         renderTargetManager->sub_140D74D10(depthStencil, 0, 0, false);
 
-		renderTargetManager->SetModeForRenderTarget(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::kClear, true);
-		RE::NiCamera__Accumulate(a_cullingProcess->GetLocalMapCamera()->camera.get(), shaderAccumulator.get(), 0);
+		RE::BSGraphics::SetRenderTargetMode worldRenderTargetMode = isFogOfWarEnabled ? RE::BSGraphics::SetRenderTargetMode::kClear : RE::BSGraphics::SetRenderTargetMode::kRestore;
+
+		renderTargetManager->SetModeForRenderTarget(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, worldRenderTargetMode, true);
+		RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
 
 		// 4. Post process step (Add fog of war) ///////////////////////////////////////////////////////////////////////////
 
-		static constexpr bool isFogOfWarEnabled = true;
-
-		if constexpr (isFogOfWarEnabled)
+		if (isFogOfWarEnabled)
 		{
 			shaderAccumulator->sub_1412CCF90(false);
 
 			RE::BSShaderAccumulator::SetRenderMode(19);
 
-			RE::NiPointer<RE::NiAVObject> fogOfWarOverlayHolder = a_cullingProcess->GetFogOfWarOverlayHolder();
-			cullingData.currentCulledObject = fogOfWarOverlayHolder;
-			cullingData.UseForCulling(0, 0);
+			RE::NiPointer<RE::NiAVObject> fogOfWarOverlayHolder = cullingProcess->GetFogOfWarOverlayHolder();
+			cullingDelegate.currentCulledObject = fogOfWarOverlayHolder;
+			cullingDelegate.Cull(0, 0);
 
 			RE::BSGraphics::RendererShadowState* rendererShadowState = RE::BSGraphics::RendererShadowState::GetSingleton();
 
@@ -537,7 +431,7 @@ namespace DEM
 			}
 
 			renderTargetManager->SetModeForRenderTarget(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::kRestore, true);
-			RE::NiCamera__Accumulate(a_cullingProcess->GetLocalMapCamera()->camera.get(), shaderAccumulator.get(), 0);
+			RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
 
 			if (rendererShadowState->depthStencilDepthMode != RE::BSGraphics::DepthStencilDepthMode::kTestWrite)
 			{
@@ -561,7 +455,7 @@ namespace DEM
 		// 5. Finish rendering and dispatch ////////////////////////////////////////////////////////////////////////////////
 
         renderTargetManager->sub_140D74D10(-1, 3, 0, false);
-		RE::ImageSpaceShaderParam& imageSpaceShaderParam = a_cullingProcess->GetImageSpaceShaderParam();
+		RE::ImageSpaceShaderParam& imageSpaceShaderParam = cullingProcess->GetImageSpaceShaderParam();
 		RE::BSGraphics::RenderTargetProperties& renderLocalMapSwapData = renderTargetManager->renderTargetData[RE::RENDER_TARGET::kLOCAL_MAP_SWAP];
 		float localMapSwapWidth = renderLocalMapSwapData.width;
 		float localMapSwapHeight = renderLocalMapSwapData.height;

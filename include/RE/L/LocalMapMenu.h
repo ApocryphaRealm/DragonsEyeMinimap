@@ -39,9 +39,19 @@ namespace RE
 		public:
 			struct UnkData
 			{
-				LocalMapCullingProcess* ptr;
-				bool unk8;
+				LocalMapCullingProcess* ptr;	// 00
+				bool unk8;						// 08
 			};
+			static_assert(sizeof(UnkData) == 0x10);
+
+			struct FogOfWar
+			{
+				RE::NiNode* overlayHolder;	// 00
+				std::uint16_t unk08;		// 08
+				RE::NiPoint3 minExtent;		// 0C
+				RE::NiPoint3 maxExtent;		// 18
+			};
+			static_assert(sizeof(FogOfWar) == 0x28);
 
 			[[nodiscard]] inline LocalMapCamera* GetLocalMapCamera() const noexcept
 			{
@@ -61,29 +71,37 @@ namespace RE
 				func(this);
 			}
 
-			void Setup()
+			void CreateFogOfWar()
 			{
-				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::Setup);
+				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::CreateFogOfWar);
 				REL::Relocation<func_t> func{ RELOCATION_ID(16095, 0) };
 
 				func(this);
 			}
 
-			static std::uint32_t GetTerrainData(RE::GridCellArray* a_gridCells, UnkData* a_unkData,
-				TESObjectCELL* a_cell)
+			static std::uint32_t CullExteriorGround(const RE::GridCellArray* a_gridCells, UnkData& a_unkData,
+				const TESObjectCELL* a_cell)
 			{
-				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::GetTerrainData);
+				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::CullExteriorGround);
 				REL::Relocation<func_t> func{ RELOCATION_ID(16098, 0) };
 
 				return func(a_gridCells, a_unkData, a_cell);
 			}
 
-			static std::uint32_t GetCellObjectsData(UnkData* a_unkData, TESObjectCELL* a_cell)
+			static std::uint32_t CullCellObjects(UnkData& a_unkData, const TESObjectCELL* a_cell)
 			{
-				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::GetCellObjectsData);
+				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::CullCellObjects);
 				REL::Relocation<func_t> func{ RELOCATION_ID(16100, 0) };
 
 				return func(a_unkData, a_cell);
+			}
+
+			static int AttachFogOfWarOverlay(FogOfWar& a_fogOfWar, const TESObjectCELL* a_cell)
+			{
+				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::AttachFogOfWarOverlay);
+				REL::Relocation<func_t> func{ RELOCATION_ID(16101, 0) };
+
+				return func(a_fogOfWar, a_cell);
 			}
 
 			[[nodiscard]] inline NiPointer<BSShaderAccumulator>& GetShaderAccumulator() const noexcept
@@ -103,7 +121,7 @@ namespace RE
 
 			// members
 			BSCullingProcess cullingProcess;  // 00000
-			BSCullingProcess::Data data;	  // 301F8
+			BSCullingDelegate culler;		  // 301F8
 			BSTArray<void*>* unk30240;		  // 30240
 			std::uint64_t unk30248;			  // 30248
 #ifndef ENABLE_SKYRIM_VR
@@ -193,12 +211,12 @@ namespace RE
 			func(this);
 		}
 
-		void InitScaleform(RE::GFxMovie* const& a_movie)
+		void Advance()
 		{
-			using func_t = decltype(&LocalMapMenu::InitScaleform);
-			REL::Relocation<func_t> func{ RELOCATION_ID(52080, 0) };
+			using func_t = decltype(&LocalMapMenu::Advance);
+			REL::Relocation<func_t> func{ RELOCATION_ID(52078, 0) };
 
-			return func(this, a_movie);
+			func(this);
 		}
 
 		void Show(bool a_show)
@@ -209,10 +227,18 @@ namespace RE
 			func(this, a_show);
 		}
 
-		void Advance()
+		void InitScaleform(RE::GFxMovie* const& a_movie)
 		{
-			using func_t = decltype(&LocalMapMenu::Advance);
-			REL::Relocation<func_t> func{ RELOCATION_ID(52078, 0) };
+			using func_t = decltype(&LocalMapMenu::InitScaleform);
+			REL::Relocation<func_t> func{ RELOCATION_ID(52080, 0) };
+
+			return func(this, a_movie);
+		}
+
+		void PopulateData()
+		{
+			using func_t = decltype(&LocalMapMenu::PopulateData);
+			REL::Relocation<func_t> func{ RELOCATION_ID(52081, 52971) };
 
 			func(this);
 		}

@@ -30,9 +30,8 @@ namespace DEM
 		void Advance(RE::HUDMenu* a_hudMenu);
 		void PreRender(RE::HUDMenu* a_hudMenu);
 
-		void Setup(RE::LocalMapMenu::LocalMapCullingProcess* a_cullingProcess);
-
-		void RenderOffscreen(RE::LocalMapMenu::LocalMapCullingProcess* a_cullingProcess);
+		void UpdateFogOfWar();
+		void RenderOffscreen();
 
 	private:
 		Minimap(const IUI::GFxDisplayObject& a_map) :
@@ -45,5 +44,9 @@ namespace DEM
 
 		// members
 		RE::LocalMapMenu* localMap = nullptr;
+		RE::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
+		RE::LocalMapCamera* cameraContext = nullptr;
+
+		bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(501260, 0) }.get();
 	};
 }
