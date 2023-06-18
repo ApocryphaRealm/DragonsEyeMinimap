@@ -4,6 +4,7 @@
 
 #include "RE/B/BSShaderAccumulator.h"
 #include "RE/I/ImageSpaceShaderParam.h"
+#include "RE/L/LocalMapCamera.h"
 #include "RE/R/Renderer.h"
 #include "RE/R/RendererShadowState.h"
 #include "RE/R/RenderPassCache.h"
@@ -112,25 +113,66 @@ namespace DEM
 
 		if (localMap)
 		{
-			//if (!holder->GetRuntimeData().movieView)
-			{
-				localMap->InitScaleform(view.get());
-			}
-
-			//localMap->GetRuntimeData().enabled = false;
-			localMap->Show(true);
-
-			//RE::GFxValue shown = true;
-			//localMap->GetRuntimeData().root.Invoke("Show", nullptr, &shown, 1);
+			localMap->InitScaleform(view.get());
+			Show(true);
 		}
 
 		return false;
 	}
 
-	void Advance()
+	void Minimap::Show(bool a_enable)
 	{
+		RE::LocalMapMenu::RUNTIME_DATA& localMapRtData = localMap->GetRuntimeData();
 
+		if (localMapRtData.enabled != a_enable)
+		{
+			localMapRtData.enabled = a_enable;
+			localMapRtData.usingCursor = 0;
+			localMapRtData.inForeground = a_enable;
+			cameraContext->currentState->Begin();
+
+			RE::GFxValue gfxEnable = a_enable;
+			localMapRtData.root.Invoke("Show", nullptr, &gfxEnable, 1);
+		}
+
+		if (a_enable)
+		{
+			RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+				
+			auto playerPos = player->GetPosition();
+			cameraContext->SetDefaultStateInitialPosition(playerPos);
+
+			RE::NiPoint3 minExtent;
+			RE::NiPoint3 maxExtent;
+
+			RE::TESObjectCELL* parentCell = player->parentCell;
+			if (parentCell)
+			{
+				float northRotation = parentCell->GetNorthRotation();
+				cameraContext->SetNorthRotation(-northRotation);
+				if (parentCell->IsInteriorCell())
+				{
+					minExtent = cameraContext->minExtent;
+					minExtent.x -= 2000.0;
+					minExtent.y -= 2000.0;
+					maxExtent = cameraContext->maxExtent;
+					maxExtent.x += 2000.0;
+					maxExtent.y += 2000.0;
+				}
+			}
+			else
+			{
+				auto loadedAreaBound = RE::TES::GetSingleton()->loadedAreaBound;
+				minExtent = loadedAreaBound->minExtent;
+				maxExtent = loadedAreaBound->maxExtent;
+			}
+
+			cameraContext->SetAreaBounds(maxExtent, minExtent);
+
+			localMap->PopulateData();
+		}
 	}
+
 
 	void Minimap::Advance(RE::HUDMenu* a_hudMenu)
 	{
@@ -154,52 +196,33 @@ namespace DEM
 
 		if (localMap)
 		{
-			RE::RenderPassCache* renderPassCache = RE::RenderPassCache::GetSingleton();
-
-			RE::RenderPassCache::Pool& pool = renderPassCache->pools[0];
-
 			RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->loadedAreaBound;
 			RE::NiPoint3 maxExtentExtra{ 0, 0, 40000 };
 
 			cameraContext->minExtent = loadedAreaBound->minExtent;
 			cameraContext->maxExtent = loadedAreaBound->maxExtent + maxExtentExtra;
 
-			static std::chrono::time_point<system_clock> lastUpdate;
-			static std::chrono::time_point<system_clock> lastLog;
-			static std::chrono::time_point<system_clock> start = system_clock::now();
-
 			std::chrono::time_point<system_clock> now = system_clock::now();
 
+			static std::chrono::time_point<system_clock> lastUpdate;
 			auto diffUpdate = duration_cast<milliseconds>(now - lastUpdate);
-			auto diffLog = duration_cast<milliseconds>(now - lastLog);
-			auto diffStart = duration_cast<milliseconds>(now - start);
-
-			bool doUpdate = false;
-
 			if (diffUpdate > 40ms)
 			{
-				lastUpdate = now;
-				doUpdate = true;
-			}
-
-			if (doUpdate)
-			{
 				UpdateFogOfWar();
-			}
-
-			static bool done = false;
-			//if (diffStart > 6s) // && !done)
-			//if (doUpdate)
-			{
 				RenderOffscreen();
-				done = true;
+
+				lastUpdate = now;
 			}
 
+			static std::chrono::time_point<system_clock> lastLog;
+			auto diffLog = duration_cast<milliseconds>(now - lastLog);
 			if (diffLog > 500ms)				
 			{
-				size_t usedPasses = 0;
+				RE::RenderPassCache* renderPassCache = RE::RenderPassCache::GetSingleton();
+				RE::RenderPassCache::Pool& pool = renderPassCache->pools[0];
 
-				constexpr size_t passCount = 65535;
+				size_t usedPasses = 0;
+				static constexpr size_t passCount = 65535;
 				for (size_t passIndex = 0; passIndex < passCount; ++passIndex)
 				{
 					const RE::BSRenderPass& pass = pool.passes[passIndex];
@@ -218,16 +241,17 @@ namespace DEM
 
 	void Minimap::UpdateFogOfWar()
 	{
-		auto& fogOfWarOverlayHolder = reinterpret_cast< RE::NiPointer<RE::NiNode>&>(cullingProcess->GetFogOfWarOverlayHolder());
+		auto& fogOfWarOverlayHolder = reinterpret_cast< RE::NiPointer<RE::NiNode>&>(cullingProcess->GetFogOfWarOverlayGrid());
 
 		if (!fogOfWarOverlayHolder)
 		{
 			localMap->localCullingProcess.CreateFogOfWar();
 		}
 		else
-		{			
+		{
+			// Clear last-frame fog of war overlay because I don't know how to update BSTriShapes.
+			// Maybe that would improve performance.
 			std::uint32_t childrenSize = fogOfWarOverlayHolder->GetChildren().size();
-
 			for (std::uint32_t i = 0; i < childrenSize; i++)
 			{
 				fogOfWarOverlayHolder->DetachChildAt(i);
@@ -243,13 +267,13 @@ namespace DEM
 			{
 				fogOfWar.minExtent = cameraContext->minExtent;
 				fogOfWar.maxExtent = cameraContext->maxExtent;
-				fogOfWar.unk08 = 32;
+				fogOfWar.resolution = 32;
 		
 				cullingProcess->AttachFogOfWarOverlay(fogOfWar, interiorCell);
 			}
 			else
 			{
-				fogOfWar.unk08 = 16;
+				fogOfWar.resolution = 16;
 		
 				RE::GridCellArray* gridCells = RE::TES::GetSingleton()->gridCells;
 				std::uint32_t gridLength = gridCells->length;
@@ -405,7 +429,7 @@ namespace DEM
 
 			RE::BSShaderAccumulator::SetRenderMode(19);
 
-			RE::NiPointer<RE::NiAVObject> fogOfWarOverlayHolder = cullingProcess->GetFogOfWarOverlayHolder();
+			RE::NiPointer<RE::NiAVObject> fogOfWarOverlayHolder = cullingProcess->GetFogOfWarOverlayGrid();
 			cullingDelegate.currentCulledObject = fogOfWarOverlayHolder;
 			cullingDelegate.Cull(0, 0);
 

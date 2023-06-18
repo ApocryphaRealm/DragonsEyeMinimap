@@ -36,6 +36,7 @@ set(headers
 	include/RE/I/ImageData.h
 	include/RE/I/ImageSpaceShaderParam.h
 	include/RE/L/LoadedAreaBound.h
+	include/RE/L/LocalMapCamera.h
 	include/RE/L/LocalMapMenu.h
 	include/RE/R/RendererShadowState.h
 	include/RE/R/RenderPassCache.h
@@ -55,6 +56,7 @@ set(headers
 
 set(sources
 	source/RE/G/GFxValue.cpp
+	source/RE/L/LocalMapCamera.cpp
 	source/utils/INISettingCollection.cpp
 	source/utils/Trampoline.cpp
 	source/Hooks.cpp

@@ -27,6 +27,8 @@ namespace DEM
 
 		void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs);
 
+		void Show(bool a_enable);
+
 		void Advance(RE::HUDMenu* a_hudMenu);
 		void PreRender(RE::HUDMenu* a_hudMenu);
 
@@ -46,6 +48,8 @@ namespace DEM
 		RE::LocalMapMenu* localMap = nullptr;
 		RE::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
 		RE::LocalMapCamera* cameraContext = nullptr;
+
+		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;
 
 		bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(501260, 0) }.get();
 	};

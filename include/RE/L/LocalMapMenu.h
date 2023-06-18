@@ -47,7 +47,7 @@ namespace RE
 			struct FogOfWar
 			{
 				RE::NiNode* overlayHolder;	// 00
-				std::uint16_t unk08;		// 08
+				std::uint16_t resolution;	// 08
 				RE::NiPoint3 minExtent;		// 0C
 				RE::NiPoint3 maxExtent;		// 18
 			};
@@ -114,9 +114,9 @@ namespace RE
 				return REL::RelocateMember<ImageSpaceShaderParam>(this, 0x302D0, 0x302E0);
 			}
 
-			[[nodiscard]] inline NiPointer<NiAVObject>& GetFogOfWarOverlayHolder() const noexcept
+			[[nodiscard]] inline NiPointer<NiNode>& GetFogOfWarOverlayGrid() const noexcept
 			{
-				return REL::RelocateMember<NiPointer<NiAVObject>>(this, 0x30358, 0x30368);
+				return REL::RelocateMember<NiPointer<NiNode>>(this, 0x30358, 0x30368);
 			}
 
 			// members
@@ -131,7 +131,7 @@ namespace RE
 			NiPointer<BSShaderAccumulator> unk302C8;  // 302C8
 			ImageSpaceShaderParam unk302D0;			  // 302D0
 			std::uint64_t unk30350;					  // 30350
-			NiPointer<NiNode> unk30358;				  // 30358
+			NiPointer<NiNode> fogOfWarOverlayGrid;	  // 30358
 #elif !defined(ENABLE_SKYRIM_AE) && !defined(ENABLE_SKYRIM_SE)
 			std::uint64_t padVR1;					  // 30250
 			std::uint64_t padVR2;					  // 30258
@@ -141,7 +141,7 @@ namespace RE
 			NiPointer<BSShaderAccumulator> unk302D8;  // 302D8
 			ImageSpaceShaderParam unk302E0;			  // 302E0
 			std::uint64_t unk30360;					  // 30360
-			NiPointer<NiNode> unk30368;				  // 30368
+			NiPointer<NiNode> fogOfWarOverlayGrid;	  // 30368
 			BSTArray<void*> unk30370;				  // 30370
 			BSTArray<void*> unk30388;				  // 30388
 			BSTArray<void*> unk303A0;				  // 303A0
