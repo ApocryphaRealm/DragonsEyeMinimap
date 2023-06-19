@@ -106,7 +106,7 @@ namespace DEM
 
 	bool Minimap::ProcessMessage(RE::UIMessage* a_message)
 	{
-		if (a_message->type == RE::UI_MESSAGE_TYPE::kScaleformEvent && !localMap)
+		if (!localMap)
 		{
 			InitLocalMap();
 		}
@@ -114,8 +114,6 @@ namespace DEM
 		if (localMap)
 		{
 			localMap->InitScaleform(view.get());
-
-			//localMap->Show(true);
 			Show(true);
 		}
 
@@ -135,6 +133,9 @@ namespace DEM
 
 			if (a_enable)
 			{
+				RE::GFxValue gfxEnable = a_enable;
+				localMapRtData.root.Invoke("Show", nullptr, &gfxEnable, 1);
+
 				RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
 
 				auto playerPos = player->GetPosition();
@@ -166,16 +167,8 @@ namespace DEM
 				}
 
 				cameraContext->SetAreaBounds(maxExtent, minExtent);
-
-				RE::GFxValue gfxEnable = a_enable;
-				localMapRtData.root.Invoke("Show", nullptr, &gfxEnable, 1);
 			}
 		}
-
-		//if (a_enable)
-		//{
-		//	localMap->PopulateData();
-		//}
 	}
 
 
@@ -183,19 +176,34 @@ namespace DEM
 	{
 		if (localMap)
 		{
-			//localMap->Advance();
-
 			RE::LocalMapMenu::RUNTIME_DATA& localMapRtData = localMap->GetRuntimeData();
 
 			if (localMapRtData.enabled)
 			{
 				a_hudMenu->menuFlags.set(RE::UI_MENU_FLAGS::kRendersOffscreenTargets);
 
-				RE::NiPoint3 playerPos = RE::PlayerCharacter::GetSingleton()->GetPosition();
-
+				RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+				RE::NiPoint3 playerPos = player->GetPosition();
 				cameraContext->defaultState->initialPosition.x = playerPos.x;
 				cameraContext->defaultState->initialPosition.y = playerPos.y;
 				cameraContext->defaultState->translation = { 0, 0, 0 };
+
+				RE::TESObjectCELL* parentCell = player->parentCell;
+				if (parentCell)
+				{
+					float northRotation = parentCell->GetNorthRotation();
+					cameraContext->SetNorthRotation(-northRotation);
+					if (parentCell->IsInteriorCell())
+					{					
+						RE::NiPoint3 minExtent = cameraContext->minExtent;
+						minExtent.x -= 2000.0;
+						minExtent.y -= 2000.0;
+						RE::NiPoint3 maxExtent = cameraContext->maxExtent;
+						maxExtent.x += 2000.0;
+						maxExtent.y += 2000.0;
+						cameraContext->SetAreaBounds(maxExtent, minExtent);
+					}
+				}
 
 				cullingProcess->GetLocalMapCamera()->Update();
 				if (localMapRtData.iconDisplay.IsObject())
@@ -255,7 +263,7 @@ namespace DEM
 					}
 				}
 
-				logger::debug("Total: {}", usedPasses);
+				//logger::debug("Total: {}", usedPasses);
 
 				lastLog = now;
 			}
