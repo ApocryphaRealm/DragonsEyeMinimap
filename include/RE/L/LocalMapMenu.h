@@ -243,6 +243,14 @@ namespace RE
 			func(this);
 		}
 
+		void RefreshMarkers()
+		{
+			using func_t = decltype(&LocalMapMenu::RefreshMarkers);
+			REL::Relocation<func_t> func{ RELOCATION_ID(52090, 0) };
+
+			func(this);
+		}
+
 		[[nodiscard]] inline RUNTIME_DATA& GetRuntimeData() noexcept
 		{
 			return REL::RelocateMember<RUNTIME_DATA>(this, 0x303A0, 0x30418);

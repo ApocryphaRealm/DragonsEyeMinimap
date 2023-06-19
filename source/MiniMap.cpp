@@ -114,6 +114,8 @@ namespace DEM
 		if (localMap)
 		{
 			localMap->InitScaleform(view.get());
+
+			//localMap->Show(true);
 			Show(true);
 		}
 
@@ -131,46 +133,49 @@ namespace DEM
 			localMapRtData.inForeground = a_enable;
 			cameraContext->currentState->Begin();
 
-			RE::GFxValue gfxEnable = a_enable;
-			localMapRtData.root.Invoke("Show", nullptr, &gfxEnable, 1);
-		}
-
-		if (a_enable)
-		{
-			RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
-				
-			auto playerPos = player->GetPosition();
-			cameraContext->SetDefaultStateInitialPosition(playerPos);
-
-			RE::NiPoint3 minExtent;
-			RE::NiPoint3 maxExtent;
-
-			RE::TESObjectCELL* parentCell = player->parentCell;
-			if (parentCell)
+			if (a_enable)
 			{
-				float northRotation = parentCell->GetNorthRotation();
-				cameraContext->SetNorthRotation(-northRotation);
-				if (parentCell->IsInteriorCell())
+				RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+
+				auto playerPos = player->GetPosition();
+				cameraContext->SetDefaultStateInitialPosition(playerPos);
+
+				RE::NiPoint3 minExtent;
+				RE::NiPoint3 maxExtent;
+
+				RE::TESObjectCELL* parentCell = player->parentCell;
+				if (parentCell)
 				{
-					minExtent = cameraContext->minExtent;
-					minExtent.x -= 2000.0;
-					minExtent.y -= 2000.0;
-					maxExtent = cameraContext->maxExtent;
-					maxExtent.x += 2000.0;
-					maxExtent.y += 2000.0;
+					float northRotation = parentCell->GetNorthRotation();
+					cameraContext->SetNorthRotation(-northRotation);
+					if (parentCell->IsInteriorCell())
+					{
+						minExtent = cameraContext->minExtent;
+						minExtent.x -= 2000.0;
+						minExtent.y -= 2000.0;
+						maxExtent = cameraContext->maxExtent;
+						maxExtent.x += 2000.0;
+						maxExtent.y += 2000.0;
+					}
 				}
-			}
-			else
-			{
-				auto loadedAreaBound = RE::TES::GetSingleton()->loadedAreaBound;
-				minExtent = loadedAreaBound->minExtent;
-				maxExtent = loadedAreaBound->maxExtent;
-			}
+				else
+				{
+					auto loadedAreaBound = RE::TES::GetSingleton()->loadedAreaBound;
+					minExtent = loadedAreaBound->minExtent;
+					maxExtent = loadedAreaBound->maxExtent;
+				}
 
-			cameraContext->SetAreaBounds(maxExtent, minExtent);
+				cameraContext->SetAreaBounds(maxExtent, minExtent);
 
-			localMap->PopulateData();
+				RE::GFxValue gfxEnable = a_enable;
+				localMapRtData.root.Invoke("Show", nullptr, &gfxEnable, 1);
+			}
 		}
+
+		//if (a_enable)
+		//{
+		//	localMap->PopulateData();
+		//}
 	}
 
 
@@ -178,15 +183,33 @@ namespace DEM
 	{
 		if (localMap)
 		{
-			a_hudMenu->menuFlags.set(RE::UI_MENU_FLAGS::kRendersOffscreenTargets);
+			//localMap->Advance();
 
-			RE::NiPoint3 playerPos = RE::PlayerCharacter::GetSingleton()->GetPosition();
+			RE::LocalMapMenu::RUNTIME_DATA& localMapRtData = localMap->GetRuntimeData();
 
-			cameraContext->defaultState->initialPosition.x = playerPos.x;
-			cameraContext->defaultState->initialPosition.y = playerPos.y;
-			cameraContext->defaultState->translation = { 0, 0, 0 };
+			if (localMapRtData.enabled)
+			{
+				a_hudMenu->menuFlags.set(RE::UI_MENU_FLAGS::kRendersOffscreenTargets);
 
-			localMap->Advance();
+				RE::NiPoint3 playerPos = RE::PlayerCharacter::GetSingleton()->GetPosition();
+
+				cameraContext->defaultState->initialPosition.x = playerPos.x;
+				cameraContext->defaultState->initialPosition.y = playerPos.y;
+				cameraContext->defaultState->translation = { 0, 0, 0 };
+
+				cullingProcess->GetLocalMapCamera()->Update();
+				if (localMapRtData.iconDisplay.IsObject())
+				{
+					localMap->PopulateData();
+					RE::GFxValue presult;
+					do
+					{
+						localMapRtData.iconDisplay.Invoke("CreateMarkers", nullptr, nullptr, 0);
+						localMapRtData.iconDisplay.Invoke("GetCreatingMarkers", &presult, nullptr, 0);
+					} while (presult.GetBool());
+					localMap->RefreshMarkers();
+				}
+			}
 		}
 	}
 
@@ -333,12 +356,15 @@ namespace DEM
 		RE::TESWorldSpace* worldSpace = tes->worldSpace;
 
 		RE::LocalMapMenu::LocalMapCullingProcess::UnkData unkData{ cullingProcess };
+		
+		bool isWaterRenderingEnabled = enableWaterRendering;
+		enableWaterRendering = false;
 
 		if (worldSpace && worldSpace->flags.any(RE::TESWorldSpace::Flag::kFixedDimensions))
 		{
 			unkData.unk8 = false;
 		}
-		else
+		else 
 		{
 			unkData.unk8 = true;
 		}
@@ -488,6 +514,8 @@ namespace DEM
 		
         RE::TESImageSpaceManager* imageSpaceManager = RE::TESImageSpaceManager::GetSingleton();
 		imageSpaceManager->sub_1412979E0(98, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::RENDER_TARGET::kLOCAL_MAP, &imageSpaceShaderParam);
+
+		enableWaterRendering = isWaterRenderingEnabled;
 
         shaderAccumulator->sub_1412CCF90(false);
 	}

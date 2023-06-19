@@ -52,5 +52,6 @@ namespace DEM
 		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;
 
 		bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(501260, 0) }.get();
+		bool& enableWaterRendering = *REL::Relocation<bool*>{ RELOCATION_ID(513342, 0) }.get();
 	};
 }
