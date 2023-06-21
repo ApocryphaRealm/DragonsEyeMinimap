@@ -26,7 +26,7 @@ class Map.LocalMap extends MovieClip
 		super();
 		IconDisplay = new MapMenu(this);
 
-		testTf = _root.map.TestTf;
+		testTf = _root.Minimap.TestTf;
 		testTf.text = "Hello from local map";
 
 		MapImageLoader = new MovieClipLoader();

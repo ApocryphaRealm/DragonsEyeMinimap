@@ -28,10 +28,22 @@ template <logger::level logLevel = logger::level::debug>
 void LogMapMembers(const IUI::API::PostPatchInstanceMessage* a_msg)
 {
 	RE::GFxValue value;
-	logger::at_level(logLevel, "{}", "Logging WorldMap...");
-	if (!a_msg->movie->GetVariable(&value, "WorldMap"))
+	logger::at_level(logLevel, "{}", "Logging HUDMovieBaseInstance...");
+	if (!a_msg->movie->GetVariable(&value, "HUDMovieBaseInstance"))
 	{
-		logger::error("Could not get WorldMap");
+		logger::error("Could not get HUDMovieBaseInstance");
+	}
+	else
+	{
+		IUI::GFxMemberLogger<logLevel> memberLogger;
+
+		memberLogger.LogMembersOf(value);
+	}
+
+	logger::at_level(logLevel, "{}", "Logging HUDMovieBaseInstance.Minimap...");
+	if (!a_msg->movie->GetVariable(&value, DEM::Minimap::path.data()))
+	{
+		logger::error("Could not get HUDMovieBaseInstance.Minimap");
 	}
 	else
 	{
@@ -86,7 +98,7 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 				{
 					std::string pathToNew = msg->newInstance.ToString().c_str();
 
-					if (pathToNew == "_level0.map")
+					if (pathToNew == DEM::Minimap::path)
 					{
 						DEM::Minimap::InitSingleton(msg->newInstance);
 

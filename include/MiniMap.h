@@ -9,6 +9,7 @@ namespace DEM
 	class Minimap : public RE::HUDObject
 	{
 	public:
+		static constexpr inline std::string_view path = "_level0.Minimap";
 
 		// override HUDObject
 		void Update() override{};								 // 01

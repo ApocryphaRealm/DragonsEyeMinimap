@@ -17,7 +17,7 @@ class Map.MapMenu
 	static var MARKER_CREATE_PER_FRAME: Number = 10;
 
 	var BottomBar: MovieClip;
-	//var LocalMapMenu: MovieClip;
+	var LocalMapMenu: MovieClip;
 	var MapHeight: Number;
 	var MapMovie: MovieClip;
 	var MapWidth: Number;
@@ -36,9 +36,9 @@ class Map.MapMenu
 
 	function MapMenu(aMapMovie: MovieClip)
 	{
-		MapMovie = aMapMovie == undefined ? _root.map : aMapMovie;
+		MapMovie = aMapMovie == undefined ? _root.Minimap : aMapMovie;
 
-		testTf = _root.map.TestTf;
+		testTf = _root.Minimap.TestTf;
 		testTf.text = "Hello from MapMenu";
 
 		MarkerContainer = MapMovie.createEmptyMovieClip("MarkerClips", 1);
@@ -47,11 +47,11 @@ class Map.MapMenu
 		NextCreateIndex = -1;
 		MapWidth = 0;
 		MapHeight = 0;
-		//LocalMapMenu = MapMovie.LocalMapFader.MapClip;
-		//if (LocalMapMenu != undefined) {
+		LocalMapMenu = MapMovie.LocalMapFader.MapClip;
+		if (LocalMapMenu != undefined) {
 			//LocalMapMenu.SetBottomBar(BottomBar);
-			//Mouse.addListener(this);
-		//}
+			Mouse.addListener(this);
+		}
 		MarkerDescriptionHolder = MapMovie.attachMovie("DescriptionHolder", "MarkerDescriptionHolder", MapMovie.getNextHighestDepth());
 		MarkerDescriptionHolder._visible = false;
 		MarkerDescriptionHolder.hitTestDisable = true;
@@ -64,7 +64,7 @@ class Map.MapMenu
 	{
 		MapWidth = Stage.visibleRect.right - Stage.visibleRect.left;
 		MapHeight = Stage.visibleRect.bottom - Stage.visibleRect.top;
-		if (MapMovie == _root.map) {
+		if (MapMovie == _root.Minimap) {
 			MarkerContainer._x = Stage.visibleRect.left;
 			MarkerContainer._y = Stage.visibleRect.top;
 		} else {

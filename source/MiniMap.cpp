@@ -129,7 +129,10 @@ namespace DEM
 
 			localMapRtData.movieView = view.get();
 
-			view->GetVariable(&localMapRtData.root, "_root.map.LocalMapFader.MapClip");
+			std::string pathToRoot(DEM::Minimap::path);
+			pathToRoot += ".LocalMapFader.MapClip";
+
+			view->GetVariable(&localMapRtData.root, "WorldMap.LocalMapMenu");
 
 			if (localMapRtData.root.IsObject())
 			{
