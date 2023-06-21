@@ -23,17 +23,15 @@ namespace DEM
 			}
 		}
 
-		static Minimap* GetSingleton() { return singleton; }
-
 		void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs);
 
-		void Show(bool a_enable);
+		void Advance();
+		void PreRender();
 
-		void Advance(RE::HUDMenu* a_hudMenu);
-		void PreRender(RE::HUDMenu* a_hudMenu);
+		static Minimap* GetSingleton() { return singleton; }
 
-		void UpdateFogOfWar();
-		void RenderOffscreen();
+		// members
+		RE::HUDMenu* menu = nullptr;
 
 	private:
 		Minimap(const IUI::GFxDisplayObject& a_map) :
@@ -41,6 +39,14 @@ namespace DEM
 		{}
 
 		void InitLocalMap();
+		void InitScaleform();
+
+		void Show(bool a_enable);
+
+		void UpdateFogOfWar();
+		void RenderOffscreen();
+
+		std::array<RE::GFxValue, 2> GetCurrentLocationTitle() const;
 
 		static inline Minimap* singleton = nullptr;
 
@@ -49,7 +55,7 @@ namespace DEM
 		RE::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
 		RE::LocalMapCamera* cameraContext = nullptr;
 
-		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;
+		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
 
 		bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(501260, 0) }.get();
 		bool& enableWaterRendering = *REL::Relocation<bool*>{ RELOCATION_ID(513342, 0) }.get();

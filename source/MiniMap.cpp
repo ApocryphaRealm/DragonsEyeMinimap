@@ -72,7 +72,6 @@ namespace RE
 
 namespace DEM
 {
-    // Only called once, if we change of cell it does not get called again, and the correct image of the minimap is still rendered
 	void Minimap::InitLocalMap()
 	{
 		if (localMap)
@@ -85,6 +84,72 @@ namespace DEM
 			localMap->Ctor();
 			cullingProcess = &localMap->localCullingProcess;
 			cameraContext = cullingProcess->GetLocalMapCamera();
+		}
+	}
+
+	std::array<RE::GFxValue, 2> Minimap::GetCurrentLocationTitle() const
+	{
+		std::array<RE::GFxValue, 2> locationTitle;
+
+		RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+
+		RE::TESObjectCELL* parentCell = player->parentCell;
+		if (parentCell)
+		{
+			RE::BGSLocation* location = parentCell->GetLocation();
+
+			if (parentCell->IsInteriorCell())
+			{
+				locationTitle[0] = parentCell->GetFullName();
+			}
+			else if (location)
+			{
+				locationTitle[0] = location->GetFullName();
+			}
+			else
+			{
+				RE::TESWorldSpace* worldSpace = player->GetWorldspace();
+				locationTitle[0] = worldSpace->GetFullName();
+			}
+
+			if (location && location->everCleared)
+			{
+				locationTitle[1] = clearedStr;
+			}
+		}
+
+		return locationTitle;
+	}
+
+	void Minimap::InitScaleform()
+	{
+		if (view)
+		{
+			RE::LocalMapMenu::RUNTIME_DATA& localMapRtData = localMap->GetRuntimeData();
+
+			localMapRtData.movieView = view.get();
+
+			view->GetVariable(&localMapRtData.root, "_root.map.LocalMapFader.MapClip");
+
+			if (localMapRtData.root.IsObject())
+			{
+				localMapRtData.root.GetMember("IconDisplay", &localMapRtData.iconDisplay);
+
+				localMapRtData.root.Invoke("InitMap");
+
+				view->CreateArray(&localMap->markerData);
+				RE::GFxValue iconDisplay;
+				if (localMapRtData.root.GetMember("IconDisplay", &iconDisplay))
+				{
+					if (iconDisplay.IsObject())
+					{
+						iconDisplay.SetMember("MarkerData", localMap->markerData);
+					}
+				}
+
+				std::array<RE::GFxValue, 2> args = GetCurrentLocationTitle();
+				localMapRtData.root.Invoke("SetTitle", nullptr, args);
+			}
 		}
 	}
 
@@ -113,7 +178,8 @@ namespace DEM
 
 		if (localMap)
 		{
-			localMap->InitScaleform(view.get());
+			InitScaleform();
+			//localMap->InitScaleform(view.get());
 			Show(true);
 		}
 
@@ -172,7 +238,7 @@ namespace DEM
 	}
 
 
-	void Minimap::Advance(RE::HUDMenu* a_hudMenu)
+	void Minimap::Advance()
 	{
 		if (localMap)
 		{
@@ -180,8 +246,6 @@ namespace DEM
 
 			if (localMapRtData.enabled)
 			{
-				a_hudMenu->menuFlags.set(RE::UI_MENU_FLAGS::kRendersOffscreenTargets);
-
 				RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
 				RE::NiPoint3 playerPos = player->GetPosition();
 				cameraContext->defaultState->initialPosition.x = playerPos.x;
@@ -221,7 +285,7 @@ namespace DEM
 		}
 	}
 
-	void Minimap::PreRender(RE::HUDMenu* a_hudMenu)
+	void Minimap::PreRender()
 	{
 		using namespace std::chrono;
 
