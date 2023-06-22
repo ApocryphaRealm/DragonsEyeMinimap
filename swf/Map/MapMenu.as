@@ -44,9 +44,9 @@ class Map.MapMenu
 		MarkerContainer = MapMovie.createEmptyMovieClip("MarkerClips", 1);
 		Markers = new Array();
 		NextCreateIndex = -1;
-		MapWidth = 0;
-		MapHeight = 0;
 		LocalMapMenu = LocalMap(MapMovie);
+		MapWidth = LocalMapMenu.TextureWidth;
+		MapHeight = LocalMapMenu.TextureHeight;
 		Mouse.addListener(this);
 		MarkerDescriptionHolder = MapMovie.attachMovie("DescriptionHolder", "MarkerDescriptionHolder", MapMovie.getNextHighestDepth());
 		MarkerDescriptionHolder._visible = false;
@@ -56,10 +56,13 @@ class Map.MapMenu
 		Init();
 	}
 
-	function onResize():Void
+		function Init():Void
 	{
-		MapWidth = LocalMapMenu.TextureWidth;
-		MapHeight = LocalMapMenu.TextureHeight;
+		MapMovie.swapDepths(3);
+		MapMovie.gotoAndStop("hide");
+		GameDelegate.addCallBack("RefreshMarkers", this, "RefreshMarkers");
+		GameDelegate.addCallBack("SetSelectedMarker", this, "SetSelectedMarker");
+		GameDelegate.addCallBack("ClickSelectedMarker", this, "ClickSelectedMarker");
 	}
 
 	function onMouseDown():Void
@@ -73,7 +76,6 @@ class Map.MapMenu
 		{
 			MarkerContainer.removeMovieClip();
 			MarkerContainer = MapMovie.createEmptyMovieClip("MarkerClips", 1);
-			onResize();
 		}
 		delete Markers;
 		Markers = new Array(aNumMarkers);
@@ -190,19 +192,5 @@ class Map.MapMenu
 		if (SelectedMarker != undefined) {
 			SelectedMarker.MarkerClick();
 		}
-	}
-
-	function Init():Void
-	{
-		onResize();
-		if (MapMovie.LocalMapFader != undefined) {
-			MapMovie.LocalMapFader.swapDepths(3);
-			MapMovie.LocalMapFader.gotoAndStop("hide");
-		}
-		GameDelegate.addCallBack("RefreshMarkers", this, "RefreshMarkers");
-		GameDelegate.addCallBack("SetSelectedMarker", this, "SetSelectedMarker");
-		GameDelegate.addCallBack("ClickSelectedMarker", this, "ClickSelectedMarker");
-		GameDelegate.addCallBack("SetDateString", this, "SetDateString");
-		GameDelegate.addCallBack("ShowJournal", this, "ShowJournal");
 	}
 }
