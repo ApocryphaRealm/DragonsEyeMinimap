@@ -74,16 +74,37 @@ namespace DEM
 {
 	void Minimap::InitLocalMap()
 	{
-		if (localMap)
-		{
-			std::free(localMap);
-		}
 		localMap = static_cast<RE::LocalMapMenu*>(std::malloc(sizeof(RE::LocalMapMenu)));
 		if (localMap)
 		{
 			localMap->Ctor();
+			localMap_ = &localMap->GetRuntimeData();
 			cullingProcess = &localMap->localCullingProcess;
 			cameraContext = cullingProcess->GetLocalMapCamera();
+
+			localMap_->movieView = view.get();
+
+			std::string pathToRoot(DEM::Minimap::path);
+			pathToRoot += ".MapClip";
+
+			view->GetVariable(&localMap_->root, pathToRoot.c_str());
+
+			localMap_->root.Invoke("InitMap");
+
+			view->CreateArray(&localMap->markerData);
+			localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay);
+			localMap_->iconDisplay.SetMember("MarkerData", localMap->markerData);
+
+			localMap_->enabled = true;
+			localMap_->usingCursor = 0;
+			localMap_->inForeground = localMap_->enabled;
+			cameraContext->currentState->Begin();
+
+			RE::GFxValue gfxEnable = localMap_->enabled;
+			localMap_->root.Invoke("Show", nullptr, &gfxEnable, 1);
+
+			RE::NiPoint3 playerPos = RE::PlayerCharacter::GetSingleton()->GetPosition();
+			cameraContext->SetDefaultStateInitialPosition(playerPos);
 		}
 	}
 
@@ -121,41 +142,6 @@ namespace DEM
 		return locationTitle;
 	}
 
-	void Minimap::InitScaleform()
-	{
-		if (view)
-		{
-			RE::LocalMapMenu::RUNTIME_DATA& localMapRtData = localMap->GetRuntimeData();
-
-			localMapRtData.movieView = view.get();
-
-			std::string pathToRoot(DEM::Minimap::path);
-			pathToRoot += ".LocalMapFader.MapClip";
-
-			view->GetVariable(&localMapRtData.root, "WorldMap.LocalMapMenu");
-
-			if (localMapRtData.root.IsObject())
-			{
-				localMapRtData.root.GetMember("IconDisplay", &localMapRtData.iconDisplay);
-
-				localMapRtData.root.Invoke("InitMap");
-
-				view->CreateArray(&localMap->markerData);
-				RE::GFxValue iconDisplay;
-				if (localMapRtData.root.GetMember("IconDisplay", &iconDisplay))
-				{
-					if (iconDisplay.IsObject())
-					{
-						iconDisplay.SetMember("MarkerData", localMap->markerData);
-					}
-				}
-
-				std::array<RE::GFxValue, 2> args = GetCurrentLocationTitle();
-				localMapRtData.root.Invoke("SetTitle", nullptr, args);
-			}
-		}
-	}
-
 	void Minimap::SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs)
 	{
 		float localLeft = a_delegateArgs[0].GetNumber();
@@ -179,112 +165,50 @@ namespace DEM
 			InitLocalMap();
 		}
 
-		if (localMap)
-		{
-			InitScaleform();
-			//localMap->InitScaleform(view.get());
-			Show(true);
-		}
-
 		return false;
-	}
-
-	void Minimap::Show(bool a_enable)
-	{
-		RE::LocalMapMenu::RUNTIME_DATA& localMapRtData = localMap->GetRuntimeData();
-
-		if (localMapRtData.enabled != a_enable)
-		{
-			localMapRtData.enabled = a_enable;
-			localMapRtData.usingCursor = 0;
-			localMapRtData.inForeground = a_enable;
-			cameraContext->currentState->Begin();
-
-			if (a_enable)
-			{
-				RE::GFxValue gfxEnable = a_enable;
-				localMapRtData.root.Invoke("Show", nullptr, &gfxEnable, 1);
-
-				RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
-
-				auto playerPos = player->GetPosition();
-				cameraContext->SetDefaultStateInitialPosition(playerPos);
-
-				RE::NiPoint3 minExtent;
-				RE::NiPoint3 maxExtent;
-
-				RE::TESObjectCELL* parentCell = player->parentCell;
-				if (parentCell)
-				{
-					float northRotation = parentCell->GetNorthRotation();
-					cameraContext->SetNorthRotation(-northRotation);
-					if (parentCell->IsInteriorCell())
-					{
-						minExtent = cameraContext->minExtent;
-						minExtent.x -= 2000.0;
-						minExtent.y -= 2000.0;
-						maxExtent = cameraContext->maxExtent;
-						maxExtent.x += 2000.0;
-						maxExtent.y += 2000.0;
-					}
-				}
-				else
-				{
-					auto loadedAreaBound = RE::TES::GetSingleton()->loadedAreaBound;
-					minExtent = loadedAreaBound->minExtent;
-					maxExtent = loadedAreaBound->maxExtent;
-				}
-
-				cameraContext->SetAreaBounds(maxExtent, minExtent);
-			}
-		}
 	}
 
 
 	void Minimap::Advance()
 	{
-		if (localMap)
+		if (localMap && localMap_->enabled)
 		{
-			RE::LocalMapMenu::RUNTIME_DATA& localMapRtData = localMap->GetRuntimeData();
+			RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
 
-			if (localMapRtData.enabled)
+			RE::NiPoint3 playerPos = player->GetPosition();
+			cameraContext->defaultState->initialPosition.x = playerPos.x;
+			cameraContext->defaultState->initialPosition.y = playerPos.y;
+			cameraContext->defaultState->translation = { 0, 0, 0 };
+
+			RE::TESObjectCELL* parentCell = player->parentCell;
+			if (parentCell)
 			{
-				RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
-				RE::NiPoint3 playerPos = player->GetPosition();
-				cameraContext->defaultState->initialPosition.x = playerPos.x;
-				cameraContext->defaultState->initialPosition.y = playerPos.y;
-				cameraContext->defaultState->translation = { 0, 0, 0 };
-
-				RE::TESObjectCELL* parentCell = player->parentCell;
-				if (parentCell)
-				{
-					float northRotation = parentCell->GetNorthRotation();
-					cameraContext->SetNorthRotation(-northRotation);
-					if (parentCell->IsInteriorCell())
-					{					
-						RE::NiPoint3 minExtent = cameraContext->minExtent;
-						minExtent.x -= 2000.0;
-						minExtent.y -= 2000.0;
-						RE::NiPoint3 maxExtent = cameraContext->maxExtent;
-						maxExtent.x += 2000.0;
-						maxExtent.y += 2000.0;
-						cameraContext->SetAreaBounds(maxExtent, minExtent);
-					}
-				}
-
-				cullingProcess->GetLocalMapCamera()->Update();
-				if (localMapRtData.iconDisplay.IsObject())
-				{
-					localMap->PopulateData();
-					RE::GFxValue presult;
-					do
-					{
-						localMapRtData.iconDisplay.Invoke("CreateMarkers", nullptr, nullptr, 0);
-						localMapRtData.iconDisplay.Invoke("GetCreatingMarkers", &presult, nullptr, 0);
-					} while (presult.GetBool());
-					localMap->RefreshMarkers();
+				float northRotation = parentCell->GetNorthRotation();
+				cameraContext->SetNorthRotation(-northRotation);
+				if (parentCell->IsInteriorCell())
+				{					
+					RE::NiPoint3 minExtent = cameraContext->minExtent;
+					minExtent.x -= localMapMargin;
+					minExtent.y -= localMapMargin;
+					RE::NiPoint3 maxExtent = cameraContext->maxExtent;
+					maxExtent.x += localMapMargin;
+					maxExtent.y += localMapMargin;
+					cameraContext->SetAreaBounds(maxExtent, minExtent);
 				}
 			}
+			cameraContext->Update();
+
+			localMap->PopulateData();
+			RE::GFxValue presult;
+			do
+			{
+				localMap_->iconDisplay.Invoke("CreateMarkers", nullptr, nullptr, 0);
+				localMap_->iconDisplay.Invoke("GetCreatingMarkers", &presult, nullptr, 0);
+			} while (presult.GetBool());
+			localMap->RefreshMarkers();
+
+			std::array<RE::GFxValue, 2> args = GetCurrentLocationTitle();
+			localMap_->root.Invoke("SetTitle", nullptr, args);
 		}
 	}
 
@@ -295,10 +219,7 @@ namespace DEM
 		if (localMap)
 		{
 			RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->loadedAreaBound;
-			RE::NiPoint3 maxExtentExtra{ 0, 0, 40000 };
-
-			cameraContext->minExtent = loadedAreaBound->minExtent;
-			cameraContext->maxExtent = loadedAreaBound->maxExtent + maxExtentExtra;
+			cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
 
 			std::chrono::time_point<system_clock> now = system_clock::now();
 
@@ -339,7 +260,7 @@ namespace DEM
 
 	void Minimap::UpdateFogOfWar()
 	{
-		auto& fogOfWarOverlayHolder = reinterpret_cast< RE::NiPointer<RE::NiNode>&>(cullingProcess->GetFogOfWarOverlayGrid());
+		auto& fogOfWarOverlayHolder = reinterpret_cast< RE::NiPointer<RE::NiNode>&>(cullingProcess->GetFogOfWarOverlay());
 
 		if (!fogOfWarOverlayHolder)
 		{
@@ -355,7 +276,7 @@ namespace DEM
 				fogOfWarOverlayHolder->DetachChildAt(i);
 			}
 
-			RE::LocalMapMenu::LocalMapCullingProcess::FogOfWar fogOfWar;
+			RE::LocalMapMenu::FogOfWar fogOfWar;
 
 			fogOfWar.overlayHolder = fogOfWarOverlayHolder.get();
 
@@ -365,13 +286,13 @@ namespace DEM
 			{
 				fogOfWar.minExtent = cameraContext->minExtent;
 				fogOfWar.maxExtent = cameraContext->maxExtent;
-				fogOfWar.resolution = 32;
+				fogOfWar.gridDivisions = 32;
 		
 				cullingProcess->AttachFogOfWarOverlay(fogOfWar, interiorCell);
 			}
 			else
 			{
-				fogOfWar.resolution = 16;
+				fogOfWar.gridDivisions = 16;
 		
 				RE::GridCellArray* gridCells = RE::TES::GetSingleton()->gridCells;
 				std::uint32_t gridLength = gridCells->length;
@@ -530,7 +451,7 @@ namespace DEM
 
 			RE::BSShaderAccumulator::SetRenderMode(19);
 
-			RE::NiPointer<RE::NiAVObject> fogOfWarOverlayHolder = cullingProcess->GetFogOfWarOverlayGrid();
+			RE::NiPointer<RE::NiAVObject> fogOfWarOverlayHolder = cullingProcess->GetFogOfWarOverlay();
 			cullingDelegate.currentCulledObject = fogOfWarOverlayHolder;
 			cullingDelegate.Cull(0, 0);
 

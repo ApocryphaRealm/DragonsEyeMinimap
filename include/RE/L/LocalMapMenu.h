@@ -34,6 +34,15 @@ namespace RE
 	struct LocalMapMenu
 	{
 	public:
+		struct FogOfWar
+		{
+			RE::NiNode* overlayHolder;		// 00
+			std::uint16_t gridDivisions;	// 08
+			RE::NiPoint3 minExtent;			// 0C
+			RE::NiPoint3 maxExtent;			// 18
+		};
+		static_assert(sizeof(FogOfWar) == 0x28);
+
 		struct LocalMapCullingProcess
 		{
 		public:
@@ -43,15 +52,6 @@ namespace RE
 				bool unk8;						// 08
 			};
 			static_assert(sizeof(UnkData) == 0x10);
-
-			struct FogOfWar
-			{
-				RE::NiNode* overlayHolder;	// 00
-				std::uint16_t resolution;	// 08
-				RE::NiPoint3 minExtent;		// 0C
-				RE::NiPoint3 maxExtent;		// 18
-			};
-			static_assert(sizeof(FogOfWar) == 0x28);
 
 			[[nodiscard]] inline LocalMapCamera* GetLocalMapCamera() const noexcept
 			{
@@ -114,7 +114,7 @@ namespace RE
 				return REL::RelocateMember<ImageSpaceShaderParam>(this, 0x302D0, 0x302E0);
 			}
 
-			[[nodiscard]] inline NiPointer<NiNode>& GetFogOfWarOverlayGrid() const noexcept
+			[[nodiscard]] inline NiPointer<NiNode>& GetFogOfWarOverlay() const noexcept
 			{
 				return REL::RelocateMember<NiPointer<NiNode>>(this, 0x30358, 0x30368);
 			}
@@ -131,7 +131,7 @@ namespace RE
 			NiPointer<BSShaderAccumulator> unk302C8;  // 302C8
 			ImageSpaceShaderParam unk302D0;			  // 302D0
 			std::uint64_t unk30350;					  // 30350
-			NiPointer<NiNode> fogOfWarOverlayGrid;	  // 30358
+			NiPointer<NiNode> fogOfWarOverlay;		  // 30358
 #elif !defined(ENABLE_SKYRIM_AE) && !defined(ENABLE_SKYRIM_SE)
 			std::uint64_t padVR1;					  // 30250
 			std::uint64_t padVR2;					  // 30258
@@ -141,7 +141,7 @@ namespace RE
 			NiPointer<BSShaderAccumulator> unk302D8;  // 302D8
 			ImageSpaceShaderParam unk302E0;			  // 302E0
 			std::uint64_t unk30360;					  // 30360
-			NiPointer<NiNode> fogOfWarOverlayGrid;	  // 30368
+			NiPointer<NiNode> fogOfWarOverlay;		  // 30368
 			BSTArray<void*> unk30370;				  // 30370
 			BSTArray<void*> unk30388;				  // 30388
 			BSTArray<void*> unk303A0;				  // 303A0

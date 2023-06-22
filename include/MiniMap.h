@@ -9,7 +9,7 @@ namespace DEM
 	class Minimap : public RE::HUDObject
 	{
 	public:
-		static constexpr inline std::string_view path = "_level0.Minimap";
+		static constexpr inline std::string_view path = "_level0.HUDMovieBaseInstance.Minimap";
 
 		// override HUDObject
 		void Update() override{};								 // 01
@@ -40,9 +40,6 @@ namespace DEM
 		{}
 
 		void InitLocalMap();
-		void InitScaleform();
-
-		void Show(bool a_enable);
 
 		void UpdateFogOfWar();
 		void RenderOffscreen();
@@ -53,10 +50,13 @@ namespace DEM
 
 		// members
 		RE::LocalMapMenu* localMap = nullptr;
+		RE::LocalMapMenu::RUNTIME_DATA* localMap_ = nullptr;
 		RE::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
 		RE::LocalMapCamera* cameraContext = nullptr;
 
 		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
+		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;
+		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 0) }.get();
 
 		bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(501260, 0) }.get();
 		bool& enableWaterRendering = *REL::Relocation<bool*>{ RELOCATION_ID(513342, 0) }.get();

@@ -4,7 +4,6 @@ import Map.MapMenu;
 // Width: 845.7, Height: 559.3, x: 240, y: 130
 class Map.LocalMap extends MovieClip
 {
-	var BottomBar: MovieClip;
 	var ClearedDescription: TextField;
 	var ClearedText: TextField;
 	var IconDisplay: MapMenu;
@@ -19,20 +18,19 @@ class Map.LocalMap extends MovieClip
 
 	var bShown: Boolean;
 
-	var testTf:TextField;
+	var TestTf:TextField;
 
 	function LocalMap()
 	{
 		super();
 		IconDisplay = new MapMenu(this);
 
-		testTf = _root.Minimap.TestTf;
-		testTf.text = "Hello from local map";
+		TestTf.text = "Hello from local map";
 
 		MapImageLoader = new MovieClipLoader();
 		MapImageLoader.addListener(this);
-		_TextureWidth = 800;
-		_TextureHeight = 450;
+		_TextureWidth = LocalMapHolder_mc._width;
+		_TextureHeight = LocalMapHolder_mc._height;
 		LocationDescription = LocationTextClip.LocationText;
 		LocationDescription.noTranslate = true;
 		LocationTextClip.swapDepths(3);
@@ -70,23 +68,16 @@ class Map.LocalMap extends MovieClip
 		GameDelegate.call("SetLocalMapExtents", [textureTopLeft.x, textureTopLeft.y, textureBottomRight.x, textureBottomRight.y]);
 	}
 
-	function Show(abShow: Boolean): Void
+	function Show(abShow: Boolean):Void
 	{
 		if (abShow != bShown)
 		{
 			_parent.gotoAndPlay(abShow ? "fadeIn" : "fadeOut");
-			BottomBar.RightButton.visible = !abShow;
-			BottomBar.LocalMapButton.label = abShow ? "$World Map" : "$Local Map";
 			bShown = abShow;
 		}
 	}
 
-	function SetBottomBar(aBottomBar: MovieClip): Void
-	{
-		BottomBar = aBottomBar;
-	}
-
-	function SetTitle(aName: String, aCleared: String): Void
+	function SetTitle(aName: String, aCleared: String):Void
 	{
 		LocationDescription.text = aName == undefined ? "" : aName;
 		ClearedDescription.text = aCleared == undefined ? "" : "(" + aCleared + ")";
