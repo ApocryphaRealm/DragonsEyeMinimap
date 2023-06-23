@@ -3,6 +3,7 @@
 #include "utils/Logger.h"
 
 #include "RE/B/BSShaderAccumulator.h"
+#include "RE/B/BSTimer.h"
 #include "RE/I/ImageSpaceShaderParam.h"
 #include "RE/L/LocalMapCamera.h"
 #include "RE/R/Renderer.h"
@@ -158,6 +159,11 @@ namespace DEM
 		localMap->bottomRight = view->TranslateToScreen(localBottomRight, identityMat2D);
 	}
 
+	void Minimap::UpdateOnEnterFrame(const RE::FxDelegateArgs& a_delegateArgs)
+	{
+		frameUpdatePending = true;
+	}
+
 	bool Minimap::ProcessMessage(RE::UIMessage* a_message)
 	{
 		if (!localMap)
@@ -168,10 +174,9 @@ namespace DEM
 		return false;
 	}
 
-
 	void Minimap::Advance()
 	{
-		if (localMap && localMap_->enabled)
+		if (frameUpdatePending && localMap && localMap_->enabled)
 		{
 			RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
 
@@ -216,26 +221,21 @@ namespace DEM
 	{
 		using namespace std::chrono;
 
-		if (localMap)
+		if (frameUpdatePending && localMap && localMap_->enabled)
 		{
 			RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->loadedAreaBound;
 			cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
 
 			std::chrono::time_point<system_clock> now = system_clock::now();
 
-			static std::chrono::time_point<system_clock> lastUpdate;
-			auto diffUpdate = duration_cast<milliseconds>(now - lastUpdate);
-			if (diffUpdate > 40ms)
-			{
-				UpdateFogOfWar();
-				RenderOffscreen();
+			UpdateFogOfWar();
+			RenderOffscreen();
 
-				lastUpdate = now;
-			}
+			frameUpdatePending = false;
 
 			static std::chrono::time_point<system_clock> lastLog;
 			auto diffLog = duration_cast<milliseconds>(now - lastLog);
-			if (diffLog > 500ms)				
+			if (diffLog > 500ms)			
 			{
 				RE::RenderPassCache* renderPassCache = RE::RenderPassCache::GetSingleton();
 				RE::RenderPassCache::Pool& pool = renderPassCache->pools[0];
@@ -251,7 +251,7 @@ namespace DEM
 					}
 				}
 
-				//logger::debug("Total: {}", usedPasses);
+				logger::debug("Total: {}", usedPasses);
 
 				lastLog = now;
 			}

@@ -12,7 +12,7 @@ namespace DEM
 		static constexpr inline std::string_view path = "_level0.HUDMovieBaseInstance.Minimap";
 
 		// override HUDObject
-		void Update() override{};								 // 01
+		void Update() override {}								 // 01
 		bool ProcessMessage(RE::UIMessage* a_message) override;	 // 02
 
 		static void InitSingleton(const IUI::GFxDisplayObject& a_map)
@@ -25,6 +25,7 @@ namespace DEM
 		}
 
 		void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs);
+		void UpdateOnEnterFrame(const RE::FxDelegateArgs& a_delegateArgs);
 
 		void Advance();
 		void PreRender();
@@ -53,6 +54,7 @@ namespace DEM
 		RE::LocalMapMenu::RUNTIME_DATA* localMap_ = nullptr;
 		RE::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
 		RE::LocalMapCamera* cameraContext = nullptr;
+		bool frameUpdatePending = true;
 
 		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
 		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;

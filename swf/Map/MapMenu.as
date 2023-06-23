@@ -96,30 +96,30 @@ class Map.MapMenu
 		if (NextCreateIndex != -1 && MarkerContainer != undefined)
 		{
 			var i:Number = 0;
-			var j:Number = NextCreateIndex * Map.MapMenu.CREATE_STRIDE;
+			var j:Number = NextCreateIndex * CREATE_STRIDE;
 			var markersLen:Number = Markers.length;
 			var dataLen:Number = MarkerData.length;
 
-			while (NextCreateIndex < markersLen && j < dataLen && i < Map.MapMenu.MARKER_CREATE_PER_FRAME)
+			while (NextCreateIndex < markersLen && j < dataLen && i < MARKER_CREATE_PER_FRAME)
 			{
-				var mapMarker:MovieClip = MarkerContainer.attachMovie(Map.MapMarker.IconTypes[MarkerData[j + Map.MapMenu.CREATE_ICONTYPE]], "Marker" + NextCreateIndex, NextCreateIndex);
+				var mapMarker:MovieClip = MarkerContainer.attachMovie(Map.MapMarker.IconTypes[MarkerData[j + CREATE_ICONTYPE]], "Marker" + NextCreateIndex, NextCreateIndex);
 				Markers[NextCreateIndex] = mapMarker;
-				if (MarkerData[j + Map.MapMenu.CREATE_ICONTYPE] == PlayerLocationMarkerType)
+				if (MarkerData[j + CREATE_ICONTYPE] == PlayerLocationMarkerType)
 				{
 					YouAreHereMarker = mapMarker.Icon;
 				}
 				mapMarker.Index = NextCreateIndex;
-				mapMarker.label = MarkerData[j + Map.MapMenu.CREATE_NAME];
+				mapMarker.label = MarkerData[j + CREATE_NAME];
 				mapMarker.textField._visible = false;
 				mapMarker.visible = false;
-				if (MarkerData[j + Map.MapMenu.CREATE_UNDISCOVERED] && mapMarker.IconClip != undefined)
+				if (MarkerData[j + CREATE_UNDISCOVERED] && mapMarker.IconClip != undefined)
 				{
 					var depth:Number = mapMarker.IconClip.getNextHighestDepth();
-					mapMarker.IconClip.attachMovie(Map.MapMarker.IconTypes[MarkerData[j + Map.MapMenu.CREATE_ICONTYPE]] + "Undiscovered", "UndiscoveredIcon", depth);
+					mapMarker.IconClip.attachMovie(Map.MapMarker.IconTypes[MarkerData[j + CREATE_ICONTYPE]] + "Undiscovered", "UndiscoveredIcon", depth);
 				}
 				++i;
 				++NextCreateIndex;
-				j = j + Map.MapMenu.CREATE_STRIDE;
+				j = j + CREATE_STRIDE;
 			}
 
 			if (NextCreateIndex >= markersLen)
@@ -142,12 +142,12 @@ class Map.MapMenu
 		while (i < markersLen && j < dataLen)
 		{
 			var marker:MapMarker = Markers[i];
-			marker._visible = MarkerData[j + Map.MapMenu.REFRESH_SHOW];
+			marker._visible = MarkerData[j + REFRESH_SHOW];
 			if (marker._visible)
 			{
-				marker._x = MarkerData[j + Map.MapMenu.REFRESH_X] * MapWidth;
-				marker._y = MarkerData[j + Map.MapMenu.REFRESH_Y] * MapHeight;
-				marker._rotation = MarkerData[j + Map.MapMenu.REFRESH_ROTATION];
+				marker._x = MarkerData[j + REFRESH_X] * MapWidth;
+				marker._y = MarkerData[j + REFRESH_Y] * MapHeight;
+				marker._rotation = MarkerData[j + REFRESH_ROTATION];
 			}
 			++i;
 			j = j + Map.MapMenu.REFRESH_STRIDE;
@@ -189,7 +189,8 @@ class Map.MapMenu
 
 	function ClickSelectedMarker():Void
 	{
-		if (SelectedMarker != undefined) {
+		if (SelectedMarker != undefined)
+		{
 			SelectedMarker.MarkerClick();
 		}
 	}

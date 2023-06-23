@@ -29,6 +29,7 @@ set(headers
 	include/IUI/GFxObject.h
 	include/RE/B/BSCullingProcess.h
 	include/RE/B/BSShaderAccumulator.h
+	include/RE/B/BSTimer.h
 	include/RE/B/BSScaleformImageLoader.h
 	include/RE/G/GFxImageLoader.h
 	include/RE/G/GFxValue.h
