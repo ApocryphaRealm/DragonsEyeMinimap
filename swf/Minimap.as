@@ -18,7 +18,7 @@ function Minimap(a_positionX:Number, a_positionY:Number):Void
 
 	All = true;
 	Favor = true;
-	DialogueMode = true;
+	//DialogueMode = true;
 	StealthMode = true;
 	Swimming = true;
 	HorseMode = true;

@@ -73,6 +73,16 @@ namespace RE
 
 namespace DEM
 {
+	bool Minimap::ProcessMessage(RE::UIMessage* a_message)
+	{
+		if (!localMap)
+		{
+			InitLocalMap();
+		}
+
+		return false;
+	}
+
 	void Minimap::InitLocalMap()
 	{
 		localMap = static_cast<RE::LocalMapMenu*>(std::malloc(sizeof(RE::LocalMapMenu)));
@@ -82,6 +92,8 @@ namespace DEM
 			localMap_ = &localMap->GetRuntimeData();
 			cullingProcess = &localMap->localCullingProcess;
 			cameraContext = cullingProcess->GetLocalMapCamera();
+
+			cameraContext->defaultState->minFrustumHalfWidth = cameraContext->defaultState->minFrustumHalfHeight;
 
 			localMap_->movieView = view.get();
 
@@ -157,21 +169,15 @@ namespace DEM
 
 		RE::GPointF localBottomRight{ localRight, localBottom };
 		localMap->bottomRight = view->TranslateToScreen(localBottomRight, identityMat2D);
+
+		float aspectRatio = (localMap->bottomRight.x - localMap->topLeft.x) / (localMap->bottomRight.y - localMap->topLeft.y);
+
+		cameraContext->defaultState->minFrustumHalfWidth = aspectRatio * cameraContext->defaultState->minFrustumHalfHeight;
 	}
 
 	void Minimap::UpdateOnEnterFrame(const RE::FxDelegateArgs& a_delegateArgs)
 	{
 		frameUpdatePending = true;
-	}
-
-	bool Minimap::ProcessMessage(RE::UIMessage* a_message)
-	{
-		if (!localMap)
-		{
-			InitLocalMap();
-		}
-
-		return false;
 	}
 
 	void Minimap::Advance()
@@ -204,12 +210,7 @@ namespace DEM
 			cameraContext->Update();
 
 			localMap->PopulateData();
-			RE::GFxValue presult;
-			do
-			{
-				localMap_->iconDisplay.Invoke("CreateMarkers", nullptr, nullptr, 0);
-				localMap_->iconDisplay.Invoke("GetCreatingMarkers", &presult, nullptr, 0);
-			} while (presult.GetBool());
+			localMap_->iconDisplay.Invoke("CreateMarkers", nullptr, nullptr, 0);
 			localMap->RefreshMarkers();
 
 			std::array<RE::GFxValue, 2> args = GetCurrentLocationTitle();
@@ -223,6 +224,8 @@ namespace DEM
 
 		if (frameUpdatePending && localMap && localMap_->enabled)
 		{
+			frameUpdatePending = false;
+
 			RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->loadedAreaBound;
 			cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
 
@@ -230,8 +233,6 @@ namespace DEM
 
 			UpdateFogOfWar();
 			RenderOffscreen();
-
-			frameUpdatePending = false;
 
 			static std::chrono::time_point<system_clock> lastLog;
 			auto diffLog = duration_cast<milliseconds>(now - lastLog);
@@ -251,7 +252,7 @@ namespace DEM
 					}
 				}
 
-				logger::debug("Total: {}", usedPasses);
+				//logger::debug("Total: {}", usedPasses);
 
 				lastLog = now;
 			}
@@ -344,8 +345,20 @@ namespace DEM
 
 		RE::NiTObjectArray<RE::NiPointer<RE::NiAVObject>>& mainShadowSceneChildren = mainShadowSceneNode->GetChildren();
 
-        RE::BSGraphics::Renderer* renderer = RE::BSGraphics::Renderer::GetSingleton();
+		RE::NiPointer<RE::NiAVObject>& objectLODRoot = mainShadowSceneChildren[3];
 
+		bool unk219 = mainShadowSceneNode->GetRuntimeData().unk219;
+		mainShadowSceneNode->GetRuntimeData().unk219 = true;
+
+		bool areLODsHidden = objectLODRoot->GetFlags().any(RE::NiAVObject::Flag::kHidden);
+		objectLODRoot->GetFlags().reset(RE::NiAVObject::Flag::kHidden);
+		bool isByte_1431D1D30 = byte_1431D1D30;
+		bool isByte_141E0DC5C_D = byte_141E0DC5C;
+		byte_1431D1D30 = true;
+		byte_141E0DC5D = byte_141E0DC5C = false;
+		dword_1431D0D8C = 0;
+
+		RE::BSGraphics::Renderer* renderer = RE::BSGraphics::Renderer::GetSingleton();
 		RE::BSGraphics::Renderer__sub_140D6A6D0(renderer, 0.0F, 0.0F, 0.0F, 1.0F);
 
         RE::TES* tes = RE::TES::GetSingleton();
@@ -355,6 +368,8 @@ namespace DEM
 		
 		bool isWaterRenderingEnabled = enableWaterRendering;
 		enableWaterRendering = false;
+		bool isUsingMapBrightnessAndContrastBoost = useMapBrightnessAndContrastBoost;
+		useMapBrightnessAndContrastBoost = true;
 
 		if (worldSpace && worldSpace->flags.any(RE::TESWorldSpace::Flag::kFixedDimensions))
 		{
@@ -377,10 +392,15 @@ namespace DEM
 		}
 		else if (worldSpace)
 		{
+			if (worldSpace->flags.none(RE::TESWorldSpace::Flag::kSmallWorld))
+			{
+				enableWaterRendering = true;
+			}
+
 			RE::TESObjectCELL* skyCell = worldSpace->GetSkyCell();
 			if (skyCell && skyCell->IsAttached())
             {
-				if (cullingProcess->CullExteriorGround(tes->gridCells, unkData, nullptr) == 1)
+				if (cullingProcess->CullTerrain(tes->gridCells, unkData, nullptr) == 1)
 				{
 					currentCell = skyCell;
 				}
@@ -511,7 +531,17 @@ namespace DEM
         RE::TESImageSpaceManager* imageSpaceManager = RE::TESImageSpaceManager::GetSingleton();
 		imageSpaceManager->sub_1412979E0(98, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::RENDER_TARGET::kLOCAL_MAP, &imageSpaceShaderParam);
 
+		if (areLODsHidden)
+		{
+			objectLODRoot->GetFlags().set(RE::NiAVObject::Flag::kHidden);
+		}
+
+		mainShadowSceneNode->GetRuntimeData().unk219 = unk219;
 		enableWaterRendering = isWaterRenderingEnabled;
+		useMapBrightnessAndContrastBoost = isUsingMapBrightnessAndContrastBoost;
+		byte_1431D1D30 = isByte_1431D1D30;
+		byte_141E0DC5D = byte_141E0DC5C = isByte_141E0DC5C_D;
+		dword_1431D0D8C = 0;
 
         shaderAccumulator->sub_1412CCF90(false);
 	}

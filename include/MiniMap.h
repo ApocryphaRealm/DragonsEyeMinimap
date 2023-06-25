@@ -6,6 +6,7 @@
 
 namespace DEM
 {
+
 	class Minimap : public RE::HUDObject
 	{
 	public:
@@ -24,13 +25,14 @@ namespace DEM
 			}
 		}
 
-		void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs);
-		void UpdateOnEnterFrame(const RE::FxDelegateArgs& a_delegateArgs);
+		static Minimap* GetSingleton() { return singleton; }
 
+		void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs);
+
+		// Per frame steps: UpdateOnEnterFrame, Advance, PreRender
+		void UpdateOnEnterFrame(const RE::FxDelegateArgs& a_delegateArgs);
 		void Advance();
 		void PreRender();
-
-		static Minimap* GetSingleton() { return singleton; }
 
 		// members
 		RE::HUDMenu* menu = nullptr;
@@ -61,6 +63,11 @@ namespace DEM
 		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 0) }.get();
 
 		bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(501260, 0) }.get();
+		bool& byte_141E0DC5C = *REL::Relocation<bool*>{ RELOCATION_ID(513141, 0) }.get();
+		bool& byte_141E0DC5D = *REL::Relocation<bool*>{ RELOCATION_ID(513142, 0) }.get();
 		bool& enableWaterRendering = *REL::Relocation<bool*>{ RELOCATION_ID(513342, 0) }.get();
+		std::uint32_t& dword_1431D0D8C = *REL::Relocation<std::uint32_t*>{ RELOCATION_ID(527629, 0) }.get();
+		bool& byte_1431D1D30 = *REL::Relocation<bool*>{ RELOCATION_ID(527793, 0) }.get();
+		bool& useMapBrightnessAndContrastBoost = *REL::Relocation<bool*>{ RELOCATION_ID(528107, 0) }.get();
 	};
 }

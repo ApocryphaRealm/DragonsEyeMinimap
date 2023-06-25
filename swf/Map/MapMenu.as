@@ -100,7 +100,7 @@ class Map.MapMenu
 			var markersLen:Number = Markers.length;
 			var dataLen:Number = MarkerData.length;
 
-			while (NextCreateIndex < markersLen && j < dataLen && i < MARKER_CREATE_PER_FRAME)
+			while (NextCreateIndex < markersLen && j < dataLen) // && i < MARKER_CREATE_PER_FRAME)
 			{
 				var mapMarker:MovieClip = MarkerContainer.attachMovie(Map.MapMarker.IconTypes[MarkerData[j + CREATE_ICONTYPE]], "Marker" + NextCreateIndex, NextCreateIndex);
 				Markers[NextCreateIndex] = mapMarker;

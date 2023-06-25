@@ -79,10 +79,10 @@ namespace RE
 				func(this);
 			}
 
-			static std::uint32_t CullExteriorGround(const RE::GridCellArray* a_gridCells, UnkData& a_unkData,
+			static std::uint32_t CullTerrain(const RE::GridCellArray* a_gridCells, UnkData& a_unkData,
 				const TESObjectCELL* a_cell)
 			{
-				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::CullExteriorGround);
+				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::CullTerrain);
 				REL::Relocation<func_t> func{ RELOCATION_ID(16098, 0) };
 
 				return func(a_gridCells, a_unkData, a_cell);
