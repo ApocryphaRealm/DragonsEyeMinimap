@@ -6,6 +6,38 @@
 
 namespace DEM
 {
+	struct ExtraMarker
+	{
+		struct Type
+		{
+			enum
+			{
+				kCombatant,
+				kHostile,
+				kGuard
+			};
+		};
+
+		struct CreateData
+		{
+			enum
+			{
+				kName,
+				kIconType,
+				kStride
+			};
+		};
+
+		struct RefreshData
+		{
+			enum
+			{
+				kX,
+				kY,
+				kStride
+			};
+		};
+	};
 
 	class Minimap : public RE::HUDObject
 	{
@@ -44,10 +76,14 @@ namespace DEM
 
 		void InitLocalMap();
 
+		void CreateMarkers();
+		void RefreshMarkers();
+
 		void UpdateFogOfWar();
 		void RenderOffscreen();
 
 		std::array<RE::GFxValue, 2> GetCurrentLocationTitle() const;
+		RE::NiPoint2 WorldToScreen(const RE::NiPoint3& a_position) const;
 
 		static inline Minimap* singleton = nullptr;
 
@@ -56,6 +92,11 @@ namespace DEM
 		RE::LocalMapMenu::RUNTIME_DATA* localMap_ = nullptr;
 		RE::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
 		RE::LocalMapCamera* cameraContext = nullptr;
+
+		RE::BSTArray<RE::NiPointer<RE::Actor>> combatantActors;
+		RE::BSTArray<RE::NiPointer<RE::Actor>> hostileActors;
+		RE::BSTArray<RE::NiPointer<RE::Actor>> guardActors;
+		RE::GFxValue extraMarkerData;
 		bool frameUpdatePending = true;
 
 		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;

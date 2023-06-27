@@ -15,7 +15,13 @@ class Map.MapMenu
 	static var CREATE_ICONTYPE:Number = 1;
 	static var CREATE_UNDISCOVERED:Number = 2;
 	static var CREATE_STRIDE:Number = 3;
-	static var MARKER_CREATE_PER_FRAME:Number = 10;
+
+	static var EXTRA_REFRESH_X:Number = 0;
+	static var EXTRA_REFRESH_Y:Number = 1;
+	static var EXTRA_REFRESH_STRIDE:Number = 2;
+	static var EXTRA_CREATE_NAME:Number = 0;
+	static var EXTRA_CREATE_ICONTYPE:Number = 1;
+	static var EXTRA_CREATE_STRIDE:Number = 2;
 
 	var LocalMapMenu:LocalMap;
 	var MapHeight:Number;
@@ -23,10 +29,10 @@ class Map.MapMenu
 	var MapWidth:Number;
 	var MarkerContainer:MovieClip;
 	var MarkerData:Array;
+	var ExtraMarkerData:Array;
 	var MarkerDescriptionHolder:MovieClip;
 	var MarkerDescriptionObj:MovieClip;
 	var Markers:Array;
-	var NextCreateIndex:Number;
 	var PlayerLocationMarkerType:String;
 	var SelectedMarker:MovieClip;
 	var YouAreHereMarker:MovieClip;
@@ -43,7 +49,6 @@ class Map.MapMenu
 
 		MarkerContainer = MapMovie.createEmptyMovieClip("MarkerClips", 1);
 		Markers = new Array();
-		NextCreateIndex = -1;
 		LocalMapMenu = LocalMap(MapMovie);
 		MapWidth = LocalMapMenu.TextureWidth;
 		MapHeight = LocalMapMenu.TextureHeight;
@@ -77,38 +82,31 @@ class Map.MapMenu
 			MarkerContainer.removeMovieClip();
 			MarkerContainer = MapMovie.createEmptyMovieClip("MarkerClips", 1);
 		}
-		delete Markers;
-		Markers = new Array(aNumMarkers);
+
 		Map.MapMarker.TopDepth = aNumMarkers;
-		NextCreateIndex = 0;
 		SetSelectedMarker(-1);
-	}
-
-	function GetCreatingMarkers():Boolean
-	{
-		testTf.text = "GetCreatingMarkers";
-
-		return NextCreateIndex != -1;
 	}
 
 	function CreateMarkers():Void
 	{
-		if (NextCreateIndex != -1 && MarkerContainer != undefined)
+		if (MarkerContainer != undefined)
 		{
 			var i:Number = 0;
-			var j:Number = NextCreateIndex * CREATE_STRIDE;
-			var markersLen:Number = Markers.length;
 			var dataLen:Number = MarkerData.length;
+			var extraDataLen:Number = ExtraMarkerData.length;
 
-			while (NextCreateIndex < markersLen && j < dataLen) // && i < MARKER_CREATE_PER_FRAME)
+			delete Markers;
+			Markers = new Array(dataLen / CREATE_STRIDE + extraDataLen / EXTRA_CREATE_STRIDE);
+
+			for (var j:Number = 0; j < dataLen; j = j + CREATE_STRIDE)
 			{
-				var mapMarker:MovieClip = MarkerContainer.attachMovie(Map.MapMarker.IconTypes[MarkerData[j + CREATE_ICONTYPE]], "Marker" + NextCreateIndex, NextCreateIndex);
-				Markers[NextCreateIndex] = mapMarker;
+				var mapMarker:MovieClip = MarkerContainer.attachMovie(Map.MapMarker.IconTypes[MarkerData[j + CREATE_ICONTYPE]], "Marker" + i, i);
+				Markers[i] = mapMarker;
 				if (MarkerData[j + CREATE_ICONTYPE] == PlayerLocationMarkerType)
 				{
 					YouAreHereMarker = mapMarker.Icon;
 				}
-				mapMarker.Index = NextCreateIndex;
+				mapMarker.Index = i;
 				mapMarker.label = MarkerData[j + CREATE_NAME];
 				mapMarker.textField._visible = false;
 				mapMarker.visible = false;
@@ -118,17 +116,22 @@ class Map.MapMenu
 					mapMarker.IconClip.attachMovie(Map.MapMarker.IconTypes[MarkerData[j + CREATE_ICONTYPE]] + "Undiscovered", "UndiscoveredIcon", depth);
 				}
 				++i;
-				++NextCreateIndex;
-				j = j + CREATE_STRIDE;
 			}
 
-			if (NextCreateIndex >= markersLen)
+			for (var j:Number = 0; j < extraDataLen; j = j + EXTRA_CREATE_STRIDE)
 			{
-				NextCreateIndex = -1;
+				var mapMarker:MovieClip = MarkerContainer.attachMovie(Map.MapMarker.IconTypes[ExtraMarkerData[j + EXTRA_CREATE_ICONTYPE] + 1], "Marker" + i, i);
+				Markers[i] = mapMarker;
+				mapMarker.Index = i;
+				mapMarker.label = ExtraMarkerData[j + EXTRA_CREATE_NAME];
+				mapMarker.textField._visible = false;
+				mapMarker.visible = true;
+				++i;
 			}
 		}
 
 		var mapMarker:MapMarker = Markers[0];
+		var markersLen:Number = Markers.length;
 
 		testTf.text = "CreateMarkers: markersLen="+ markersLen + " " + mapMarker.Index + ": " + mapMarker.textField;
 	}
@@ -136,10 +139,12 @@ class Map.MapMenu
 	function RefreshMarkers():Void
 	{
 		var i:Number = 0;
-		var j:Number = 0;
-		var markersLen:Number = Markers.length;
 		var dataLen:Number = MarkerData.length;
-		while (i < markersLen && j < dataLen)
+		var extraDataLen:Number = ExtraMarkerData.length;
+
+		var markersLen:Number = Markers.length;
+
+		for (var j:Number = 0; j < dataLen; j = j + REFRESH_STRIDE)
 		{
 			var marker:MapMarker = Markers[i];
 			marker._visible = MarkerData[j + REFRESH_SHOW];
@@ -150,14 +155,26 @@ class Map.MapMenu
 				marker._rotation = MarkerData[j + REFRESH_ROTATION];
 			}
 			++i;
-			j = j + Map.MapMenu.REFRESH_STRIDE;
 
-			testTf.text = "RefreshMarkers MapDim" + MapWidth + ", " + MapHeight + "  index: " + i + " ";
+			testTf.text = "m: " + markersLen + " i: " + dataLen + " xi: " + extraDataLen + " ";
 			if (marker._visible)
 			{
 				testTf.text += "x: " + marker._x + " y: " + marker._y;
 			}
 		}
+
+		for (var j:Number = 0; j < extraDataLen; j = j + EXTRA_REFRESH_STRIDE)
+		{
+			var marker:MapMarker = Markers[i];
+			marker._visible = true;
+			if (marker._visible)
+			{
+				marker._x = ExtraMarkerData[j + EXTRA_REFRESH_X] * MapWidth;
+				marker._y = ExtraMarkerData[j + EXTRA_REFRESH_Y] * MapHeight;
+			}
+			++i;
+		}
+
 		if (SelectedMarker != undefined)
 		{
 			MarkerDescriptionHolder._x = SelectedMarker._x + MarkerContainer._x;

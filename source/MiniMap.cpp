@@ -111,6 +111,10 @@ namespace DEM
 			localMap_->enabled = true;
 			localMap_->usingCursor = 0;
 			localMap_->inForeground = localMap_->enabled;
+
+			view->CreateArray(&extraMarkerData);
+			localMap_->iconDisplay.SetMember("ExtraMarkerData", extraMarkerData);
+
 			cameraContext->currentState->Begin();
 
 			RE::GFxValue gfxEnable = localMap_->enabled;
@@ -209,12 +213,10 @@ namespace DEM
 			}
 			cameraContext->Update();
 
-			localMap->PopulateData();
-			localMap_->iconDisplay.Invoke("CreateMarkers", nullptr, nullptr, 0);
-			localMap->RefreshMarkers();
+			CreateMarkers();
+			RefreshMarkers();
 
-			std::array<RE::GFxValue, 2> args = GetCurrentLocationTitle();
-			localMap_->root.Invoke("SetTitle", nullptr, args);
+			localMap_->root.Invoke("SetTitle", nullptr, GetCurrentLocationTitle());
 		}
 	}
 
@@ -257,6 +259,139 @@ namespace DEM
 				lastLog = now;
 			}
 		}
+	}
+
+	void Minimap::CreateMarkers()
+	{
+		localMap->PopulateData();
+
+		combatantActors.clear();
+		hostileActors.clear();
+		guardActors.clear();
+
+		RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+
+		for (RE::ActorHandle& highActorHandle : RE::ProcessLists::GetSingleton()->highActorHandles)
+		{
+			RE::NiPointer<RE::Actor> actor = highActorHandle.get();
+			if (actor) 
+			{
+				bool isActorCombatant = false;
+				for (RE::ActorHandle& combatantActorHandle : player->GetInfoRuntimeData().actorsToDisplayOnTheHUDArray)
+				{
+					if (highActorHandle == combatantActorHandle)
+					{
+						combatantActors.push_back(actor);
+						isActorCombatant = true;
+						break;
+					}
+				}
+
+				if (!isActorCombatant && !actor->IsDead())
+				{
+					if (actor->IsHostileToActor(RE::PlayerCharacter::GetSingleton()))
+					{
+						hostileActors.push_back(actor);
+					}
+					else if (actor->IsGuard())
+					{
+						guardActors.push_back(actor);
+					}
+				}
+			}
+		}
+
+		extraMarkerData.ClearElements();
+
+		std::size_t numCombatantActors = combatantActors.size();
+		std::size_t numHostileActors = hostileActors.size();
+		std::size_t numGuardActors = guardActors.size();
+
+		extraMarkerData.SetArraySize(ExtraMarker::CreateData::kStride * (numCombatantActors + numHostileActors + numGuardActors));
+
+		int j = 0;
+
+		for (int i = 0; i < numHostileActors; i++)
+		{
+			RE::NiPointer<RE::Actor>& actor = hostileActors[i];
+			extraMarkerData.SetElement(j + ExtraMarker::CreateData::kName, actor->GetName());
+			extraMarkerData.SetElement(j + ExtraMarker::CreateData::kIconType, ExtraMarker::Type::kHostile);
+			j += ExtraMarker::CreateData::kStride;
+		}
+
+		for (int i = 0; i < numGuardActors; i++)
+		{
+			RE::NiPointer<RE::Actor>& actor = guardActors[i];
+			extraMarkerData.SetElement(j + ExtraMarker::CreateData::kName, actor->GetName());
+			extraMarkerData.SetElement(j + ExtraMarker::CreateData::kIconType, ExtraMarker::Type::kGuard);
+			j += ExtraMarker::CreateData::kStride;
+		}
+
+		for (int i = 0; i < numCombatantActors; i++)
+		{
+			RE::NiPointer<RE::Actor>& actor = combatantActors[i];
+			extraMarkerData.SetElement(j + ExtraMarker::CreateData::kName, actor->GetName());
+			extraMarkerData.SetElement(j + ExtraMarker::CreateData::kIconType, ExtraMarker::Type::kCombatant);
+			j += ExtraMarker::CreateData::kStride;
+		}
+
+		localMap_->iconDisplay.Invoke("CreateMarkers", nullptr, nullptr, 0);
+	}
+
+	void Minimap::RefreshMarkers()
+	{
+		std::size_t numCombatantActors = combatantActors.size();
+		std::size_t numHostileActors = hostileActors.size();
+		std::size_t numGuardActors = guardActors.size();
+
+		extraMarkerData.SetArraySize(ExtraMarker::RefreshData::kStride * (numCombatantActors + numHostileActors + numGuardActors));
+				
+		int j = 0;
+
+		for (int i = 0; i < numHostileActors; i++)
+		{
+			RE::NiPointer<RE::Actor>& actor = hostileActors[i];
+			RE::NiPoint2 screenPos = WorldToScreen(actor->GetPosition());
+			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kX, screenPos.x);
+			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kY, screenPos.y);
+			j += ExtraMarker::RefreshData::kStride;
+		}
+
+		for (int i = 0; i < numGuardActors; i++)
+		{
+			RE::NiPointer<RE::Actor>& actor = guardActors[i];
+			RE::NiPoint2 screenPos = WorldToScreen(actor->GetPosition());
+			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kX, screenPos.x);
+			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kY, screenPos.y);
+			j += ExtraMarker::RefreshData::kStride;
+		}
+
+		for (int i = 0; i < numCombatantActors; i++)
+		{
+			RE::NiPointer<RE::Actor>& actor = combatantActors[i];
+			RE::NiPoint2 screenPos = WorldToScreen(actor->GetPosition());
+			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kX, screenPos.x);
+			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kY, screenPos.y);
+			j += ExtraMarker::RefreshData::kStride;
+		}
+
+		localMap->RefreshMarkers();
+	}
+
+	RE::NiPoint2 Minimap::WorldToScreen(const RE::NiPoint3& a_position) const
+	{
+		RE::NiPoint2 screenPos;
+
+		RE::NiPointer<RE::NiCamera> camera = cameraContext->camera;
+
+		float z;
+
+		camera->WorldPtToScreenPt3(camera->GetRuntimeData().worldToCam, 
+			camera->GetRuntimeData2().port, a_position, screenPos.x, screenPos.y, z, 0.00001F);
+
+		screenPos.y = 1.0F - screenPos.y;
+
+		return screenPos;
 	}
 
 	void Minimap::UpdateFogOfWar()
