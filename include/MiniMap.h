@@ -93,7 +93,7 @@ namespace DEM
 		RE::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
 		RE::LocalMapCamera* cameraContext = nullptr;
 
-		RE::BSTArray<RE::NiPointer<RE::Actor>> combatantActors;
+		RE::BSTArray<RE::NiPointer<RE::Actor>> enemyActors;
 		RE::BSTArray<RE::NiPointer<RE::Actor>> hostileActors;
 		RE::BSTArray<RE::NiPointer<RE::Actor>> guardActors;
 		RE::GFxValue extraMarkerData;

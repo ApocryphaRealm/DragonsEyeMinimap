@@ -100,7 +100,7 @@ class Map.MapMenu
 
 			for (var j:Number = 0; j < dataLen; j = j + CREATE_STRIDE)
 			{
-				var mapMarker:MovieClip = MarkerContainer.attachMovie(Map.MapMarker.IconTypes[MarkerData[j + CREATE_ICONTYPE]], "Marker" + i, i);
+				var mapMarker:MovieClip = MarkerContainer.attachMovie(MapMarker.IconTypes[MarkerData[j + CREATE_ICONTYPE]], "Marker" + i, i);
 				Markers[i] = mapMarker;
 				if (MarkerData[j + CREATE_ICONTYPE] == PlayerLocationMarkerType)
 				{
@@ -113,14 +113,14 @@ class Map.MapMenu
 				if (MarkerData[j + CREATE_UNDISCOVERED] && mapMarker.IconClip != undefined)
 				{
 					var depth:Number = mapMarker.IconClip.getNextHighestDepth();
-					mapMarker.IconClip.attachMovie(Map.MapMarker.IconTypes[MarkerData[j + CREATE_ICONTYPE]] + "Undiscovered", "UndiscoveredIcon", depth);
+					mapMarker.IconClip.attachMovie(MapMarker.IconTypes[MarkerData[j + CREATE_ICONTYPE]] + "Undiscovered", "UndiscoveredIcon", depth);
 				}
 				++i;
 			}
 
 			for (var j:Number = 0; j < extraDataLen; j = j + EXTRA_CREATE_STRIDE)
 			{
-				var mapMarker:MovieClip = MarkerContainer.attachMovie(Map.MapMarker.IconTypes[ExtraMarkerData[j + EXTRA_CREATE_ICONTYPE] + 1], "Marker" + i, i);
+				var mapMarker:MovieClip = MarkerContainer.attachMovie(MapMarker.ExtraIconTypes[ExtraMarkerData[j + EXTRA_CREATE_ICONTYPE]], "Marker" + i, i);
 				Markers[i] = mapMarker;
 				mapMarker.Index = i;
 				mapMarker.label = ExtraMarkerData[j + EXTRA_CREATE_NAME];

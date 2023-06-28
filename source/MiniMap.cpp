@@ -265,7 +265,7 @@ namespace DEM
 	{
 		localMap->PopulateData();
 
-		combatantActors.clear();
+		enemyActors.clear();
 		hostileActors.clear();
 		guardActors.clear();
 
@@ -274,22 +274,23 @@ namespace DEM
 		for (RE::ActorHandle& highActorHandle : RE::ProcessLists::GetSingleton()->highActorHandles)
 		{
 			RE::NiPointer<RE::Actor> actor = highActorHandle.get();
-			if (actor) 
+			if (actor && RE::NiCamera::PointInFrustum(actor->GetPosition(), cameraContext->camera.get(), 1)) 
 			{
 				bool isActorCombatant = false;
 				for (RE::ActorHandle& combatantActorHandle : player->GetInfoRuntimeData().actorsToDisplayOnTheHUDArray)
 				{
 					if (highActorHandle == combatantActorHandle)
 					{
-						combatantActors.push_back(actor);
+						enemyActors.push_back(actor);
 						isActorCombatant = true;
 						break;
 					}
 				}
 
-				if (!isActorCombatant && !actor->IsDead())
+				if (!isActorCombatant && !actor->IsDead() &&
+					actor->AsActorValueOwner()->GetActorValue(RE::ActorValue::kAggression) != 0.0F)
 				{
-					if (actor->IsHostileToActor(RE::PlayerCharacter::GetSingleton()))
+					if (actor->IsHostileToActor(player))
 					{
 						hostileActors.push_back(actor);
 					}
@@ -303,11 +304,11 @@ namespace DEM
 
 		extraMarkerData.ClearElements();
 
-		std::size_t numCombatantActors = combatantActors.size();
+		std::size_t numEnemyActors = enemyActors.size();
 		std::size_t numHostileActors = hostileActors.size();
 		std::size_t numGuardActors = guardActors.size();
 
-		extraMarkerData.SetArraySize(ExtraMarker::CreateData::kStride * (numCombatantActors + numHostileActors + numGuardActors));
+		extraMarkerData.SetArraySize((numEnemyActors + numHostileActors + numGuardActors) * ExtraMarker::CreateData::kStride);
 
 		int j = 0;
 
@@ -327,9 +328,9 @@ namespace DEM
 			j += ExtraMarker::CreateData::kStride;
 		}
 
-		for (int i = 0; i < numCombatantActors; i++)
+		for (int i = 0; i < numEnemyActors; i++)
 		{
-			RE::NiPointer<RE::Actor>& actor = combatantActors[i];
+			RE::NiPointer<RE::Actor>& actor = enemyActors[i];
 			extraMarkerData.SetElement(j + ExtraMarker::CreateData::kName, actor->GetName());
 			extraMarkerData.SetElement(j + ExtraMarker::CreateData::kIconType, ExtraMarker::Type::kCombatant);
 			j += ExtraMarker::CreateData::kStride;
@@ -340,11 +341,11 @@ namespace DEM
 
 	void Minimap::RefreshMarkers()
 	{
-		std::size_t numCombatantActors = combatantActors.size();
+		std::size_t numEnemyActors = enemyActors.size();
 		std::size_t numHostileActors = hostileActors.size();
 		std::size_t numGuardActors = guardActors.size();
 
-		extraMarkerData.SetArraySize(ExtraMarker::RefreshData::kStride * (numCombatantActors + numHostileActors + numGuardActors));
+		extraMarkerData.SetArraySize((numEnemyActors + numHostileActors + numGuardActors) * ExtraMarker::RefreshData::kStride);
 				
 		int j = 0;
 
@@ -366,9 +367,9 @@ namespace DEM
 			j += ExtraMarker::RefreshData::kStride;
 		}
 
-		for (int i = 0; i < numCombatantActors; i++)
+		for (int i = 0; i < numEnemyActors; i++)
 		{
-			RE::NiPointer<RE::Actor>& actor = combatantActors[i];
+			RE::NiPointer<RE::Actor>& actor = enemyActors[i];
 			RE::NiPoint2 screenPos = WorldToScreen(actor->GetPosition());
 			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kX, screenPos.x);
 			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kY, screenPos.y);
