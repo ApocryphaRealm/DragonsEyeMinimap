@@ -17,7 +17,7 @@ namespace RE
 		bool AddVirtualImage(ImageData& a_image)
 		{
 			using func_t = decltype(&BSScaleformImageLoader::AddVirtualImage);
-			REL::Relocation<func_t> func{ RELOCATION_ID(82382, 0) };
+			REL::Relocation<func_t> func{ RELOCATION_ID(82382, 84469) };
 
 			return func(this, a_image);
 		}
@@ -25,7 +25,7 @@ namespace RE
 		bool ReleaseVirtualImage(ImageData& a_image)
 		{
 			using func_t = decltype(&BSScaleformImageLoader::ReleaseVirtualImage);
-			REL::Relocation<func_t> func{ RELOCATION_ID(82383, 0) };
+			REL::Relocation<func_t> func{ RELOCATION_ID(82383, 84470) };
 
 			return func(this, a_image);
 		}

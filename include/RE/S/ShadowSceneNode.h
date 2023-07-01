@@ -95,7 +95,7 @@ namespace RE
 
 		static ShadowSceneNode* GetMain()
 		{
-			REL::Relocation<RE::ShadowSceneNode**> list{ RELOCATION_ID(513211, 0) };
+			REL::Relocation<RE::ShadowSceneNode**> list{ RELOCATION_ID(513211, 390951) };
 			return list.get()[0];
 		}
 

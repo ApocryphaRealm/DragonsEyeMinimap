@@ -4,6 +4,7 @@
 
 #include "RE/B/BSShaderAccumulator.h"
 #include "RE/B/BSTimer.h"
+#include "RE/I/ImageSpaceManager.h"
 #include "RE/I/ImageSpaceShaderParam.h"
 #include "RE/L/LocalMapCamera.h"
 #include "RE/R/Renderer.h"
@@ -25,39 +26,10 @@ namespace RE
 	};
 	//static_assert(sizeof(BSPortalGraphEntry) == 0x140);
 
-    class TESImageSpaceManager
-    {
-	public:
-		static TESImageSpaceManager* GetSingleton()
-		{
-			REL::Relocation<TESImageSpaceManager**> instance{ RELOCATION_ID(527731, 0) };
-			return *instance.get();
-		}
-
-        void* sub_1412979E0(std::int32_t a_effectIndex, RENDER_TARGET a_swap, RENDER_TARGET a_target, ImageSpaceShaderParam* a_param)
-        {
-			using func_t = decltype(&TESImageSpaceManager::sub_1412979E0);
-			REL::Relocation<func_t> func{ RELOCATION_ID(99025, 0) };
-
-			return func(this, a_effectIndex, a_swap, a_target, a_param);
-        }
-    };
-
-	namespace BSGraphics
-	{
-		void Renderer__sub_140D6A6D0(Renderer* _this, float a_unk1, float a_unk2, float a_unk3, float a_unk4)
-		{
-			using func_t = decltype(&Renderer__sub_140D6A6D0);
-			REL::Relocation<func_t> func{ RELOCATION_ID(75463, 0) };
-
-			func(_this, a_unk1, a_unk2, a_unk3, a_unk4);
-		}
-	}
-
     RE::BSPortalGraphEntry* Main__GetPortalGraphEntry(Main* _this)
     {
 		using func_t = decltype(&Main__GetPortalGraphEntry);
-		REL::Relocation<func_t> func{ RELOCATION_ID(35607, 0) };
+		REL::Relocation<func_t> func{ RELOCATION_ID(35607, 36617) };
 
 		return func(_this);
     }
@@ -65,7 +37,7 @@ namespace RE
     void* NiCamera__Accumulate(NiCamera* _this, BSShaderAccumulator* a_shaderAccumulator, std::uint32_t a_unk2)
     {
 		using func_t = decltype(&NiCamera__Accumulate);
-		REL::Relocation<func_t> func{ RELOCATION_ID(99789, 0) };
+		REL::Relocation<func_t> func{ RELOCATION_ID(99789, 106436) };
 
 		return func(_this, a_shaderAccumulator, a_unk2);
     }
@@ -495,7 +467,7 @@ namespace DEM
 		dword_1431D0D8C = 0;
 
 		RE::BSGraphics::Renderer* renderer = RE::BSGraphics::Renderer::GetSingleton();
-		RE::BSGraphics::Renderer__sub_140D6A6D0(renderer, 0.0F, 0.0F, 0.0F, 1.0F);
+		renderer->SetClearColor(1.0F, .0F, 1.0F, 0.0F);
 
         RE::TES* tes = RE::TES::GetSingleton();
 		RE::TESWorldSpace* worldSpace = tes->worldSpace;
@@ -592,18 +564,18 @@ namespace DEM
         RE::BSGraphics::RenderTargetManager* renderTargetManager = RE::BSGraphics::RenderTargetManager::GetSingleton();
 
         int depthStencil = renderTargetManager->GetDepthStencil();
-        renderTargetManager->sub_140D74D10(depthStencil, 0, 0, false);
+		renderTargetManager->SetupDepthStencilAt(depthStencil, 0, 0, false);
 
 		RE::BSGraphics::SetRenderTargetMode worldRenderTargetMode = isFogOfWarEnabled ? RE::BSGraphics::SetRenderTargetMode::kClear : RE::BSGraphics::SetRenderTargetMode::kRestore;
 
-		renderTargetManager->SetModeForRenderTarget(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, worldRenderTargetMode, true);
+		renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, worldRenderTargetMode, true);
 		RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
 
 		// 4. Post process step (Add fog of war) ///////////////////////////////////////////////////////////////////////////
 
 		if (isFogOfWarEnabled)
 		{
-			shaderAccumulator->sub_1412CCF90(false);
+			shaderAccumulator->ClearRemainingRenderPasses(false);
 
 			RE::BSShaderAccumulator::SetRenderMode(19);
 
@@ -632,7 +604,7 @@ namespace DEM
 				}
 			}
 
-			renderTargetManager->SetModeForRenderTarget(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::kRestore, true);
+			renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::kRestore, true);
 			RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
 
 			if (rendererShadowState->depthStencilDepthMode != RE::BSGraphics::DepthStencilDepthMode::kTestWrite)
@@ -656,16 +628,18 @@ namespace DEM
 		}
 		// 5. Finish rendering and dispatch ////////////////////////////////////////////////////////////////////////////////
 
-        renderTargetManager->sub_140D74D10(-1, 3, 0, false);
+        renderTargetManager->SetupDepthStencilAt(-1, 3, 0, false);
 		RE::ImageSpaceShaderParam& imageSpaceShaderParam = cullingProcess->GetImageSpaceShaderParam();
 		RE::BSGraphics::RenderTargetProperties& renderLocalMapSwapData = renderTargetManager->renderTargetData[RE::RENDER_TARGET::kLOCAL_MAP_SWAP];
 		float localMapSwapWidth = renderLocalMapSwapData.width;
 		float localMapSwapHeight = renderLocalMapSwapData.height;
 
-		imageSpaceShaderParam.sub_1412D66F0(0, 1.0 / localMapSwapWidth, 1.0 / localMapSwapHeight, 0.0, 0.0);
+		imageSpaceShaderParam.SetupPixelConstantGroup(0, 1.0 / localMapSwapWidth, 1.0 / localMapSwapHeight, 0.0, 0.0);
 		
-        RE::TESImageSpaceManager* imageSpaceManager = RE::TESImageSpaceManager::GetSingleton();
-		imageSpaceManager->sub_1412979E0(98, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::RENDER_TARGET::kLOCAL_MAP, &imageSpaceShaderParam);
+        RE::ImageSpaceManager* imageSpaceManager = RE::ImageSpaceManager::GetSingleton();
+		imageSpaceManager->CopyWithImageSpaceEffect(RE::ImageSpaceManager::ImageSpaceEffectEnum::ISLocalMap,
+													RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::RENDER_TARGET::kLOCAL_MAP,
+													&imageSpaceShaderParam);
 
 		if (areLODsHidden)
 		{
@@ -679,6 +653,6 @@ namespace DEM
 		byte_141E0DC5D = byte_141E0DC5C = isByte_141E0DC5C_D;
 		dword_1431D0D8C = 0;
 
-        shaderAccumulator->sub_1412CCF90(false);
+        shaderAccumulator->ClearRemainingRenderPasses(false);
 	}
 }

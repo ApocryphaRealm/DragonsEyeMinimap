@@ -17,28 +17,28 @@ namespace RE
 				return instance.get();
 			}
 
-			[[nodiscard]] int GetDepthStencil() const
+			void SetupRenderTargetAt(std::uint32_t a_renderTargetIndex, RENDER_TARGET a_renderTarget, SetRenderTargetMode a_renderTargetMode, bool a_unk3)
 			{
-				using func_t = decltype(&RenderTargetManager::GetDepthStencil);
-				REL::Relocation<func_t> func{ RELOCATION_ID(75650, 0) };
-
-				return func(this);
-			}
-
-			void SetModeForRenderTarget(std::uint32_t a_renderTargetIndex, RENDER_TARGET a_renderTarget, SetRenderTargetMode a_renderTargetMode, bool a_unk3)
-			{
-				using func_t = decltype(&RenderTargetManager::SetModeForRenderTarget);
-				REL::Relocation<func_t> func{ RELOCATION_ID(75646, 0) };
+				using func_t = decltype(&RenderTargetManager::SetupRenderTargetAt);
+				REL::Relocation<func_t> func{ RELOCATION_ID(75646, 77453) };
 
 				func(this, a_renderTargetIndex, a_renderTarget, a_renderTargetMode, a_unk3);
 			}
 
-			void sub_140D74D10(std::int32_t a_depthStencil, std::int32_t a_depthStencilMode, std::int32_t a_depthStencilSlice, bool a_unk4)
+			void SetupDepthStencilAt(std::int32_t a_depthStencilIndex, std::int32_t a_depthStencilMode, std::int32_t a_depthStencilSlice, bool a_unk4)
 			{
-				using func_t = decltype(&RenderTargetManager::sub_140D74D10);
-				REL::Relocation<func_t> func{ RELOCATION_ID(75647, 0) };
+				using func_t = decltype(&RenderTargetManager::SetupDepthStencilAt);
+				REL::Relocation<func_t> func{ RELOCATION_ID(75647, 77454) };
 
-				func(this, a_depthStencil, a_depthStencilMode, a_depthStencilSlice, a_unk4);
+				func(this, a_depthStencilIndex, a_depthStencilMode, a_depthStencilSlice, a_unk4);
+			}
+
+			[[nodiscard]] int GetDepthStencil() const
+			{
+				using func_t = decltype(&RenderTargetManager::GetDepthStencil);
+				REL::Relocation<func_t> func{ RELOCATION_ID(75650, 77457) };
+
+				return func(this);
 			}
 
 			// members

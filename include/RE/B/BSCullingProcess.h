@@ -82,7 +82,7 @@ namespace RE
 		void Cull(std::int32_t a_unk0, std::uint32_t a_unk1)
 		{
 			using func_t = decltype(&BSCullingDelegate::Cull);
-			REL::Relocation<func_t> func{ RELOCATION_ID(100213, 0) };
+			REL::Relocation<func_t> func{ RELOCATION_ID(100213, 106921) };
 
 			func(this, a_unk0, a_unk1);
 		}

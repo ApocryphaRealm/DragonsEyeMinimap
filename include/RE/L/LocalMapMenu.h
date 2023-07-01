@@ -66,7 +66,7 @@ namespace RE
 			void RenderOffScreen()
 			{
 				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::RenderOffScreen);
-				REL::Relocation<func_t> func{ RELOCATION_ID(16094, 0) };
+				REL::Relocation<func_t> func{ RELOCATION_ID(16094, 16335) };
 
 				func(this);
 			}
@@ -74,7 +74,7 @@ namespace RE
 			void CreateFogOfWar()
 			{
 				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::CreateFogOfWar);
-				REL::Relocation<func_t> func{ RELOCATION_ID(16095, 0) };
+				REL::Relocation<func_t> func{ RELOCATION_ID(16095, 16336) };
 
 				func(this);
 			}
@@ -83,7 +83,7 @@ namespace RE
 				const TESObjectCELL* a_cell)
 			{
 				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::CullTerrain);
-				REL::Relocation<func_t> func{ RELOCATION_ID(16098, 0) };
+				REL::Relocation<func_t> func{ RELOCATION_ID(16098, 16339) };
 
 				return func(a_gridCells, a_unkData, a_cell);
 			}
@@ -91,7 +91,7 @@ namespace RE
 			static std::uint32_t CullCellObjects(UnkData& a_unkData, const TESObjectCELL* a_cell)
 			{
 				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::CullCellObjects);
-				REL::Relocation<func_t> func{ RELOCATION_ID(16100, 0) };
+				REL::Relocation<func_t> func{ RELOCATION_ID(16100, 16343) };
 
 				return func(a_unkData, a_cell);
 			}
@@ -99,7 +99,7 @@ namespace RE
 			static int AttachFogOfWarOverlay(FogOfWar& a_fogOfWar, const TESObjectCELL* a_cell)
 			{
 				using func_t = decltype(&LocalMapMenu::LocalMapCullingProcess::AttachFogOfWarOverlay);
-				REL::Relocation<func_t> func{ RELOCATION_ID(16101, 0) };
+				REL::Relocation<func_t> func{ RELOCATION_ID(16101, 16344) };
 
 				return func(a_fogOfWar, a_cell);
 			}
@@ -198,7 +198,7 @@ namespace RE
 		LocalMapMenu* Ctor()
 		{
 			using func_t = decltype(&LocalMapMenu::Ctor);
-			REL::Relocation<func_t> func{ RELOCATION_ID(52076, 0) };
+			REL::Relocation<func_t> func{ RELOCATION_ID(52076, 52964) };
 
 			return func(this);
 		}
@@ -206,7 +206,7 @@ namespace RE
 		void Dtor()
 		{
 			using func_t = decltype(&LocalMapMenu::Dtor);
-			REL::Relocation<func_t> func{ RELOCATION_ID(52077, 0) };
+			REL::Relocation<func_t> func{ RELOCATION_ID(52077, 52965) };
 
 			func(this);
 		}
@@ -214,7 +214,7 @@ namespace RE
 		void Advance()
 		{
 			using func_t = decltype(&LocalMapMenu::Advance);
-			REL::Relocation<func_t> func{ RELOCATION_ID(52078, 0) };
+			REL::Relocation<func_t> func{ RELOCATION_ID(52078, 52966) };
 
 			func(this);
 		}
@@ -222,7 +222,7 @@ namespace RE
 		void Show(bool a_show)
 		{
 			using func_t = decltype(&LocalMapMenu::Show);
-			REL::Relocation<func_t> func{ RELOCATION_ID(52079, 0) };
+			REL::Relocation<func_t> func{ RELOCATION_ID(52079, 52969) };
 
 			func(this, a_show);
 		}
@@ -230,7 +230,7 @@ namespace RE
 		void InitScaleform(RE::GFxMovie* const& a_movie)
 		{
 			using func_t = decltype(&LocalMapMenu::InitScaleform);
-			REL::Relocation<func_t> func{ RELOCATION_ID(52080, 0) };
+			REL::Relocation<func_t> func{ RELOCATION_ID(52080, 52970) };
 
 			return func(this, a_movie);
 		}
@@ -246,7 +246,7 @@ namespace RE
 		void RefreshMarkers()
 		{
 			using func_t = decltype(&LocalMapMenu::RefreshMarkers);
-			REL::Relocation<func_t> func{ RELOCATION_ID(52090, 0) };
+			REL::Relocation<func_t> func{ RELOCATION_ID(52090, 52980) };
 
 			func(this);
 		}

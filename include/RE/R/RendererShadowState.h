@@ -75,7 +75,7 @@ namespace RE
 		public:
 			static RendererShadowState* GetSingleton()
 			{
-				REL::Relocation<RendererShadowState*> instance{ RELOCATION_ID(524773, 0) };
+				REL::Relocation<RendererShadowState*> instance{ RELOCATION_ID(524773, 388819) };
 				return instance.get();
 			}
 			

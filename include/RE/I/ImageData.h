@@ -11,7 +11,7 @@ namespace RE
 		bool BindToVirtualTarget(const BSFixedString& a_filePath, RENDER_TARGET a_renderTarget)
 		{
 			using func_t = decltype(&ImageData::BindToVirtualTarget);
-			REL::Relocation<func_t> func{ RELOCATION_ID(80296, 0) };
+			REL::Relocation<func_t> func{ RELOCATION_ID(80296, 82319) };
 
 			return func(this, a_filePath, a_renderTarget);
 		}

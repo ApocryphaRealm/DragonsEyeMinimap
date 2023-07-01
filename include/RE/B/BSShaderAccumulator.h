@@ -64,10 +64,10 @@ namespace RE
 		virtual void Unk_2B(uint32_t a_unk0);								   // 2B
 		virtual void Unk_2C(void);											   // 2C
 
-		void sub_1412CCF90(bool a_unk0)
+		void ClearRemainingRenderPasses(bool a_unk0)
 		{
-			using func_t = decltype(&BSShaderAccumulator::sub_1412CCF90);
-			REL::Relocation<func_t> func{ RELOCATION_ID(99964, 0) };
+			using func_t = decltype(&BSShaderAccumulator::ClearRemainingRenderPasses);
+			REL::Relocation<func_t> func{ RELOCATION_ID(99964, 106610) };
 
 			func(this, a_unk0);
 		}
@@ -75,7 +75,7 @@ namespace RE
 		static void SetRenderMode(std::uint32_t a_renderMode)
 		{
 			using func_t = decltype(&BSShaderAccumulator::SetRenderMode);
-			REL::Relocation<func_t> func{ RELOCATION_ID(98987, 0) };
+			REL::Relocation<func_t> func{ RELOCATION_ID(98987, 105641) };
 
 			func(a_renderMode);
 		}

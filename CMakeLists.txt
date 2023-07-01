@@ -35,10 +35,12 @@ set(headers
 	include/RE/G/GFxValue.h
 	include/RE/H/HUDData.h
 	include/RE/I/ImageData.h
+	include/RE/I/ImageSpaceManager.h
 	include/RE/I/ImageSpaceShaderParam.h
 	include/RE/L/LoadedAreaBound.h
 	include/RE/L/LocalMapCamera.h
 	include/RE/L/LocalMapMenu.h
+	include/RE/R/Renderer.h
 	include/RE/R/RendererShadowState.h
 	include/RE/R/RenderPassCache.h
 	include/RE/R/RenderTargetManager.h
