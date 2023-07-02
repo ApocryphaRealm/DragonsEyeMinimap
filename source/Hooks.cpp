@@ -30,23 +30,15 @@ void AdvanceMovieHUDMenu(RE::HUDMenu* a_hudMenu, float a_interval, std::uint32_t
 {
 	hooks::HUDMenu::AdvanceMovie(a_hudMenu, a_interval, a_currentTime);
 
-	DEM::Minimap* minimap = DEM::Minimap::GetSingleton();
-	if (minimap)
-	{
-		a_hudMenu->menuFlags.set(RE::UI_MENU_FLAGS::kRendersOffscreenTargets);
-		minimap->Advance();
-	}
+	a_hudMenu->menuFlags.set(RE::UI_MENU_FLAGS::kRendersOffscreenTargets);
+	DEM::Minimap::GetSingleton()->Advance();
 }
 
 void PreDisplayHUDMenu(RE::HUDMenu* a_hudMenu)
 {
 	if (!RE::UI::GetSingleton()->IsMenuOpen(RE::MapMenu::MENU_NAME))
 	{
-		DEM::Minimap* minimap = DEM::Minimap::GetSingleton();
-		if (minimap)
-		{
-			minimap->PreRender();
-		}
+		DEM::Minimap::GetSingleton()->PreRender();
 	}
 
 	hooks::HUDMenu::PreDisplay(a_hudMenu);

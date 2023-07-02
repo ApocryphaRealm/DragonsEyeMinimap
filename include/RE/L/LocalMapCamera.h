@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RE/B/BSTSmartPointer.h"
+#include "RE/N/NiCamera.h"
 #include "RE/N/NiPoint3.h"
 #include "RE/N/NiSmartPointer.h"
 #include "RE/T/TESCamera.h"
@@ -8,8 +9,6 @@
 
 namespace RE
 {
-	class NiCamera;
-
 	class LocalMapCamera : public TESCamera
 	{
 	public:
@@ -44,6 +43,18 @@ namespace RE
 		void SetDefaultStateMinFrustumDimensions(float a_width, float a_height);
 		void SetDefaultStateTranslation(float a_x, float a_y, float a_z);
 		void SetNorthRotation(float a_northRotation);
+
+		RE::NiPoint2 WorldToScreen(const RE::NiPoint3& a_position) const
+		{
+			RE::NiPoint2 screenPos;
+			float z;
+
+			camera->WorldPtToScreenPt3(camera->GetRuntimeData().worldToCam,
+				camera->GetRuntimeData2().port, a_position, screenPos.x, screenPos.y, z, 0.00001F);
+			screenPos.y = 1.0F - screenPos.y;
+
+			return screenPos;
+		}
 
 		// members
 		NiPoint3 maxExtent;							 // 38

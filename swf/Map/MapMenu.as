@@ -61,7 +61,7 @@ class Map.MapMenu
 		Init();
 	}
 
-		function Init():Void
+	function Init():Void
 	{
 		MapMovie.swapDepths(3);
 		MapMovie.gotoAndStop("hide");

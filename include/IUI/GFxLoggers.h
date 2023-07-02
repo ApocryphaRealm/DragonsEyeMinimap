@@ -73,7 +73,7 @@ namespace IUI
 
 		void LogElementsOf(const RE::GFxValue& a_value)
 		{
-			logger::at_level(logLevel, "{}: {}", a_value.ToString(), GFxValueTypeToString(a_value.GetType()));
+			logger::at_level(logLevel, "{}: {}", a_value.ToString().c_str(), GFxValueTypeToString(a_value.GetType()));
 			if (a_value.IsArray())
 			{
 				logger::at_level(logLevel, "{}", "{");
@@ -100,7 +100,7 @@ namespace IUI
 
 		void Visit(std::uint32_t a_idx, const RE::GFxValue& a_value) override
 		{
-			logger::at_level(logLevel, "\t[{}] {}: {}", a_idx, a_value.ToString(), GFxValueTypeToString(a_value.GetType()));
+			logger::at_level(logLevel, "\t[{}] {}: {}", a_idx, a_value.ToString().c_str(), GFxValueTypeToString(a_value.GetType()));
 		}
 	};
 }

@@ -25,9 +25,20 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 }
 
 template <logger::level logLevel = logger::level::debug>
-void LogMapMembers(const IUI::API::PostPatchInstanceMessage* a_msg)
+void LogMapMembers(const IUI::API::Message* a_msg)
 {
 	RE::GFxValue value;
+	logger::at_level(logLevel, "{}", "Logging _level0...");
+	if (!a_msg->movie->GetVariable(&value, "_level0"))
+	{
+		logger::error("Could not get _level0");
+	}
+	else
+	{
+		IUI::GFxMemberLogger<logLevel> memberLogger;
+
+		memberLogger.LogMembersOf(value);
+	}
 	logger::at_level(logLevel, "{}", "Logging HUDMovieBaseInstance...");
 	if (!a_msg->movie->GetVariable(&value, "HUDMovieBaseInstance"))
 	{
@@ -52,16 +63,16 @@ void LogMapMembers(const IUI::API::PostPatchInstanceMessage* a_msg)
 		memberLogger.LogMembersOf(value);
 	}
 
-	logger::at_level(logLevel, "{}", "Logging WorldMap.LocalMapMenu...");
-	if (!a_msg->movie->GetVariable(&value, "WorldMap.LocalMapMenu"))
+	logger::at_level(logLevel, "{}", "Logging HUDMovieBaseInstance.HudElements...");
+	if (!a_msg->movie->GetVariable(&value, "HUDMovieBaseInstance.HudElements"))
 	{
-		logger::error("Could not get WorldMap.LocalMapMenu");
+		logger::error("Could not get HUDMovieBaseInstance.HudElements");
 	}
 	else
 	{
-		IUI::GFxMemberLogger<logLevel> memberLogger;
+		IUI::GFxArrayLogger<logLevel> arrayLogger;
 
-		memberLogger.LogMembersOf(value);
+		arrayLogger.LogElementsOf(value);
 	}
 }
 
@@ -101,8 +112,6 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 					if (pathToNew == DEM::Minimap::path)
 					{
 						DEM::Minimap::InitSingleton(msg->newInstance);
-
-						LogMapMembers<logger::level::debug>(msg);
 					}
 				}
 				break;

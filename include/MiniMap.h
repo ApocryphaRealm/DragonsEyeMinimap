@@ -45,14 +45,15 @@ namespace DEM
 		static constexpr inline std::string_view path = "_level0.HUDMovieBaseInstance.Minimap";
 
 		// override HUDObject
-		void Update() override {}								 // 01
-		bool ProcessMessage(RE::UIMessage* a_message) override;	 // 02
+		void Update() final {}											// 01
+		bool ProcessMessage(RE::UIMessage* a_message) final;			// 02
+		void RegisterHUDComponent(RE::FxDelegateArgs& a_params) final;	// 03
 
-		static void InitSingleton(const IUI::GFxDisplayObject& a_map)
+		static void InitSingleton(const IUI::GFxDisplayObject& a_gfxMinimap)
 		{
 			if (!singleton)
 			{
-				static Minimap singletonInstance{ a_map };
+				static Minimap singletonInstance{ a_gfxMinimap };
 				singleton = &singletonInstance;
 			}
 		}
@@ -67,11 +68,12 @@ namespace DEM
 		void PreRender();
 
 		// members
-		RE::HUDMenu* menu = nullptr;
+		IUI::GFxDisplayObject displayObj;
 
 	private:
-		Minimap(const IUI::GFxDisplayObject& a_map) :
-			RE::HUDObject{ a_map.GetMovieView() }
+		Minimap(const IUI::GFxDisplayObject& a_gfxMinimap) :
+			RE::HUDObject{ a_gfxMinimap.GetMovieView() },
+			displayObj{ a_gfxMinimap }
 		{}
 
 		void InitLocalMap();
@@ -83,7 +85,6 @@ namespace DEM
 		void RenderOffscreen();
 
 		std::array<RE::GFxValue, 2> GetCurrentLocationTitle() const;
-		RE::NiPoint2 WorldToScreen(const RE::NiPoint3& a_position) const;
 
 		static inline Minimap* singleton = nullptr;
 

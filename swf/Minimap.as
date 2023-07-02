@@ -1,6 +1,4 @@
 var All:Boolean;
-var Favor:Boolean;
-var DialogueMode:Boolean;
 var StealthMode:Boolean;
 var Swimming:Boolean;
 var HorseMode:Boolean;
@@ -17,8 +15,6 @@ function Minimap(a_positionX:Number, a_positionY:Number):Void
 	_y = point.y;
 
 	All = true;
-	Favor = true;
-	//DialogueMode = true;
 	StealthMode = true;
 	Swimming = true;
 	HorseMode = true;

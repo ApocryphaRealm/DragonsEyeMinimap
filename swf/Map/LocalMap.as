@@ -1,22 +1,22 @@
 import gfx.io.GameDelegate;
 import Map.MapMenu;
 
-// Width: 845.7, Height: 559.3, x: 240, y: 130
 class Map.LocalMap extends MovieClip
 {
-	var ClearedDescription:TextField;
-	var ClearedText:TextField;
-	var IconDisplay:MapMenu;
-	var LocalMapHolder_mc:MovieClip;
-	var LocationDescription:TextField;
-	var LocationTextClip:MovieClip;
-	var MapImageLoader:MovieClipLoader;
-	var TextureHolder:MovieClip;
-	var _TextureHeight:Number;
-	var _TextureWidth:Number;
-	var bUpdated:Boolean;
+	/* Stage elements */
+	public var LocationName:TextField;
+	public var ClearedHint:TextField;
+	public var LocalMapHolder:MovieClip;
 
-	var bShown:Boolean;
+	/* API */
+	public var IconDisplay:MapMenu;
+
+	private var mapImageLoader:MovieClipLoader;
+	private var textureHeight:Number;
+	private var textureWidth:Number;
+	private var bUpdated:Boolean;
+
+	private var isShown:Boolean;
 
 	var TestTf:TextField;
 
@@ -26,34 +26,33 @@ class Map.LocalMap extends MovieClip
 
 		TestTf.text = "Hello from local map";
 
-		_TextureWidth = LocalMapHolder_mc._width;
-		_TextureHeight = LocalMapHolder_mc._height;
+		textureWidth = LocalMapHolder._width;
+		textureHeight = LocalMapHolder._height;
+
 		IconDisplay = new MapMenu(this);
-		MapImageLoader = new MovieClipLoader();
-		MapImageLoader.addListener(this);
-		LocationDescription = LocationTextClip.LocationText;
-		LocationDescription.noTranslate = true;
-		LocationTextClip.swapDepths(3);
-		ClearedDescription = ClearedText;
-		ClearedDescription.noTranslate = true;
-		TextureHolder = LocalMapHolder_mc;
+
+		mapImageLoader = new MovieClipLoader();
+		mapImageLoader.addListener(this);
+
+		LocationName.noTranslate = true;
+		ClearedHint.noTranslate = true;
 	}
 
 	function get TextureWidth():Number
 	{
-		return _TextureWidth;
+		return textureWidth;
 	}
 
 	function get TextureHeight():Number
 	{
-		return _TextureHeight;
+		return textureHeight;
 	}
 
-	// For MapImageLoader after calling `MovieClipLoader.loadClip'
-	function onLoadInit(TargetClip:MovieClip):Void
+	// For mapImageLoader after calling `MovieClipLoader.loadClip'
+	function onLoadInit(a_targetClip:MovieClip):Void
 	{
-		TargetClip._width = _TextureWidth;
-		TargetClip._height = _TextureHeight;
+		a_targetClip._width = textureWidth;
+		a_targetClip._height = textureHeight;
 	}
 
 	function onEnterFrame():Void
@@ -65,29 +64,29 @@ class Map.LocalMap extends MovieClip
 	{
 		if (!bUpdated)
 		{
-			MapImageLoader.loadClip("img://Local_Map", TextureHolder);
+			mapImageLoader.loadClip("img://Local_Map", LocalMapHolder);
 			bUpdated = true;
 		}
 		var textureTopLeft:Object = {x: _x, y: _y};
-		var textureBottomRight:Object = {x: _x + _TextureWidth, y: _y + _TextureHeight};
+		var textureBottomRight:Object = {x: _x + textureWidth, y: _y + textureHeight};
 		_parent.localToGlobal(textureTopLeft);
 		_parent.localToGlobal(textureBottomRight);
 		GameDelegate.call("SetLocalMapExtents", [textureTopLeft.x, textureTopLeft.y, textureBottomRight.x, textureBottomRight.y]);
 	}
 
-	function Show(abShow:Boolean):Void
+	function Show(a_show:Boolean):Void
 	{
-		if (abShow != bShown)
+		if (a_show != isShown)
 		{
-			_parent.gotoAndPlay(abShow ? "fadeIn" : "fadeOut");
-			bShown = abShow;
+			_parent.gotoAndPlay(a_show ? "fadeIn" : "fadeOut");
+			isShown = a_show;
 		}
 	}
 
-	function SetTitle(aName:String, aCleared:String):Void
+	function SetTitle(a_name:String, a_cleared:String):Void
 	{
-		LocationDescription.text = aName == undefined ? "" : aName;
-		ClearedDescription.text = aCleared == undefined ? "" : "(" + aCleared + ")";
+		LocationName.text = a_name == undefined ? "" : a_name;
+		ClearedHint.text = a_cleared == undefined ? "" : "(" + a_cleared + ")";
 	}
 
 }

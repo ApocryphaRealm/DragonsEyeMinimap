@@ -55,6 +55,12 @@ namespace DEM
 		return false;
 	}
 
+	void Minimap::RegisterHUDComponent(RE::FxDelegateArgs& a_params)
+	{
+		RE::HUDObject::RegisterHUDComponent(a_params);
+		displayObj.Invoke("AddToHudElements");
+	}
+
 	void Minimap::InitLocalMap()
 	{
 		localMap = static_cast<RE::LocalMapMenu*>(std::malloc(sizeof(RE::LocalMapMenu)));
@@ -324,7 +330,7 @@ namespace DEM
 		for (int i = 0; i < numHostileActors; i++)
 		{
 			RE::NiPointer<RE::Actor>& actor = hostileActors[i];
-			RE::NiPoint2 screenPos = WorldToScreen(actor->GetPosition());
+			RE::NiPoint2 screenPos = cameraContext->WorldToScreen(actor->GetPosition());
 			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kX, screenPos.x);
 			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kY, screenPos.y);
 			j += ExtraMarker::RefreshData::kStride;
@@ -333,7 +339,7 @@ namespace DEM
 		for (int i = 0; i < numGuardActors; i++)
 		{
 			RE::NiPointer<RE::Actor>& actor = guardActors[i];
-			RE::NiPoint2 screenPos = WorldToScreen(actor->GetPosition());
+			RE::NiPoint2 screenPos = cameraContext->WorldToScreen(actor->GetPosition());
 			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kX, screenPos.x);
 			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kY, screenPos.y);
 			j += ExtraMarker::RefreshData::kStride;
@@ -342,29 +348,13 @@ namespace DEM
 		for (int i = 0; i < numEnemyActors; i++)
 		{
 			RE::NiPointer<RE::Actor>& actor = enemyActors[i];
-			RE::NiPoint2 screenPos = WorldToScreen(actor->GetPosition());
+			RE::NiPoint2 screenPos = cameraContext->WorldToScreen(actor->GetPosition());
 			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kX, screenPos.x);
 			extraMarkerData.SetElement(j + ExtraMarker::RefreshData::kY, screenPos.y);
 			j += ExtraMarker::RefreshData::kStride;
 		}
 
 		localMap->RefreshMarkers();
-	}
-
-	RE::NiPoint2 Minimap::WorldToScreen(const RE::NiPoint3& a_position) const
-	{
-		RE::NiPoint2 screenPos;
-
-		RE::NiPointer<RE::NiCamera> camera = cameraContext->camera;
-
-		float z;
-
-		camera->WorldPtToScreenPt3(camera->GetRuntimeData().worldToCam, 
-			camera->GetRuntimeData2().port, a_position, screenPos.x, screenPos.y, z, 0.00001F);
-
-		screenPos.y = 1.0F - screenPos.y;
-
-		return screenPos;
 	}
 
 	void Minimap::UpdateFogOfWar()
@@ -467,7 +457,7 @@ namespace DEM
 		dword_1431D0D8C = 0;
 
 		RE::BSGraphics::Renderer* renderer = RE::BSGraphics::Renderer::GetSingleton();
-		renderer->SetClearColor(1.0F, .0F, 1.0F, 0.0F);
+		renderer->SetClearColor(0.0F, 0.0F, 0.0F, 1.0F);
 
         RE::TES* tes = RE::TES::GetSingleton();
 		RE::TESWorldSpace* worldSpace = tes->worldSpace;
