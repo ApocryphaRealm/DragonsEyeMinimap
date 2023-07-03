@@ -19,6 +19,8 @@ function Minimap(a_positionX:Number, a_positionY:Number):Void
 	Swimming = true;
 	HorseMode = true;
 	WarHorseMode = true;
+
+	_level0.HUDMovieBaseInstance.LocationLockBase._alpha = 0.0;
 }
 
 function AddToHudElements():Void

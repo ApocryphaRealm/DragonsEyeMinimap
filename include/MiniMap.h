@@ -84,7 +84,7 @@ namespace DEM
 		void UpdateFogOfWar();
 		void RenderOffscreen();
 
-		std::array<RE::GFxValue, 2> GetCurrentLocationTitle() const;
+		std::array<RE::GFxValue, 2> GetCurrentTitle() const;
 
 		static inline Minimap* singleton = nullptr;
 

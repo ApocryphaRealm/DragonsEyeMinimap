@@ -103,9 +103,9 @@ namespace DEM
 		}
 	}
 
-	std::array<RE::GFxValue, 2> Minimap::GetCurrentLocationTitle() const
+	std::array<RE::GFxValue, 2> Minimap::GetCurrentTitle() const
 	{
-		std::array<RE::GFxValue, 2> locationTitle;
+		std::array<RE::GFxValue, 2> title;
 
 		RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
 
@@ -116,25 +116,25 @@ namespace DEM
 
 			if (parentCell->IsInteriorCell())
 			{
-				locationTitle[0] = parentCell->GetFullName();
+				title[0] = parentCell->GetFullName();
 			}
 			else if (location)
 			{
-				locationTitle[0] = location->GetFullName();
+				title[0] = location->GetFullName();
 			}
 			else
 			{
 				RE::TESWorldSpace* worldSpace = player->GetWorldspace();
-				locationTitle[0] = worldSpace->GetFullName();
+				title[0] = worldSpace->GetFullName();
 			}
 
 			if (location && location->everCleared)
 			{
-				locationTitle[1] = clearedStr;
+				title[1] = clearedStr;
 			}
 		}
 
-		return locationTitle;
+		return title;
 	}
 
 	void Minimap::SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs)
@@ -194,7 +194,7 @@ namespace DEM
 			CreateMarkers();
 			RefreshMarkers();
 
-			localMap_->root.Invoke("SetTitle", nullptr, GetCurrentLocationTitle());
+			localMap_->root.Invoke("SetTitle", nullptr, GetCurrentTitle());
 		}
 	}
 
