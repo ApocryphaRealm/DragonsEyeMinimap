@@ -1,11 +1,11 @@
 {
-    "name": "minimap",
-    "version-string": "0.1.0",
+    "name": "dragonseyeminimap",
+    "version-string": "0.1.1",
     "description": "",
     "homepage": "https://github.com/alexsylex/DragonsEyeMinimap",
     "license": "MIT",
     "dependencies": [
         "commonlibsse-ng"
     ],
-    "builtin-baseline": "638b1588be3a265a9c7ad5b212cef72a1cad336a"
+    "builtin-baseline": "8d3649ba34aab36914ddd897958599aa0a91b08e"
 }

@@ -76,6 +76,6 @@ class Map.LocalMap extends MovieClip
 	public function SetTitle(a_name:String, a_cleared:String):Void
 	{
 		LocationName.text = a_name == undefined ? "" : a_name;
-		ClearedHint.text = a_cleared == undefined ? "" : a_cleared;
+		ClearedHint.text = a_cleared == undefined ? "" : "(" + a_cleared + ")";
 	}
 }

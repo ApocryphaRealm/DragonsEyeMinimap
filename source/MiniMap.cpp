@@ -71,14 +71,14 @@ namespace DEM
 			cullingProcess = &localMap->localCullingProcess;
 			cameraContext = cullingProcess->GetLocalMapCamera();
 
-			cameraContext->defaultState->minFrustumHalfWidth = cameraContext->defaultState->minFrustumHalfHeight;
+			//cameraContext->defaultState->minFrustumHalfWidth = cameraContext->defaultState->minFrustumHalfHeight;
+
+			RE::MenuControls::GetSingleton()->RemoveHandler(localMap_->inputHandler.get());
+			localMap_->inputHandler.reset();
 
 			localMap_->movieView = view.get();
 
-			std::string pathToRoot(DEM::Minimap::path);
-			pathToRoot += ".MapClip";
-
-			view->GetVariable(&localMap_->root, pathToRoot.c_str());
+			view->GetVariable(&localMap_->root, (std::string(DEM::Minimap::path) + ".MapClip").c_str());
 
 			localMap_->root.Invoke("InitMap");
 
@@ -171,7 +171,7 @@ namespace DEM
 			RE::NiPoint3 playerPos = player->GetPosition();
 			cameraContext->defaultState->initialPosition.x = playerPos.x;
 			cameraContext->defaultState->initialPosition.y = playerPos.y;
-			cameraContext->defaultState->translation = { 0, 0, 0 };
+			cameraContext->defaultState->translation = RE::NiPoint3::Zero();
 
 			RE::TESObjectCELL* parentCell = player->parentCell;
 			if (parentCell)

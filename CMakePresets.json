@@ -1,5 +1,5 @@
 {
-    "version": 2,
+    "version": 3,
     "cmakeMinimumRequired": {
         "major": 3,
         "minor": 21,
@@ -7,66 +7,56 @@
     },
     "configurePresets": [
         {
-            "name": "base",
-            "hidden": true,
-            "cacheVariables": {
-                "CMAKE_CXX_FLAGS": "$env{COMMONLIBSSE_COMPILER} $env{COMMONLIBSSE_PLATFORM} $env{COMMONLIBSSE_TEXT} $env{RUNTIME_DISABLE_FLAGS}"
-            }
-        },
-        {
             "name": "vcpkg",
             "hidden": true,
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
             "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-                "VCPKG_TARGET_TRIPLET": "x64-windows-skse",
-                "VCPKG_HOST_TRIPLET": "x64-windows-skse",
-                "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake",
+                "VCPKG_OVERLAY_PORTS": "${sourceDir}/cmake/ports/",
+                "VCPKG_TARGET_TRIPLET": "x64-windows-static-md",
                 "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
             }
         },
         {
-            "name": "win32",
+            "name": "commonlibsse-config",
             "hidden": true,
             "environment": {
-                "COMMONLIBSSE_PLATFORM": "-DWIN32_LEAN_AND_MEAN -DNOMINMAX"
-            }
-        },
-        {
-            "name": "win32-unicode",
-            "hidden": true,
-            "inherits": "win32",
-            "environment": {
+                "COMMONLIBSSE_PLATFORM": "-DWIN32_LEAN_AND_MEAN -DNOMINMAX",
                 "COMMONLIBSSE_TEXT": "-DUNICODE -D_UNICODE"
+            },
+            "cacheVariables": {
+                "CMAKE_CXX_FLAGS": "/permissive- /Zc:preprocessor /EHsc $penv{CXXFLAGS} $env{COMMONLIBSSE_COMPILER} $env{COMMONLIBSSE_PLATFORM} $env{COMMONLIBSSE_TEXT} $env{RUNTIME_DISABLE_FLAGS}"
             }
         },
         {
-            "name": "x64",
+            "name": "commonlibsse-all",
             "hidden": true,
-            "architecture": {
-                "value": "x64",
-                "strategy": "external"
+            "environment": {
+                "RUNTIME_DISABLE_FLAGS": "",
+                "COMMONLIBSSE_COMPILER": "/showIncludes"
             }
         },
         {
-            "name": "msvc",
+            "name": "commonlibsse-se-only",
             "hidden": true,
-            "vendor": {
-                "microsoft.com/VisualStudioSettings/CMake/1.0": {
-                    "intelliSenseMode": "windows-msvc-x64",
-                    "enableMicrosoftCodeAnalysis": true,
-                    "enableClangTidyCodeAnalysis": true
-                }
+            "environment": {
+                "RUNTIME_DISABLE_FLAGS": "-UENABLE_SKYRIM_VR",
+                "COMMONLIBSSE_COMPILER": ""
+            }
+        },
+        {
+            "name": "commonlibsse-vr-only",
+            "hidden": true,
+            "environment": {
+                "RUNTIME_DISABLE_FLAGS": "-UENABLE_SKYRIM_SE -UENABLE_SKYRIM_AE",
+                "COMMONLIBSSE_COMPILER": ""
             }
         },
         {
             "name": "build-debug",
             "hidden": true,
             "inherits": [
-                "base",
                 "vcpkg",
-                "win32-unicode",
-                "x64",
-                "msvc"
+                "commonlibsse-config"
             ],
             "generator": "Ninja",
             "cacheVariables": {
@@ -80,11 +70,8 @@
             "name": "build-relwithdebinfo",
             "hidden": true,
             "inherits": [
-                "base",
                 "vcpkg",
-                "win32-unicode",
-                "x64",
-                "msvc"
+                "commonlibsse-config"
             ],
             "generator": "Ninja",
             "cacheVariables": {
@@ -95,34 +82,10 @@
             }
         },
         {
-            "name": "all",
-            "hidden": true,
-            "environment": {
-                "RUNTIME_DISABLE_FLAGS": "",
-                "COMMONLIBSSE_COMPILER": "/permissive- /Zc:preprocessor /EHsc $penv{CXXFLAGS} -DENABLE_COMMONLIBSSE_TESTING $env{RUNTIME_DISABLE_FLAGS}"
-            }
-        },
-        {
-            "name": "se-ae",
-            "hidden": true,
-            "environment": {
-                "RUNTIME_DISABLE_FLAGS": "-UENABLE_SKYRIM_VR",
-                "COMMONLIBSSE_COMPILER": "/permissive- /Zc:preprocessor /EHsc $penv{CXXFLAGS} -DENABLE_COMMONLIBSSE_TESTING $env{RUNTIME_DISABLE_FLAGS}"
-            }
-        },
-        {
-            "name": "vr",
-            "hidden": true,
-            "environment": {
-                "RUNTIME_DISABLE_FLAGS": "-UENABLE_SKYRIM_SE -UENABLE_SKYRIM_AE",
-                "COMMONLIBSSE_COMPILER": "/permissive- /Zc:preprocessor /EHsc $penv{CXXFLAGS} -DENABLE_COMMONLIBSSE_TESTING $env{RUNTIME_DISABLE_FLAGS}"
-            }
-        },
-        {
             "name": "build-debug-all",
             "inherits": [
                 "build-debug",
-                "all"
+                "commonlibsse-all"
             ],
             "displayName": "Debug",
             "binaryDir": "${sourceDir}/build/debug"
@@ -131,43 +94,43 @@
             "name": "build-relwithdebinfo-all",
             "inherits": [
                 "build-relwithdebinfo",
-                "all"
+                "commonlibsse-all"
             ],
             "displayName": "RelWithDebInfo",
             "binaryDir": "${sourceDir}/build/relwithdebinfo"
         },
         {
-            "name": "build-debug-se-ae",
+            "name": "build-debug-se-only",
             "inherits": [
                 "build-debug",
-                "se-ae"
+                "commonlibsse-se-only"
             ],
             "displayName": "Debug (SE-AE only)",
-            "binaryDir": "${sourceDir}/build/debug-se-ae-only"
+            "binaryDir": "${sourceDir}/build/debug-se-only"
         },
         {
-            "name": "build-relwithdebinfo-se-ae",
+            "name": "build-relwithdebinfo-se-only",
             "inherits": [
                 "build-relwithdebinfo",
-                "se-ae"
+                "commonlibsse-se-only"
             ],
             "displayName": "RelWithDebInfo (SE-AE only)",
-            "binaryDir": "${sourceDir}/build/relwithdebinfo-se-ae-only"
+            "binaryDir": "${sourceDir}/build/relwithdebinfo-se-only"
         },
         {
-            "name": "build-debug-vr",
+            "name": "build-debug-vr-only",
             "inherits": [
                 "build-debug",
-                "vr"
+                "commonlibsse-vr-only"
             ],
             "displayName": "Debug (VR only)",
             "binaryDir": "${sourceDir}/build/debug-vr-only"
         },
         {
-            "name": "build-relwithdebinfo-vr",
+            "name": "build-relwithdebinfo-vr-only",
             "inherits": [
                 "build-relwithdebinfo",
-                "vr"
+                "commonlibsse-vr-only"
             ],
             "displayName": "RelWithDebInfo (VR only)",
             "binaryDir": "${sourceDir}/build/relwithdebinfo-vr-only"
@@ -175,34 +138,34 @@
     ],
     "buildPresets": [
         {
+            "name": "debug-se-only",
+            "displayName": "Debug (SE only)",
+            "configurePreset": "build-debug-se-only"
+        },
+        {
+            "name": "relwithdebinfo-se-only",
+            "displayName": "RelWithDebInfo (SE only)",
+            "configurePreset": "build-relwithdebinfo-se-only"
+        },
+        {
+            "name": "debug-vr-only",
+            "displayName": "Debug (VR only)",
+            "configurePreset": "build-debug-vr-only"
+        },
+        {
+            "name": "relwithdebinfo-vr-only",
+            "displayName": "RelWithDebInfo (VR only)",
+            "configurePreset": "build-relwithdebinfo-vr-only"
+        },
+        {
             "name": "debug-all",
-            "displayName": "Debug",
+            "displayName": "Debug (All)",
             "configurePreset": "build-debug-all"
         },
         {
             "name": "relwithdebinfo-all",
-            "displayName": "RelWithDebInfo",
+            "displayName": "RelWithDebInfo (All)",
             "configurePreset": "build-relwithdebinfo-all"
-        },
-        {
-            "name": "debug-se-ae",
-            "displayName": "Debug (SE-AE only)",
-            "configurePreset": "build-debug-se-ae"
-        },
-        {
-            "name": "relwithdebinfo-se-ae",
-            "displayName": "RelWithDebInfo (SE-AE only)",
-            "configurePreset": "build-relwithdebinfo-se-ae"
-        },
-        {
-            "name": "debug-vr",
-            "displayName": "Debug (VR only)",
-            "configurePreset": "build-debug-vr"
-        },
-        {
-            "name": "relwithdebinfo-vr",
-            "displayName": "RelWithDebInfo (VR only)",
-            "configurePreset": "build-relwithdebinfo-vr"
         }
     ]
 }
