@@ -13,7 +13,11 @@
 
 namespace RE
 {
-	class BSShaderAccumulator;
+	namespace BSGraphics
+	{
+		class BSShaderAccumulator;
+	}
+
 	class GridCellArray;
 	class NiNode;
 
@@ -104,9 +108,9 @@ namespace RE
 				return func(a_fogOfWar, a_cell);
 			}
 
-			[[nodiscard]] inline NiPointer<BSShaderAccumulator>& GetShaderAccumulator() const noexcept
+			[[nodiscard]] inline NiPointer<BSGraphics::BSShaderAccumulator>& GetShaderAccumulator() const noexcept
 			{
-				return REL::RelocateMember<NiPointer<BSShaderAccumulator>>(this, 0x302C8, 0x302D8);
+				return REL::RelocateMember<NiPointer<BSGraphics::BSShaderAccumulator>>(this, 0x302C8, 0x302D8);
 			}
 
 			[[nodiscard]] inline ImageSpaceShaderParam& GetImageSpaceShaderParam() const noexcept
@@ -120,40 +124,32 @@ namespace RE
 			}
 
 			// members
-			BSCullingProcess cullingProcess;  // 00000
-			BSCullingDelegate culler;		  // 301F8
-			BSTArray<void*>* unk30240;		  // 30240
-			std::uint64_t unk30248;			  // 30248
+			BSCullingProcess cullingProcess;					  // 00000
+			BSCullingDelegate culler;							  // 301F8
 #ifndef ENABLE_SKYRIM_VR
-			std::uint64_t unk30250;					  // 30250
-			std::uint64_t unk30258;					  // 30258
-			LocalMapCamera camera;					  // 30260
-			NiPointer<BSShaderAccumulator> unk302C8;  // 302C8
-			ImageSpaceShaderParam unk302D0;			  // 302D0
-			std::uint64_t unk30350;					  // 30350
-			NiPointer<NiNode> fogOfWarOverlay;		  // 30358
+			LocalMapCamera camera;								  // 30260
+			NiPointer<BSGraphics::BSShaderAccumulator> unk302C8;  // 302C8
+			ImageSpaceShaderParam unk302D0;						  // 302D0
+			std::uint64_t unk30350;								  // 30350
+			NiPointer<NiNode> fogOfWarOverlay;					  // 30358
 #elif !defined(ENABLE_SKYRIM_AE) && !defined(ENABLE_SKYRIM_SE)
-			std::uint64_t padVR1;					  // 30250
-			std::uint64_t padVR2;					  // 30258
-			std::uint64_t unk30260;					  // 30260
-			std::uint64_t unk30268;					  // 30268
-			LocalMapCamera camera;					  // 30270
-			NiPointer<BSShaderAccumulator> unk302D8;  // 302D8
-			ImageSpaceShaderParam unk302E0;			  // 302E0
-			std::uint64_t unk30360;					  // 30360
-			NiPointer<NiNode> fogOfWarOverlay;		  // 30368
-			BSTArray<void*> unk30370;				  // 30370
-			BSTArray<void*> unk30388;				  // 30388
-			BSTArray<void*> unk303A0;				  // 303A0
-			void* unk303B8;							  // 303B8
-			NiCamera* unk303C0;						  // 303C0
-			std::uint32_t unk303C8;					  // 303C8
-			std::uint32_t pad303CC;					  // 303CC
-			std::uint64_t unk303D0;					  // 303D0
+			std::uint64_t unk30260;								  // 30260
+			std::uint64_t unk30268;								  // 30268
+			LocalMapCamera camera;								  // 30270
+			NiPointer<BSGraphics::BSShaderAccumulator> unk302D8;  // 302D8
+			ImageSpaceShaderParam unk302E0;						  // 302E0
+			std::uint64_t unk30360;								  // 30360
+			NiPointer<NiNode> fogOfWarOverlay;					  // 30368
+			BSTArray<void*> unk30370;							  // 30370
+			BSTArray<void*> unk30388;							  // 30388
+			BSTArray<void*> unk303A0;							  // 303A0
+			void* unk303B8;										  // 303B8
+			NiCamera* unk303C0;									  // 303C0
+			std::uint32_t unk303C8;								  // 303C8
+			std::uint32_t pad303CC;								  // 303CC
+			std::uint64_t unk303D0;								  // 303D0
 #else
-			std::uint64_t unk30250;		   // 30250
-			std::uint64_t unk30258;		   // 30258
-			std::uint8_t unk30260[0x100];  // 30260
+			std::uint8_t unk30260[0x100];						  // 30260
 #endif
 		};
 #ifndef ENABLE_SKYRIM_VR

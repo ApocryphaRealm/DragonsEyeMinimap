@@ -22,11 +22,17 @@ namespace hooks
 
 	class LocalMapMenu
 	{
-		static constexpr REL::RelocationID CtorId{ 52076, 0 };
-		static constexpr REL::RelocationID RefreshMarkersId{ 52090, 0 };
+		static constexpr REL::RelocationID CtorId{ 52076, 52964 };
+		static constexpr REL::RelocationID RefreshMarkersId{ 52090, 52980 };
 
 	public:
-		class LocalMapCullingProcess;
+		class LocalMapCullingProcess
+		{
+			static constexpr REL::RelocationID RenderOffScreenId{ 16094, 16335 };
+
+		public:
+			static inline REL::Relocation<void (RE::LocalMapMenu::LocalMapCullingProcess::*)()> RenderOffScreen{ RenderOffScreenId };
+		};
 
 		static inline REL::Relocation<RE::LocalMapMenu* (RE::LocalMapMenu::*)()> Ctor{ CtorId };
 		static inline REL::Relocation<void (RE::LocalMapMenu::*)()> RefreshMarkers{ RefreshMarkersId };
@@ -36,16 +42,7 @@ namespace hooks
 	{
 	public:
 		static inline REL::Relocation<bool (RE::NiCamera::*)(const RE::NiPoint3&, float&, float&, float&, float)> WorldPtToScreenPt3;
-	};
-
-
-	class LocalMapMenu::LocalMapCullingProcess
-	{
-		static constexpr REL::RelocationID RenderOffScreenId{ 16094, 0 };
-
-	public:
-		static inline REL::Relocation<void (RE::LocalMapMenu::LocalMapCullingProcess::*)()> RenderOffScreen{ RenderOffScreenId };
-	};
+	};	
 
 	static inline void Install()
 	{

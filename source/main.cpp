@@ -24,6 +24,8 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 
 	logger::set_level(settings::debug::logLevel, settings::debug::logLevel);
 
+	//std::this_thread::sleep_for(6s);
+
 	if (!SKSE::GetMessagingInterface()->RegisterListener("SKSE", SKSEMessageListener))
 	{
 		return false;

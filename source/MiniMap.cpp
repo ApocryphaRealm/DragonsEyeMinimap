@@ -2,13 +2,13 @@
 
 #include "utils/Logger.h"
 
-#include "RE/B/BSShaderAccumulator.h"
 #include "RE/B/BSTimer.h"
 #include "RE/I/ImageSpaceManager.h"
 #include "RE/I/ImageSpaceShaderParam.h"
 #include "RE/L/LocalMapCamera.h"
 #include "RE/R/Renderer.h"
-#include "RE/R/RendererShadowState.h"
+#include "RE/S/ShaderAccumulator.h"
+#include "RE/S/ShadowState.h"
 #include "RE/R/RenderPassCache.h"
 #include "RE/R/RenderTargetManager.h"
 
@@ -34,7 +34,7 @@ namespace RE
 		return func(_this);
     }
 
-    void* NiCamera__Accumulate(NiCamera* _this, BSShaderAccumulator* a_shaderAccumulator, std::uint32_t a_unk2)
+    void* NiCamera__Accumulate(NiCamera* _this, BSGraphics::BSShaderAccumulator* a_shaderAccumulator, std::uint32_t a_unk2)
     {
 		using func_t = decltype(&NiCamera__Accumulate);
 		REL::Relocation<func_t> func{ RELOCATION_ID(99789, 106436) };
@@ -206,7 +206,7 @@ namespace DEM
 		{
 			frameUpdatePending = false;
 
-			RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->loadedAreaBound;
+			RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->GetRuntimeData2().loadedAreaBound;
 			cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
 
 			std::chrono::time_point<system_clock> now = system_clock::now();
@@ -255,7 +255,8 @@ namespace DEM
 			if (actor && RE::NiCamera::PointInFrustum(actor->GetPosition(), cameraContext->camera.get(), 1)) 
 			{
 				bool isActorCombatant = false;
-				for (RE::ActorHandle& combatantActorHandle : player->GetInfoRuntimeData().actorsToDisplayOnTheHUDArray)
+
+				for (RE::ActorHandle& combatantActorHandle : player->GetPlayerRuntimeData().actorsToDisplayOnTheHUDArray)
 				{
 					if (highActorHandle == combatantActorHandle)
 					{
@@ -411,7 +412,7 @@ namespace DEM
 					}
 				}
 
-				RE::TESWorldSpace* worldSpace = RE::TES::GetSingleton()->worldSpace;
+				RE::TESWorldSpace* worldSpace = RE::TES::GetSingleton()->GetRuntimeData2().worldSpace;
 				if (worldSpace)
 				{
 					RE::TESObjectCELL* skyCell = worldSpace->GetSkyCell();
@@ -437,9 +438,9 @@ namespace DEM
 
 		RE::ShadowSceneNode* mainShadowSceneNode = RE::ShadowSceneNode::GetMain();
 
-        RE::NiPointer<RE::BSShaderAccumulator>& shaderAccumulator = cullingProcess->GetShaderAccumulator();
+        RE::NiPointer<RE::BSGraphics::BSShaderAccumulator>& shaderAccumulator = cullingProcess->GetShaderAccumulator();
 
-		shaderAccumulator->activeShadowSceneNode = mainShadowSceneNode;
+		shaderAccumulator->GetRuntimeData().activeShadowSceneNode = mainShadowSceneNode;
 
 		RE::NiTObjectArray<RE::NiPointer<RE::NiAVObject>>& mainShadowSceneChildren = mainShadowSceneNode->GetChildren();
 
@@ -460,7 +461,7 @@ namespace DEM
 		renderer->SetClearColor(0.0F, 0.0F, 0.0F, 1.0F);
 
         RE::TES* tes = RE::TES::GetSingleton();
-		RE::TESWorldSpace* worldSpace = tes->worldSpace;
+		RE::TESWorldSpace* worldSpace = tes->GetRuntimeData2().worldSpace;
 
 		RE::LocalMapMenu::LocalMapCullingProcess::UnkData unkData{ cullingProcess };
 		
@@ -556,7 +557,7 @@ namespace DEM
         int depthStencil = renderTargetManager->GetDepthStencil();
 		renderTargetManager->SetupDepthStencilAt(depthStencil, 0, 0, false);
 
-		RE::BSGraphics::SetRenderTargetMode worldRenderTargetMode = isFogOfWarEnabled ? RE::BSGraphics::SetRenderTargetMode::kClear : RE::BSGraphics::SetRenderTargetMode::kRestore;
+		RE::BSGraphics::SetRenderTargetMode worldRenderTargetMode = isFogOfWarEnabled ? RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR : RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE;
 
 		renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, worldRenderTargetMode, true);
 		RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
@@ -567,7 +568,7 @@ namespace DEM
 		{
 			shaderAccumulator->ClearRemainingRenderPasses(false);
 
-			RE::BSShaderAccumulator::SetRenderMode(19);
+			RE::BSGraphics::BSShaderAccumulator::SetRenderMode(19);
 
 			RE::NiPointer<RE::NiAVObject> fogOfWarOverlayHolder = cullingProcess->GetFogOfWarOverlay();
 			cullingDelegate.currentCulledObject = fogOfWarOverlayHolder;
@@ -578,42 +579,42 @@ namespace DEM
 			if (rendererShadowState->alphaBlendWriteMode != 8)
 			{
 				rendererShadowState->alphaBlendWriteMode = 8;
-				rendererShadowState->stateUpdateFlags |= 0x80;
+				rendererShadowState->stateUpdateFlags.set(RE::BSGraphics::ShaderFlags::DIRTY_ALPHA_BLEND);
 			}
 
 			if (rendererShadowState->depthStencilDepthMode != RE::BSGraphics::DepthStencilDepthMode::kDisabled)
 			{
 				rendererShadowState->depthStencilDepthMode = RE::BSGraphics::DepthStencilDepthMode::kDisabled;
-				if (rendererShadowState->depthStencilUnknown)
+				if (rendererShadowState->depthStencilDepthModePrevious != RE::BSGraphics::DepthStencilDepthMode::kDisabled)
 				{
-					rendererShadowState->stateUpdateFlags |= 4;
+					rendererShadowState->stateUpdateFlags.set(RE::BSGraphics::ShaderFlags::DIRTY_DEPTH_MODE);
 				}
 				else
 				{
-					rendererShadowState->stateUpdateFlags &= ~4;
+					rendererShadowState->stateUpdateFlags.reset(RE::BSGraphics::ShaderFlags::DIRTY_DEPTH_MODE);
 				}
 			}
 
-			renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::kRestore, true);
+			renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE, true);
 			RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
 
 			if (rendererShadowState->depthStencilDepthMode != RE::BSGraphics::DepthStencilDepthMode::kTestWrite)
 			{
 				rendererShadowState->depthStencilDepthMode = RE::BSGraphics::DepthStencilDepthMode::kTestWrite;
-				if (rendererShadowState->depthStencilUnknown != 3)
+				if (rendererShadowState->depthStencilDepthModePrevious != RE::BSGraphics::DepthStencilDepthMode::kTestWrite)
 				{
-					rendererShadowState->stateUpdateFlags |= 4;
+					rendererShadowState->stateUpdateFlags.set(RE::BSGraphics::ShaderFlags::DIRTY_DEPTH_MODE);
 				}
 				else
 				{
-					rendererShadowState->stateUpdateFlags &= ~4;
+					rendererShadowState->stateUpdateFlags.reset(RE::BSGraphics::ShaderFlags::DIRTY_DEPTH_MODE);
 				}
 			}
 
 			if (rendererShadowState->alphaBlendWriteMode != 1)
 			{
 				rendererShadowState->alphaBlendWriteMode = 1;
-				rendererShadowState->stateUpdateFlags |= 0x80;
+				rendererShadowState->stateUpdateFlags.set(RE::BSGraphics::ShaderFlags::DIRTY_ALPHA_BLEND);
 			}
 		}
 		// 5. Finish rendering and dispatch ////////////////////////////////////////////////////////////////////////////////

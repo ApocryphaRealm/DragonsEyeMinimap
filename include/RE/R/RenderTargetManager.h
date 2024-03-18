@@ -2,7 +2,8 @@
 
 #include "RE/B/BSShaderRenderTargets.h"
 #include "RE/R/RenderTargetProperties.h"
-#include "RE/R/RendererShadowState.h"
+#include "RE/R/Renderer.h"
+#include "RE/S/ShadowState.h"
 
 namespace RE
 {
