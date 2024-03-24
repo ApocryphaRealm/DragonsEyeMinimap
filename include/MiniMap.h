@@ -42,9 +42,29 @@ namespace DEM
 	class Minimap : public RE::HUDObject
 	{
 	public:
+		class InputHandler : public RE::MenuEventHandler
+		{
+		public:
+			InputHandler(Minimap* a_miniMap) 
+			: miniMap{ a_miniMap }
+			{}
+
+			~InputHandler() final{};  // 00
+
+			// override (RE::MenuEventHandler)
+			bool CanProcess(RE::InputEvent* a_event) final;				 // 01
+			bool ProcessThumbstick(RE::ThumbstickEvent* a_event) final;	 // 03
+			bool ProcessMouseMove(RE::MouseMoveEvent* a_event) final;	 // 04
+			bool ProcessButton(RE::ButtonEvent* a_event) final;			 // 05
+
+			Minimap* miniMap;
+		};
+
+		friend class InputHandler;
+
 		static constexpr inline std::string_view path = "_level0.HUDMovieBaseInstance.Minimap";
 
-		// override HUDObject
+		// override (RE::HUDObject)
 		void Update() final {}											// 01
 		bool ProcessMessage(RE::UIMessage* a_message) final;			// 02
 		void RegisterHUDComponent(RE::FxDelegateArgs& a_params) final;	// 03
@@ -84,7 +104,8 @@ namespace DEM
 		void UpdateFogOfWar();
 		void RenderOffscreen();
 
-		std::array<RE::GFxValue, 2> GetCurrentTitle() const;
+		void FoldControls();
+		void UnfoldControls();
 
 		static inline Minimap* singleton = nullptr;
 
@@ -94,6 +115,9 @@ namespace DEM
 		RE::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
 		RE::LocalMapCamera* cameraContext = nullptr;
 
+		RE::BSTSmartPointer<InputHandler> inputHandler = RE::make_smart<InputHandler>(this);
+		bool inputControlledMode = false;
+
 		RE::BSTArray<RE::NiPointer<RE::Actor>> enemyActors;
 		RE::BSTArray<RE::NiPointer<RE::Actor>> hostileActors;
 		RE::BSTArray<RE::NiPointer<RE::Actor>> guardActors;
@@ -102,6 +126,9 @@ namespace DEM
 
 		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
 		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;
+		const float& localMapPanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMousePanSpeed:MapMenu")->data.f;
+		const float& localMapMouseZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMouseZoomSpeed:MapMenu")->data.f;
+		const float& localMapGamepadZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadZoomSpeed:MapMenu")->data.f;
 		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 189820) }.get();
 
 		bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(501260, 359696) }.get();

@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.21)
 
 project(
 	DragonsEyeMinimap
-	VERSION 0.1.1
+	VERSION 0.2.0
 	LANGUAGES CXX
 )
 
@@ -49,7 +49,7 @@ target_include_directories(
 		${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(
+target_link_libraries( 
 	${PROJECT_NAME}
 	PRIVATE
 		CommonLibSSE::CommonLibSSE
@@ -71,6 +71,25 @@ target_precompile_headers(
 	PRIVATE
 		include/PCH.h
 )
+
+target_sources(
+	${PROJECT_NAME}
+	INTERFACE
+	"$<BUILD_INTERFACE:CommonLibSSE.natvis>"
+)
+
+########################################################################################################################
+## Pre-link clean-up
+########################################################################################################################
+
+file(GLOB PRE_LINK_CLEAN_DIRS "${VCPKG_INSTALLED_DIR}/*")
+list(REMOVE_ITEM PRE_LINK_CLEAN_DIRS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+
+foreach(PRE_LINK_CLEAN_DIR ${PRE_LINK_CLEAN_DIRS})
+	add_custom_command(TARGET ${PROJECT_NAME} PRE_LINK
+		COMMAND ${CMAKE_COMMAND} -E rm -rf "${PRE_LINK_CLEAN_DIR}" 
+	)
+endforeach()
 
 ########################################################################################################################
 ## Automatic plugin deployment

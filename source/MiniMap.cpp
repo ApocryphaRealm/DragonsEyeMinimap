@@ -45,6 +45,91 @@ namespace RE
 
 namespace DEM
 {
+	bool Minimap::InputHandler::CanProcess(RE::InputEvent* a_event)
+	{
+		auto ui = RE::UI::GetSingleton();
+		return ui->menuStack.size() == 1 && ui->menuStack.front() == ui->GetMenu(RE::HUDMenu::MENU_NAME);
+	}
+	bool Minimap::InputHandler::ProcessThumbstick(RE::ThumbstickEvent* a_event)
+	{
+		return true;
+	}
+	bool Minimap::InputHandler::ProcessMouseMove(RE::MouseMoveEvent* a_event)
+	{
+		if (miniMap->inputControlledMode)
+		{
+			float xOffset = -a_event->mouseInputX * miniMap->localMapPanSpeed;
+			float yOffset = a_event->mouseInputY * miniMap->localMapPanSpeed;
+
+			miniMap->cameraContext->defaultState->translation += RE::NiPoint3(xOffset, yOffset, 0);
+		}
+
+		return true;
+	}
+	bool Minimap::InputHandler::ProcessButton(RE::ButtonEvent* a_event)
+	{
+		if (RE::ButtonEvent* buttonEvent = a_event->AsButtonEvent())
+		{
+			auto controlMap = RE::ControlMap::GetSingleton();
+			auto userEvents = RE::UserEvents::GetSingleton();
+
+			std::string_view userEventName = controlMap->GetUserEventName(buttonEvent->GetIDCode(), buttonEvent->GetDevice(), RE::ControlMap::InputContextID::kMap);
+
+			if (userEventName == userEvents->localMap)
+			{
+				miniMap->inputControlledMode = buttonEvent->Value();
+
+				RE::PlayerControls::GetSingleton()->lookHandler->SetInputEventHandlingEnabled(!miniMap->inputControlledMode);
+
+				if (miniMap->inputControlledMode)
+				{
+					miniMap->UnfoldControls();
+					controlMap->enabledControls.reset(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
+				}
+				else
+				{
+					miniMap->FoldControls();
+					controlMap->enabledControls.set(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
+				}
+			}
+			else if (miniMap->inputControlledMode)
+			{
+				bool isZoomIn = userEventName == userEvents->zoomIn;
+				bool isZoomOut = userEventName == userEvents->zoomOut;
+
+				bool isLocalMapMoveMode = userEventName == userEvents->localMapMoveMode;
+
+				if (isZoomIn || isZoomOut)
+				{
+					float zoom;
+
+					if (buttonEvent->GetDevice() == RE::INPUT_DEVICE::kMouse)
+					{
+						zoom = miniMap->localMapMouseZoomSpeed;
+					}
+					else if (buttonEvent->GetDevice() == RE::INPUT_DEVICE::kGamepad)
+					{
+						zoom = miniMap->localMapGamepadZoomSpeed;
+					}
+
+					if (isZoomOut)
+					{
+						zoom *= -1;
+					}
+
+					miniMap->cameraContext->zoomInput += zoom;
+
+				}
+			}
+			//else
+			//{
+			//	logger::info("ProcessButton (ButtonEvent): {} ({})", buttonEvent->GetIDCode(), buttonEvent->Value() ? "pressed" : "released");
+			//}
+		}
+
+		return true;
+	}
+
 	bool Minimap::ProcessMessage(RE::UIMessage* a_message)
 	{
 		if (!localMap)
@@ -71,12 +156,10 @@ namespace DEM
 			cullingProcess = &localMap->localCullingProcess;
 			cameraContext = cullingProcess->GetLocalMapCamera();
 
-			//cameraContext->defaultState->minFrustumHalfWidth = cameraContext->defaultState->minFrustumHalfHeight;
-
 			RE::MenuControls::GetSingleton()->RemoveHandler(localMap_->inputHandler.get());
-			localMap_->inputHandler.reset();
+			RE::MenuControls::GetSingleton()->AddHandler(inputHandler.get());
 
-			localMap_->movieView = view.get();
+			localMap_->movieView = view.get(); 
 
 			view->GetVariable(&localMap_->root, (std::string(DEM::Minimap::path) + ".MapClip").c_str());
 
@@ -101,40 +184,6 @@ namespace DEM
 			RE::NiPoint3 playerPos = RE::PlayerCharacter::GetSingleton()->GetPosition();
 			cameraContext->SetDefaultStateInitialPosition(playerPos);
 		}
-	}
-
-	std::array<RE::GFxValue, 2> Minimap::GetCurrentTitle() const
-	{
-		std::array<RE::GFxValue, 2> title;
-
-		RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
-
-		RE::TESObjectCELL* parentCell = player->parentCell;
-		if (parentCell)
-		{
-			RE::BGSLocation* location = parentCell->GetLocation();
-
-			if (parentCell->IsInteriorCell())
-			{
-				title[0] = parentCell->GetFullName();
-			}
-			else if (location)
-			{
-				title[0] = location->GetFullName();
-			}
-			else
-			{
-				RE::TESWorldSpace* worldSpace = player->GetWorldspace();
-				title[0] = worldSpace->GetFullName();
-			}
-
-			if (location && location->everCleared)
-			{
-				title[1] = clearedStr;
-			}
-		}
-
-		return title;
 	}
 
 	void Minimap::SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs)
@@ -166,18 +215,27 @@ namespace DEM
 	{
 		if (frameUpdatePending && localMap && localMap_->enabled)
 		{
+			std::array<RE::GFxValue, 2> title;
+
 			RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
 
 			RE::NiPoint3 playerPos = player->GetPosition();
 			cameraContext->defaultState->initialPosition.x = playerPos.x;
 			cameraContext->defaultState->initialPosition.y = playerPos.y;
-			cameraContext->defaultState->translation = RE::NiPoint3::Zero();
+
+			if (!inputControlledMode)
+			{
+				cameraContext->defaultState->translation = RE::NiPoint3::Zero();
+			}
 
 			RE::TESObjectCELL* parentCell = player->parentCell;
 			if (parentCell)
 			{
 				float northRotation = parentCell->GetNorthRotation();
 				cameraContext->SetNorthRotation(-northRotation);
+
+				RE::BGSLocation* location = parentCell->GetLocation();
+
 				if (parentCell->IsInteriorCell())
 				{					
 					RE::NiPoint3 minExtent = cameraContext->minExtent;
@@ -187,6 +245,22 @@ namespace DEM
 					maxExtent.x += localMapMargin;
 					maxExtent.y += localMapMargin;
 					cameraContext->SetAreaBounds(maxExtent, minExtent);
+
+					title[0] = parentCell->GetFullName();
+				}
+				else if (location)
+				{
+					title[0] = location->GetFullName();
+
+					if (location->everCleared)
+					{
+						title[1] = clearedStr;
+					}
+				}
+				else
+				{
+					RE::TESWorldSpace* worldSpace = player->GetWorldspace();
+					title[0] = worldSpace->GetFullName();
 				}
 			}
 			cameraContext->Update();
@@ -194,7 +268,7 @@ namespace DEM
 			CreateMarkers();
 			RefreshMarkers();
 
-			localMap_->root.Invoke("SetTitle", nullptr, GetCurrentTitle());
+			localMap_->root.Invoke("SetTitle", nullptr, title);
 		}
 	}
 
@@ -645,5 +719,21 @@ namespace DEM
 		dword_1431D0D8C = 0;
 
         shaderAccumulator->ClearRemainingRenderPasses(false);
+	}
+
+	void Minimap::FoldControls()
+	{
+		RE::GFxValue controls;
+		localMap_->root.GetMember("Controls", &controls);
+
+		controls.GotoAndStop("Folded");
+	}
+
+	void Minimap::UnfoldControls()
+	{
+		RE::GFxValue controls;
+		localMap_->root.GetMember("Controls", &controls);
+
+		controls.GotoAndStop("Unfolded");
 	}
 }
