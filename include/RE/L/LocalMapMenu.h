@@ -125,7 +125,7 @@ namespace RE
 
 			// members
 			BSCullingProcess cullingProcess;					  // 00000
-			BSCullingDelegate culler;							  // 301F8
+			CullJobDescriptor cullJobDesc;						  // 301F8
 #ifndef ENABLE_SKYRIM_VR
 			LocalMapCamera camera;								  // 30260
 			NiPointer<BSGraphics::BSShaderAccumulator> unk302C8;  // 302C8

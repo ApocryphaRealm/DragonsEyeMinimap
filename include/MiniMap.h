@@ -64,6 +64,9 @@ namespace DEM
 
 		static constexpr inline std::string_view path = "_level0.HUDMovieBaseInstance.Minimap";
 
+		static constexpr double positionX = 0.65;
+		static constexpr double positionY = 0.2;
+
 		// override (RE::HUDObject)
 		void Update() final {}											// 01
 		bool ProcessMessage(RE::UIMessage* a_message) final;			// 02
@@ -94,7 +97,12 @@ namespace DEM
 		Minimap(const IUI::GFxDisplayObject& a_gfxMinimap) :
 			RE::HUDObject{ a_gfxMinimap.GetMovieView() },
 			displayObj{ a_gfxMinimap }
-		{}
+		{
+			if (displayObj.HasMember("Minimap"))
+			{
+				displayObj.Invoke("Minimap", positionX, positionY);
+			}
+		}
 
 		void InitLocalMap();
 

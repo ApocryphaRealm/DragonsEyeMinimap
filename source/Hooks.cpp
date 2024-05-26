@@ -4,8 +4,6 @@
 
 #include "RE/H/HUDMenu.h"
 
-#include "RE/RTTI.h"
-
 #include "Minimap.h"
 
 

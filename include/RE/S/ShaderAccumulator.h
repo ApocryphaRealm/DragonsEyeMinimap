@@ -1,11 +1,15 @@
 #pragma once
 
+#include "RE/B/BSMap.h"
+#include "RE/N/NiAlphaAccumulator.h"
+#include "RE/N/NiNode.h"
+#include "RE/S/ShadowSceneNode.h"
+
 // see https://github.com/Nukem9/SkyrimSETest/blob/master/skyrim64_test/src/patches/TES/BSShader/BSShaderAccumulator.h
 namespace RE
 {
 	namespace BSGraphics
 	{
-
 		class BSShaderAccumulator : public NiAlphaAccumulator
 		{
 		public:
@@ -68,10 +72,14 @@ namespace RE
 			}
 
 			//members
-			char _pad1[0xD0];
-			bool firstPerson;  // 128
-			char _pad0[0x3];   // 129
-			bool drawDecals;   // 130
+			std::uint64_t unk058[15];							 // 058
+			BSMap<const BSFadeNode*, unsigned int> fadeNodeMap;	 // 0D0
+			std::uint64_t unk0F0[7];							 // 0F0
+			bool firstPerson;									 // 128
+			std::uint8_t unk129;								 // 129
+			std::uint8_t unk12A;								 // 12A
+			std::uint8_t unk12B;								 // 12B
+			bool drawDecals;									 // 12C
 #if !defined(ENABLE_SKYRIM_VR)
 			RUNTIME_DATA_CONTENT;  // 130
 #elif !defined(ENABLE_SKYRIM_AE) && !defined(ENABLE_SKYRIM_SE)

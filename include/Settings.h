@@ -16,4 +16,6 @@ namespace settings
 	{
 		inline logger::level logLevel = logger::level::trace;
 	}
+
+	inline bool followPlayerCameraRotation = false;
 }

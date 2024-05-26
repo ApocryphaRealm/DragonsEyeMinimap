@@ -144,10 +144,10 @@ namespace hooks
 	{
 	public:
 
-		static std::pair<std::uintptr_t, std::size_t> GetModuleInfo(SKSE::WinAPI::HMODULE a_moduleHandle);
+		static std::pair<std::uintptr_t, std::size_t> GetModuleInfo(REX::W32::HMODULE a_moduleHandle);
 
 		template <SKSE::stl::nttp::string str>
-		static std::uintptr_t FindPattern(SKSE::WinAPI::HMODULE a_moduleHandle)
+		static std::uintptr_t FindPattern(REX::W32::HMODULE a_moduleHandle)
 		{
 			auto [base, size] = GetModuleInfo(a_moduleHandle);
 

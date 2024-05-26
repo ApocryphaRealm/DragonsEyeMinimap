@@ -53,11 +53,11 @@ namespace hooks
 		inst->set_trampoline(base, a_size,
 			[](void* a_mem, std::size_t)
 			{
-				SKSE::WinAPI::VirtualFree(a_mem, 0, MEM_RELEASE);
+				REX::W32::VirtualFree(a_mem, 0, MEM_RELEASE);
 			});
 	}
 
-	std::pair<std::uintptr_t, std::size_t> SigScanner::GetModuleInfo(SKSE::WinAPI::HMODULE a_moduleHandle)
+	std::pair<std::uintptr_t, std::size_t> SigScanner::GetModuleInfo(REX::W32::HMODULE a_moduleHandle)
 	{
 		MODULEINFO moduleInfo;
 		GetModuleInformation(GetCurrentProcess(), reinterpret_cast<HMODULE>(a_moduleHandle), &moduleInfo, sizeof(MODULEINFO));
