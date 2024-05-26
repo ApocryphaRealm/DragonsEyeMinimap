@@ -85,8 +85,6 @@ namespace DEM
 
 		void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs);
 
-		// Per frame steps: UpdateOnEnterFrame, Advance, PreRender
-		void UpdateOnEnterFrame(const RE::FxDelegateArgs& a_delegateArgs);
 		void Advance();
 		void PreRender();
 
@@ -111,6 +109,7 @@ namespace DEM
 
 		void UpdateFogOfWar();
 		void RenderOffscreen();
+		void ClearPendingRenderPasses();
 
 		void FoldControls();
 		void UnfoldControls();
@@ -130,7 +129,7 @@ namespace DEM
 		RE::BSTArray<RE::NiPointer<RE::Actor>> hostileActors;
 		RE::BSTArray<RE::NiPointer<RE::Actor>> guardActors;
 		RE::GFxValue extraMarkerData;
-		bool frameUpdatePending = true;
+		bool isCameraUpdatePending = true;
 
 		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
 		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;

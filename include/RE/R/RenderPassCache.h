@@ -22,9 +22,9 @@ namespace RE
 			return singleton.get();
 		}
 
-		static void Clear()
+		static void CleanupThisThreadPool()
 		{
-			using func_t = decltype(&RenderPassCache::Clear);
+			using func_t = decltype(&RenderPassCache::CleanupThisThreadPool);
 			REL::Relocation<func_t> func{ RELOCATION_ID(100722, 107502) };
 
 			return func();

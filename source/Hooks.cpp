@@ -16,12 +16,6 @@ void AcceptHUDMenu(RE::HUDMenu* a_hudMenu, RE::FxDelegateHandler::CallbackProces
 		{
 			DEM::Minimap::GetSingleton()->SetLocalMapExtents(a_delegateArgs);
 		});
-
-	a_gameDelegate->Process("UpdateOnEnterFrame",
-		[](const RE::FxDelegateArgs& a_delegateArgs) -> void
-		{
-			DEM::Minimap::GetSingleton()->UpdateOnEnterFrame(a_delegateArgs);
-		});
 }
 
 void AdvanceMovieHUDMenu(RE::HUDMenu* a_hudMenu, float a_interval, std::uint32_t a_currentTime)

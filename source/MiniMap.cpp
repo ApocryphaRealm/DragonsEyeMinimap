@@ -2,9 +2,9 @@
 
 #include "utils/Logger.h"
 
-#include "RE/B/BSImagespaceShader.h"
 #include "RE/B/BSTimer.h"
 #include "RE/I/ImageSpaceManager.h"
+#include "RE/I/ImageSpaceShaderParam.h"
 #include "RE/L/LocalMapCamera.h"
 #include "RE/R/Renderer.h"
 #include "RE/S/ShaderAccumulator.h"
@@ -12,18 +12,17 @@
 #include "RE/R/RenderPassCache.h"
 #include "RE/R/RenderTargetManager.h"
 
-#include "Settings.h"
-
 namespace RE
 {
 	class BSPortalGraphEntry : public NiRefObject
 	{
 	public:
-		~BSPortalGraphEntry() override;	 // 00
+
+		~BSPortalGraphEntry() override; // 00
 
 		// members
-		BSPortalGraph* portalGraph;	 // 10
-									 // ...
+		BSPortalGraph* portalGraph; // 10
+		// ...
 	};
 	//static_assert(sizeof(BSPortalGraphEntry) == 0x140);
 
@@ -42,62 +41,29 @@ namespace RE
 
 		return func(a_this, a_shaderAccumulator, a_unk2);
 	}
+}
 
-	void SetCurrentAccumCamera(NiCamera* a_camera)
+namespace debug
+{
+	std::uint32_t GetCurrentNumOfUsedPasses()
 	{
-		NiCamera*& currentAccumCamera = *REL::Relocation<NiCamera**>{ RELOCATION_ID(527667, 414580) }.get();
+		RE::RenderPassCache* renderPassCache = RE::RenderPassCache::GetSingleton();
 
-		currentAccumCamera = a_camera;
-	}
+		RE::RenderPassCache::Pool& pool = renderPassCache->pools[0];
 
-	NiCamera* GetCurrentAccumCamera()
-	{
-		NiCamera*& currentAccumCamera = *REL::Relocation<NiCamera**>{ RELOCATION_ID(527667, 414580) }.get();
+		uint32_t usedPasses = 0;
+		static constexpr uint32_t passCount = 65535;
 
-		return currentAccumCamera;
-	}
+		for (uint32_t passIndex = 0; passIndex < passCount; ++passIndex)
+		{
+			const RE::BSRenderPass& pass = pool.passes[passIndex];
+			if (pass.passEnum != 0)
+			{
+				usedPasses++;
+			}
+		}
 
-	void SetCurrentShaderAccumulator(BSGraphics::BSShaderAccumulator* a_shaderAccumulator)
-	{
-		BSGraphics::BSShaderAccumulator* currentShaderAccumulator = *REL::Relocation<BSGraphics::BSShaderAccumulator**>{ RELOCATION_ID(527650, 414600) }.get();
-
-		currentShaderAccumulator = a_shaderAccumulator;
-	}
-
-	BSGraphics::BSShaderAccumulator* GetCurrentShaderAccumulator()
-	{
-		BSGraphics::BSShaderAccumulator* currentShaderAccumulator = *REL::Relocation<BSGraphics::BSShaderAccumulator**>{ RELOCATION_ID(527650, 414600) }.get();
-
-		return currentShaderAccumulator;
-	}
-
-	std::uint32_t GetCurrentRenderMode()
-	{
-		return *REL::Relocation<std::uint32_t*>{ RELOCATION_ID(527651, 414601) }.get();
-	}
-
-	void BSCullingProcess_sub_140D51280(BSCullingProcess* a_this, BSGraphics::BSShaderAccumulator* a_shaderAccumulator)
-	{
-		using func_t = decltype(&BSCullingProcess_sub_140D51280);
-		REL::Relocation<func_t> func{ RELOCATION_ID(74809, 76558) };
-
-		func(a_this, a_shaderAccumulator);
-	}
-
-	void BSCullingProcess_sub_140D51100(BSCullingProcess* a_this)
-	{
-		using func_t = decltype(&BSCullingProcess_sub_140D51100);
-		REL::Relocation<func_t> func{ RELOCATION_ID(74808, 76557) };
-
-		func(a_this);
-	}
-
-	BSCullingProcess* SetCullingProcessData(std::int32_t a_oper, CullJobDescriptor& a_cullJobDesc, BSCullingProcess& a_cullingProcess)
-	{
-		using func_t = decltype(&SetCullingProcessData);
-		REL::Relocation<func_t> func{ RELOCATION_ID(100222, 106930) };
-
-		return func(a_oper, a_cullJobDesc, a_cullingProcess);
+		return usedPasses;
 	}
 }
 
@@ -179,181 +145,88 @@ namespace DEM
 		cameraContext->defaultState->minFrustumHalfWidth = aspectRatio * cameraContext->defaultState->minFrustumHalfHeight;
 	}
 
-	void Minimap::UpdateOnEnterFrame(const RE::FxDelegateArgs& a_delegateArgs)
-	{
-		frameUpdatePending = true;
-	}
-
 	void Minimap::Advance()
 	{
-		if (frameUpdatePending && localMap && localMap_->enabled)
+		if (localMap && localMap_->enabled)
 		{
 			std::array<RE::GFxValue, 2> title;
 
 			RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
 
-			if (RE::TESObjectCELL* parentCell = player->parentCell)
+			RE::TESObjectCELL* parentCell = player->parentCell;
+			if (parentCell)
 			{
-				RE::BGSLocation* location = parentCell->GetLocation();
+				float northRotation = parentCell->GetNorthRotation();
+				cameraContext->SetNorthRotation(-northRotation);
 
 				if (parentCell->IsInteriorCell())
 				{
 					title[0] = parentCell->GetFullName();
 				}
-				else
+				else if (RE::BGSLocation* location = parentCell->GetLocation())
 				{
-					if (location)
-					{
-						title[0] = location->GetFullName();
+					title[0] = location->GetFullName();
 
-						if (location->everCleared)
-						{ 
-							title[1] = clearedStr;
-						}
-					}
-					else
+					if (location->everCleared)
 					{
-						RE::TESWorldSpace* worldSpace = player->GetWorldspace();
-						title[0] = worldSpace->GetFullName();
+						title[1] = clearedStr;
 					}
 				}
+				else
+				{
+					RE::TESWorldSpace* worldSpace = player->GetWorldspace();
+					title[0] = worldSpace->GetFullName();
+				}
 			}
+			localMap_->root.Invoke("SetTitle", nullptr, title);
 
 			CreateMarkers();
 			RefreshMarkers();
 
-			localMap_->root.Invoke("SetTitle", nullptr, title);
-		}
-	}
-
-	std::uint32_t GetCurrentNumOfUsedPasses()
-	{
-		RE::RenderPassCache* renderPassCache = RE::RenderPassCache::GetSingleton();
-
-		RE::RenderPassCache::Pool& pool = renderPassCache->pools[0];
-
-		uint32_t usedPasses = 0;
-		static constexpr uint32_t passCount = 65535;
-
-		for (uint32_t passIndex = 0; passIndex < passCount; ++passIndex)
-		{
-			const RE::BSRenderPass& pass = pool.passes[passIndex];
-			if (pass.passEnum != 0)
-			{
-				usedPasses++;
-			}
-		}
-
-		return usedPasses;
-	}
-
-	void ClearUsedPasses()
-	{
-		RE::RenderPassCache* renderPassCache = RE::RenderPassCache::GetSingleton();
-
-		RE::RenderPassCache::Pool& pool = renderPassCache->pools[0];
-
-		static constexpr uint32_t passCount = 65535;
-
-		std::set<RE::BSShaderProperty*> shaderProperties;
-
-		for (uint32_t passIndex = 0; passIndex < passCount; ++passIndex)
-		{
-			RE::BSRenderPass* pass = &pool.passes[passIndex];
-			if (pass->passEnum != 0)
-			{
-				shaderProperties.insert(pass->shaderProperty);
-			}
-		}
-
-		for (RE::BSShaderProperty* shaderProperty : shaderProperties)
-		{
-			shaderProperty->DoClearRenderPasses();
+			isCameraUpdatePending = true;
 		}
 	}
 
 	void Minimap::PreRender()
 	{
-		using namespace std::chrono;
-
-		//if (frameUpdatePending && localMap && localMap_->enabled)
 		if (localMap && localMap_->enabled)
 		{
-			RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
-
-			RE::NiPoint3 playerPos = player->GetPosition();
-			cameraContext->defaultState->initialPosition.x = playerPos.x;
-			cameraContext->defaultState->initialPosition.y = playerPos.y;
-
-			if (!inputControlledMode)
+			if (isCameraUpdatePending)
 			{
-				cameraContext->defaultState->translation = RE::NiPoint3::Zero();
-			}
+				RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
 
-			RE::TESObjectCELL* parentCell = player->parentCell;
-			if (parentCell)
-			{
-				float northRotation = settings::followPlayerCameraRotation ?
-										  RE::PlayerCamera::GetSingleton()->GetRuntimeData2().yaw :
-										  -parentCell->GetNorthRotation();
+				RE::NiPoint3 playerPos = player->GetPosition();
+				cameraContext->defaultState->initialPosition.x = playerPos.x;
+				cameraContext->defaultState->initialPosition.y = playerPos.y;
 
-				cameraContext->SetNorthRotation(northRotation);
-
-				RE::BGSLocation* location = parentCell->GetLocation();
-
-				if (parentCell->IsInteriorCell())
+				if (!inputControlledMode)
 				{
-					RE::NiPoint3 minExtent = cameraContext->minExtent;
-					minExtent.x -= localMapMargin;
-					minExtent.y -= localMapMargin;
-					RE::NiPoint3 maxExtent = cameraContext->maxExtent;
-					maxExtent.x += localMapMargin;
-					maxExtent.y += localMapMargin;
-					cameraContext->SetAreaBounds(maxExtent, minExtent);
+					cameraContext->defaultState->translation = RE::NiPoint3::Zero();
 				}
-				else
-				{
-					RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->GetRuntimeData2().loadedAreaBound;
-					cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
-				}
-			}
 
-			cameraContext->Update();
+				cameraContext->Update();
 
-			if (frameUpdatePending)
-			{
+				isCameraUpdatePending = false;
+
+				RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->GetRuntimeData2().loadedAreaBound;
+				cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
+
 				UpdateFogOfWar();
 			}
-			
-			size_t usedPassesBefore = GetCurrentNumOfUsedPasses();
 
 			RenderOffscreen();
+		}
 
-			size_t usedPassesAfter = GetCurrentNumOfUsedPasses();
+		using namespace std::chrono;
+		static time_point<system_clock> lastLog;
+		time_point<system_clock> now = system_clock::now();
+		if (duration_cast<milliseconds>(now - lastLog) > 500ms)
+		{
+			size_t usedPassesAfter = debug::GetCurrentNumOfUsedPasses();
 
-			// Different number of passes when calling CullTerrain in RenderOffscreen
-			if (usedPassesAfter > usedPassesBefore)
-			{
-				int stop = 1;
-			}
+			logger::debug("Render Passes: {}", usedPassesAfter);
 
-			if (frameUpdatePending)
-			{
-				frameUpdatePending = false;
-			}
-
-			using namespace std::chrono;
-
-			static time_point<system_clock> lastLog;
-
-			time_point<system_clock> now = system_clock::now();
-			auto diffLog = duration_cast<milliseconds>(now - lastLog);
-			if (diffLog > 500ms)			
-			{
-				logger::debug("Render Passes: {}", usedPassesAfter);
-
-				lastLog = now;
-			}
+			lastLog = now;
 		}
 	}
 
@@ -474,29 +347,6 @@ namespace DEM
 		}
 
 		localMap->RefreshMarkers();
-
-		if (settings::followPlayerCameraRotation)
-		{
-			RE::GFxValue youAreHereMarker;
-			localMap_->iconDisplay.GetMember("YouAreHereMarker", &youAreHereMarker);
-
-			RE::GFxValue::DisplayInfo youAreHereMarkerDisplayInfo;
-			youAreHereMarker.GetDisplayInfo(&youAreHereMarkerDisplayInfo);
-			youAreHereMarkerDisplayInfo.SetRotation(0);
-			youAreHereMarker.SetDisplayInfo(youAreHereMarkerDisplayInfo);
-
-			auto parentCell = RE::PlayerCharacter::GetSingleton()->parentCell;
-
-			if (parentCell)
-			{
-				float northRotation = -parentCell->GetNorthRotation();
-
-				//RE::GFxValue::DisplayInfo iconDisplayInfo;
-				//localMap_->iconDisplay.GetDisplayInfo(&iconDisplayInfo);
-				//iconDisplayInfo.SetRotation(northRotation * 180 / 3.14159265);
-				//localMap_->iconDisplay.SetDisplayInfo(iconDisplayInfo);
-			}
-		}
 	}
 
 	void Minimap::UpdateFogOfWar()
@@ -573,60 +423,8 @@ namespace DEM
 		}
 	}
 
-	std::uint32_t CullTerrain(const RE::GridCellArray* a_gridCells, RE::LocalMapMenu::LocalMapCullingProcess::UnkData& a_unkData,
-							  const RE::TESObjectCELL* a_cell)
-	{
-		RE::CullJobDescriptor& cullJobDesc = a_unkData.ptr->cullJobDesc;
-
-		for (int gridCellX = 0; gridCellX < a_gridCells->length; gridCellX++)
-		{
-			for (int gridCellY = 0; gridCellY < a_gridCells->length; gridCellY++)
-			{
-				RE::TESObjectCELL* cell = a_gridCells->GetCell(gridCellX, gridCellY);
-				if (!cell || !cell->IsAttached())
-				{
-					continue;
-				}
-
-				if (a_cell == cell)
-				{
-					a_cell = nullptr;
-				}
-
-				if (!a_cell)
-				{
-					int sceneIndices[4] = { 2, 3, 6, 7 };
-
-					for (int i = 0; i < 4; i++)
-					{
-						int sceneIndex = sceneIndices[i];
-						if (sceneIndex != 2 || a_unkData.unk8)
-						{
-							RE::NiPointer<RE::NiNode> cell3D = cell->GetRuntimeData().loadedData->cell3D;
-
-							RE::NiPointer<RE::NiAVObject> scene = (cell3D && sceneIndex < cell3D->children.size()) ? cell3D->children[sceneIndex] : nullptr;
-
-							if (scene)
-							{
-								cullJobDesc.scene = scene;
-
-								cullJobDesc.Cull(0, 0);
-							}
-						}
-					}
-				}
-			}
-		}
-
-		cullJobDesc.scene = nullptr;
-
-		return 1;
-	}
-
 	void Minimap::RenderOffscreen()
 	{
-		isFogOfWarEnabled = true;
-
 		// 1. Setup culling step ///////////////////////////////////////////////////////////////////////////////////////////
 
 		RE::ShadowSceneNode* mainShadowSceneNode = RE::ShadowSceneNode::GetMain();
@@ -647,7 +445,7 @@ namespace DEM
 		bool isByte_1431D1D30 = byte_1431D1D30;
 		bool isByte_141E0DC5C_D = byte_141E0DC5C;
 		byte_1431D1D30 = true;
-		byte_141E0DC5D = byte_141E0DC5C = true;
+		byte_141E0DC5D = byte_141E0DC5C = false;
 		dword_1431D0D8C = 0;
 
 		RE::BSGraphics::Renderer* renderer = RE::BSGraphics::Renderer::GetSingleton();
@@ -678,14 +476,6 @@ namespace DEM
 
 		// 2. Culling step /////////////////////////////////////////////////////////////////////////////////////////////////
 
-		RE::CullJobDescriptor& cullJobDesc = cullingProcess->cullJobDesc;
-		RE::NiPointer<RE::NiCamera> camera = cameraContext->camera;
-
-		cullJobDesc.shaderAccumulator = shaderAccumulator;
-		cullJobDesc.camera = camera;
-
-		size_t usedPasses0 = GetCurrentNumOfUsedPasses();
-
 		if (interiorCell)
 		{
 			currentCell = interiorCell;
@@ -700,20 +490,24 @@ namespace DEM
 			RE::TESObjectCELL* skyCell = worldSpace->GetSkyCell();
 			if (skyCell && skyCell->IsAttached())
             {
-				cullingProcess->CullTerrain(tes->gridCells, unkData, nullptr);
-
-				currentCell = skyCell;
+				if (cullingProcess->CullTerrain(tes->gridCells, unkData, nullptr) == 1)
+				{
+					currentCell = skyCell;
+				}
             }
 		}
 
-		size_t usedPasses1 = GetCurrentNumOfUsedPasses();
-		
-		if (currentCell)
+        if (currentCell)
         {
 			cullingProcess->CullCellObjects(unkData, currentCell);
 		}
 
-      RE::BSPortalGraphEntry* portalGraphEntry = RE::Main__GetPortalGraphEntry(RE::Main::GetSingleton());
+        RE::CullJobDescriptor& cullJobDesc = cullingProcess->cullJobDesc;
+		RE::NiPointer<RE::NiCamera> camera = cameraContext->camera;
+
+        cullJobDesc.camera = camera;
+
+        RE::BSPortalGraphEntry* portalGraphEntry = RE::Main__GetPortalGraphEntry(RE::Main::GetSingleton());
 		
         if (portalGraphEntry)
         {
@@ -757,33 +551,19 @@ namespace DEM
 		RE::BSGraphics::SetRenderTargetMode worldRenderTargetMode = isFogOfWarEnabled ? RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR : RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE;
 
 		renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, worldRenderTargetMode, true);
-
-		// Does not allocate/free render passes
 		RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
 
 		// 4. Post process step (Add fog of war) ///////////////////////////////////////////////////////////////////////////
 
-		size_t usedPasses2;
-		size_t usedPasses3;
-
 		if (isFogOfWarEnabled)
 		{
-			// Frees render passes
-			shaderAccumulator->ClearRemainingRenderPasses(false);
-			RE::RenderPassCache::Clear();
-
-			usedPasses2 = GetCurrentNumOfUsedPasses();
-
-			std::uint32_t renderMode = RE::GetCurrentRenderMode();
+			shaderAccumulator->ClearActiveRenderPasses(false);
 
 			RE::BSGraphics::BSShaderAccumulator::SetRenderMode(19);
 
 			RE::NiPointer<RE::NiAVObject> fogOfWarOverlayHolder = cullingProcess->GetFogOfWarOverlay();
 			cullJobDesc.scene = fogOfWarOverlayHolder;
-			
 			cullJobDesc.Cull(0, 0);
-
-			usedPasses3 = GetCurrentNumOfUsedPasses();
 
 			RE::BSGraphics::RendererShadowState* rendererShadowState = RE::BSGraphics::RendererShadowState::GetSingleton();
 
@@ -806,11 +586,7 @@ namespace DEM
 				}
 			}
 
-			RE::BSGraphics::SetRenderTargetMode fogOfWarTargetMode = isFogOfWarEnabled ? RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE : RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR;
-
-			renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, fogOfWarTargetMode, true);
-
-			// Does not allocate/free render passes
+			renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE, true);
 			RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
 
 			if (rendererShadowState->depthStencilDepthMode != RE::BSGraphics::DepthStencilDepthMode::kTestWrite)
@@ -831,10 +607,7 @@ namespace DEM
 				rendererShadowState->alphaBlendWriteMode = 1;
 				rendererShadowState->stateUpdateFlags.set(RE::BSGraphics::ShaderFlags::DIRTY_ALPHA_BLEND);
 			}
-
-			RE::BSGraphics::BSShaderAccumulator::SetRenderMode(renderMode);
 		}
-
 		// 5. Finish rendering and dispatch ////////////////////////////////////////////////////////////////////////////////
 
         renderTargetManager->SetupDepthStencilAt(-1, 3, 0, false);
@@ -846,13 +619,9 @@ namespace DEM
 		imageSpaceShaderParam.SetupPixelConstantGroup(0, 1.0 / localMapSwapWidth, 1.0 / localMapSwapHeight, 0.0, 0.0);
 		
         RE::ImageSpaceManager* imageSpaceManager = RE::ImageSpaceManager::GetSingleton();
-
-		// Does allocate a render pass
 		imageSpaceManager->CopyWithImageSpaceEffect(RE::ImageSpaceManager::ImageSpaceEffectEnum::ISLocalMap,
 													RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::RENDER_TARGET::kLOCAL_MAP,
 													&imageSpaceShaderParam);
-
-		size_t usedPasses4 = GetCurrentNumOfUsedPasses();
 
 		if (areLODsHidden)
 		{
@@ -866,14 +635,36 @@ namespace DEM
 		byte_141E0DC5D = byte_141E0DC5C = isByte_141E0DC5C_D;
 		dword_1431D0D8C = 0;
 
-		// Frees render passes
-        shaderAccumulator->ClearRemainingRenderPasses(false);
-		RE::RenderPassCache::Clear();
+        shaderAccumulator->ClearActiveRenderPasses(false);
 
-		size_t usedPasses5 = GetCurrentNumOfUsedPasses();
+		RE::RenderPassCache::CleanupThisThreadPool();
 
-		ClearUsedPasses();
+		ClearPendingRenderPasses();
+	}
 
-		size_t usedPasses6 = GetCurrentNumOfUsedPasses();
+	// For some reason, some render passes are not cleared after rendering the minimap.
+	// Get from the pool the passes used, trace them to the shader properties of the
+	// geometries rendered and clear them here. This is the best I can to avoid CTD
+	// because of memory leakage allocating render passes.
+	void Minimap::ClearPendingRenderPasses()
+	{
+		std::set<RE::BSShaderProperty*> shaderProperties;
+
+		RE::RenderPassCache::Pool& pool = RE::RenderPassCache::GetSingleton()->pools[0];
+		static constexpr uint32_t poolMaxAlloc = 65535;
+
+		for (uint32_t passIndex = 0; passIndex < poolMaxAlloc; ++passIndex)
+		{
+			RE::BSRenderPass* pass = &pool.passes[passIndex];
+			if (pass->passEnum != 0)
+			{
+				shaderProperties.insert(pass->shaderProperty);
+			}
+		}
+
+		for (RE::BSShaderProperty* shaderProperty : shaderProperties)
+		{
+			shaderProperty->DoClearRenderPasses();
+		}
 	}
 }

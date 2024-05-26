@@ -55,9 +55,9 @@ namespace RE
 				return func();
 			}
 
-			void ClearRemainingRenderPasses(bool a_unk0)
+			void ClearActiveRenderPasses(bool a_unk0)
 			{
-				using func_t = decltype(&BSShaderAccumulator::ClearRemainingRenderPasses);
+				using func_t = decltype(&BSShaderAccumulator::ClearActiveRenderPasses);
 				REL::Relocation<func_t> func{ REL::RelocationID(99964, 106610) };
 
 				func(this, a_unk0);
