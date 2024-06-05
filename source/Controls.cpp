@@ -1,5 +1,7 @@
 #include "Minimap.h"
 
+#include "utils/Logger.h"
+
 namespace DEM
 {
 	bool Minimap::InputHandler::CanProcess(RE::InputEvent* a_event)
@@ -20,7 +22,9 @@ namespace DEM
 			float xOffset = -a_event->mouseInputX * miniMap->localMapPanSpeed;
 			float yOffset = a_event->mouseInputY * miniMap->localMapPanSpeed;
 
-			miniMap->cameraContext->defaultState->translation += RE::NiPoint3(xOffset, yOffset, 0);
+			RE::NiPoint3 translationOffset = miniMap->cameraContext->cameraRoot->local.rotate * RE::NiPoint3(0, yOffset, xOffset);
+
+			miniMap->cameraContext->defaultState->translation += translationOffset;
 		}
 
 		return true;
@@ -33,9 +37,12 @@ namespace DEM
 			auto controlMap = RE::ControlMap::GetSingleton();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
+			logger::debug("ProcessButton (ButtonEvent): [{}] {} ({})", (std::uint32_t)buttonEvent->GetDevice(), buttonEvent->GetIDCode(), buttonEvent->Value() ? "pressed" : "released");
+
 			std::string_view userEventName = controlMap->GetUserEventName(buttonEvent->GetIDCode(), buttonEvent->GetDevice(), RE::ControlMap::InputContextID::kMap);
 
-			if (userEventName == userEvents->localMap)
+			if (buttonEvent->GetDevice() == RE::INPUT_DEVICE::kKeyboard && buttonEvent->GetIDCode() == 38)
+			//if (userEventName == userEvents->localMap)
 			{
 				miniMap->inputControlledMode = buttonEvent->Value();
 
@@ -81,10 +88,6 @@ namespace DEM
 
 				}
 			}
-			//else
-			//{
-			//	logger::info("ProcessButton (ButtonEvent): {} ({})", buttonEvent->GetIDCode(), buttonEvent->Value() ? "pressed" : "released");
-			//}
 		}
 
 		return true;

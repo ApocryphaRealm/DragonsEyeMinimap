@@ -16,6 +16,20 @@ namespace settings
 				MakeSetting("uLogLevel:Debug", static_cast<std::uint32_t>(logLevel)));
 		}
 
+		{
+			using namespace display;
+			iniSettingCollection->AddSettings(
+				MakeSetting("fPositionX:Display", positionX),
+				MakeSetting("fPositionY:Display", positionY),
+				MakeSetting("fScale:Display", scale));
+		}
+
+		{
+			using namespace controls;
+			iniSettingCollection->AddSettings(
+				MakeSetting("bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation));
+		}
+
 		if (!iniSettingCollection->ReadFromFile(a_iniFileName))
 		{
 			logger::warn("Could not read {}, falling back to default options", a_iniFileName);
@@ -24,6 +38,18 @@ namespace settings
 		{
 			using namespace debug;
 			logLevel = static_cast<logger::level>(iniSettingCollection->GetSetting<std::uint32_t>("uLogLevel:Debug"));
+		}
+
+		{
+			using namespace display;
+			positionX = iniSettingCollection->GetSetting<float>("fPositionX:Display");
+			positionY = iniSettingCollection->GetSetting<float>("fPositionY:Display");
+			scale = iniSettingCollection->GetSetting<float>("fScale:Display");
+		}
+
+		{
+			using namespace controls;
+			followPlayerCameraRotation = iniSettingCollection->GetSetting<bool>("bFollowPlayerCameraRotation:Controls");
 		}
 	}
 }

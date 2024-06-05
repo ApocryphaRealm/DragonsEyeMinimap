@@ -4,6 +4,8 @@
 
 #include "RE/H/HUDObject.h"
 
+#include "Settings.h"
+
 namespace DEM
 {
 	struct ExtraMarker
@@ -64,9 +66,6 @@ namespace DEM
 
 		static constexpr inline std::string_view path = "_level0.HUDMovieBaseInstance.Minimap";
 
-		static constexpr double positionX = 0.65;
-		static constexpr double positionY = 0.2;
-
 		// override (RE::HUDObject)
 		void Update() final {}											// 01
 		bool ProcessMessage(RE::UIMessage* a_message) final;			// 02
@@ -98,7 +97,13 @@ namespace DEM
 		{
 			if (displayObj.HasMember("Minimap"))
 			{
-				displayObj.Invoke("Minimap", positionX, positionY);
+				displayObj.Invoke("Minimap", settings::display::positionX, settings::display::positionY);
+
+				float width = displayObj.GetMember("_width").GetNumber();
+				displayObj.SetMember("_width", width * settings::display::scale);
+
+				float height = displayObj.GetMember("_height").GetNumber();
+				displayObj.SetMember("_height", height * settings::display::scale);
 			}
 		}
 

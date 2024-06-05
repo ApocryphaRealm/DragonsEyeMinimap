@@ -17,5 +17,15 @@ namespace settings
 		inline logger::level logLevel = logger::level::trace;
 	}
 
-	inline bool followPlayerCameraRotation = true;
+	namespace display
+	{
+		inline float positionX = 0.65F;
+		inline float positionY = 0.2F;
+		inline float scale = 1.0F;
+	}
+
+	namespace controls
+	{
+		inline bool followPlayerCameraRotation = true;
+	}
 }

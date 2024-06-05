@@ -1,9 +1,5 @@
 #include "Minimap.h"
 
-#include <numbers>
-
-#include "Settings.h"
-
 #include "utils/Logger.h"
 
 #include "RE/R/RenderPassCache.h"
@@ -155,7 +151,7 @@ namespace DEM
 			{
 				float cellNorthRotation = parentCell->GetNorthRotation();
 
-				if (settings::followPlayerCameraRotation)
+				if (settings::controls::followPlayerCameraRotation)
 				{
 					float playerNorthRotation = -RE::PlayerCamera::GetSingleton()->GetRuntimeData2().yaw;
 					cameraContext->SetNorthRotation(-playerNorthRotation);
@@ -313,7 +309,7 @@ namespace DEM
 
 		localMap->RefreshMarkers();
 
-		if (settings::followPlayerCameraRotation)
+		if (settings::controls::followPlayerCameraRotation)
 		{
 			RE::GFxValue youAreHereMarker;
 			localMap_->iconDisplay.GetMember("YouAreHereMarker", &youAreHereMarker);
@@ -322,17 +318,6 @@ namespace DEM
 			youAreHereMarker.GetDisplayInfo(&youAreHereMarkerDisplayInfo);
 			youAreHereMarkerDisplayInfo.SetRotation(0);
 			youAreHereMarker.SetDisplayInfo(youAreHereMarkerDisplayInfo);
-
-			auto parentCell = RE::PlayerCharacter::GetSingleton()->parentCell;
-
-			if (parentCell) {
-				float northRotation = -parentCell->GetNorthRotation();
-
-				//RE::GFxValue::DisplayInfo iconDisplayInfo;
-				//localMap_->iconDisplay.GetDisplayInfo(&iconDisplayInfo);
-				//iconDisplayInfo.SetRotation(northRotation * 180 / 3.14159265);
-				//localMap_->iconDisplay.SetDisplayInfo(iconDisplayInfo);
-			}
 		}
 	}
 }
