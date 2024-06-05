@@ -122,6 +122,9 @@ namespace DEM
 		RE::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
 		RE::LocalMapCamera* cameraContext = nullptr;
 
+		float minCamFrustumHalfWidth;
+		float minCamFrustumHalfHeight;
+
 		RE::BSTSmartPointer<InputHandler> inputHandler = RE::make_smart<InputHandler>(this);
 		bool inputControlledMode = false;
 
@@ -138,6 +141,8 @@ namespace DEM
 		const float& localMapGamepadZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadZoomSpeed:MapMenu")->data.f;
 		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 189820) }.get();
 
+		bool& useWaterReflections = RE::INIPrefSettingCollection::GetSingleton()->GetSetting("bUseWaterReflections:Water")->data.b;
+		float& waterSSRIntensity = RE::INISettingCollection::GetSingleton()->GetSetting("fWaterSSRIntensity:Display")->data.f;
 		bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(501260, 359696) }.get();
 		bool& byte_141E0DC5C = *REL::Relocation<bool*>{ RELOCATION_ID(513141, 390865) }.get();
 		bool& byte_141E0DC5D = *REL::Relocation<bool*>{ RELOCATION_ID(513142, 390866) }.get();

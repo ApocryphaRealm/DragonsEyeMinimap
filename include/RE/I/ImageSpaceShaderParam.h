@@ -15,17 +15,17 @@ namespace RE
 
 		~ImageSpaceShaderParam() override;	// 00
 
-		 void SetupPixelConstantGroup(std::uint32_t a_pixelCGIndex, float a_invWidth,
-									  float a_invHeight, float a_unk3, float a_unk4)
+		void SetupPixelConstantGroup(std::uint32_t a_pixelCGIndex, float a_value1,
+									  float a_value2, float a_value3, float a_value4)
 		{
 			using func_t = decltype(&ImageSpaceShaderParam::SetupPixelConstantGroup);
 			REL::Relocation<func_t> func{ RELOCATION_ID(100198, 106905) };
 
-			func(this, a_pixelCGIndex, a_invWidth, a_invHeight, a_unk3, a_unk4);
+			func(this, a_pixelCGIndex, a_value1, a_value2, a_value3, a_value4);
 		}
 
 		// members
-		std::uint32_t                                    unk08;                    // 08
+		std::uint32_t                                    filterMode;               // 08
 		bool                                             SLIMode;                  // 0C
 		std::uint8_t                                     pad0D;                    // 0D
 		std::uint16_t                                    pad0E;                    // 0E

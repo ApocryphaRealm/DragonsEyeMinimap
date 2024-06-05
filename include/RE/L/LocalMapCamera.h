@@ -46,14 +46,14 @@ namespace RE
 
 		RE::NiPoint2 WorldToScreen(const RE::NiPoint3& a_position) const
 		{
-			RE::NiPoint2 screenPos;
+			RE::NiPoint2 viewPos;
 			float z;
 
 			camera->WorldPtToScreenPt3(camera->GetRuntimeData().worldToCam,
-				camera->GetRuntimeData2().port, a_position, screenPos.x, screenPos.y, z, 0.00001F);
-			screenPos.y = 1.0F - screenPos.y;
+				camera->GetRuntimeData2().port, a_position, viewPos.x, viewPos.y, z, 0.00001F);
+			viewPos.y = 1.0F - viewPos.y;
 
-			return screenPos;
+			return viewPos;
 		}
 
 		// members
