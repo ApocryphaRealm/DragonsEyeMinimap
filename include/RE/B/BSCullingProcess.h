@@ -66,7 +66,7 @@ namespace RE
 		virtual bool TestBaseVisibility2(BSOcclusionPlane& a_bound);				   // 1B
 		[[nodiscard]] virtual bool TestBaseVisibility3(const NiBound& a_bound) const;  // 1C
 
-		BSTArray<NiPointer<NiAVObject>> visibleObjects;				  // 00128
+		BSTArray<NiPointer<NiAVObject>> nonAccumObjects;			  // 00128
 		BSTLocklessQueue::ObjMultiProdCons<Data, 4096, 0> cullQueue;  // 00140
 		std::uint64_t unk30160;										  // 30160
 		std::uint64_t unk30168;										  // 30168
@@ -86,8 +86,8 @@ namespace RE
 		bool recurseToGeometry;										  // 301D4
 		std::uint8_t unk301D5;										  // 301D5
 		std::uint16_t unk301D6;										  // 301D6
-		BSTArray<void*> unk301D8;									  // 301D8
-		std::int32_t unk301F0;										  // 301F0
+		BSTArray<void*> accumObjects;								  // 301D8
+		std::int32_t numAccumObjectsGroups;							  // 301F0
 		std::uint32_t unk301F4;										  // 301F4
 	private:
 		KEEP_FOR_RE()

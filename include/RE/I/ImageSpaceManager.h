@@ -205,27 +205,27 @@ namespace RE
 	ImageSpaceBaseData* consoleBaseData;										   /* 0C0, VR D0 */                                                                                        \
 	ImageSpaceData data;														   /* 0C8, VR D8 */                                                                                        \
 																				   /* the structure is unclear and varies for each, but at least the first entry is a BSImagespaceShader*/ \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderApplyReflections;			   /* 168, VR 178 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISApplyVolumetricLighting;	   /* 170, VR 180 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISBasicCopy;				   /* 178, VR 188 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISBlur;						   /* 180, VR 190 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISVolumetricLightingBlurHCS;   /* 188, VR 198 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISCompositeVolumetricLighting; /* 190, VR 1A0 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISCopySubRegionCS;			   /* 198, VR 1A8 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISDebugSnow;				   /* 1A0, VR 1B0 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISExp;						   /* 1A8, VR 1C0 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISLightingComposite;		   /* 1B0, VR 1D0 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISPerlinNoiseCS;			   /* 1B8, VR 1D8 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderReflectionsRayTracing;		   /* 1C0, VR 1E8 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISSAOBlurH;					   /* 1C8, VR 1F0 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISSAOBlurHCS;				   /* 1D0, VR 1F8 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISSILComposite;				   /* 1D8, VR 200 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISSimpleColor;				   /* 1E0, VR 208 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISSnowSSS;					   /* 1E8, VR 210 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderApplyReflections;			   /* 168, VR 178 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISApplyVolumetricLighting;	   /* 170, VR 180 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISBasicCopy;				   /* 178, VR 188 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISBlur;						   /* 180, VR 190 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISVolumetricLightingBlurHCS;   /* 188, VR 198 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISCompositeVolumetricLighting; /* 190, VR 1A0 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISCopySubRegionCS;			   /* 198, VR 1A8 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISDebugSnow;				   /* 1A0, VR 1B0 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISExp;						   /* 1A8, VR 1C0 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISLightingComposite;		   /* 1B0, VR 1D0 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISPerlinNoiseCS;			   /* 1B8, VR 1D8 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderReflectionsRayTracing;		   /* 1C0, VR 1E8 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISSAOBlurH;					   /* 1C8, VR 1F0 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISSAOBlurHCS;					/* 1D0, VR 1F8 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISSILComposite;				/* 1D8, VR 200 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISSimpleColor;					/* 1E0, VR 208 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISSnowSSS;						/* 1E8, VR 210 */                                                                                       \
 	UNK_BSImagespaceShaderISTemporalAA* BSImagespaceShaderISTemporalAA;			   /* 1F0, VR 218 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISUpsampleDynamicResolution;   /* 1F8, VR 220 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISWaterBlend;				   /* 200, VR 228 */                                                                                       \
-	NiPointer<BSImagespaceShader> BSImagespaceShaderISUnderwaterMask;			   /* 208, VR 230 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISUpsampleDynamicResolution;	/* 1F8, VR 220 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISWaterBlend;					/* 200, VR 228 */                                                                                       \
+	NiPointer<BSImagespaceShader*> BSImagespaceShaderISUnderwaterMask;				/* 208, VR 230 */                                                                                       \
 	bool usesLDR;																   /* 210, VR 238 */                                                                                       \
 	bool unk211;																   /* 211, VR 239 */                                                                                       \
 	std::uint64_t unk218;														   /* 218, VR 240 */

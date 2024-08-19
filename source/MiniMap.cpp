@@ -4,6 +4,8 @@
 
 #include "RE/R/RenderPassCache.h"
 
+#include "DebugWidget.h"
+
 namespace debug
 {
 	std::uint32_t GetCurrentNumOfUsedPasses();
@@ -117,26 +119,12 @@ namespace DEM
 				UpdateFogOfWar();
 			}
 
-			//cullingProcess->RenderOffScreen();
 			RenderOffscreen();
-
-			RE::RenderPassCache::CleanupThisThreadPool();
-			ClearPendingRenderPasses();
 		}
 
-#if false
-		using namespace std::chrono;
-		static time_point<system_clock> lastLog;
-		time_point<system_clock> now = system_clock::now();
-		if (duration_cast<milliseconds>(now - lastLog) > 500ms)
-		{
-			size_t usedPassesAfter = debug::GetCurrentNumOfUsedPasses();
+		std::uint32_t usedPasses = debug::GetCurrentNumOfUsedPasses();
 
-			logger::debug("Render Passes: {}", usedPassesAfter);
-
-			lastLog = now;
-		}
-#endif
+		DebugWidget::GetSingleton()->SetRenderPasses(usedPasses);
 	}
 
 	void Minimap::Advance()

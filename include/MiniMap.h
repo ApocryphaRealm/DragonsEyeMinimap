@@ -109,13 +109,18 @@ namespace DEM
 
 		void InitLocalMap();
 
+		// 2D markers
 		void CreateMarkers();
 		void RefreshMarkers();
 
+		// 3D world rendering
 		void UpdateFogOfWar();
 		void RenderOffscreen();
-		void ClearPendingRenderPasses();
+		void ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object);
+		void CullTerrain(const RE::GridCellArray* a_gridCells, RE::LocalMapMenu::LocalMapCullingProcess::UnkData& a_unkData,
+						 const RE::TESObjectCELL* a_cell);
 
+		// Controls
 		void FoldControls();
 		void UnfoldControls();
 
@@ -127,8 +132,8 @@ namespace DEM
 		RE::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
 		RE::LocalMapCamera* cameraContext = nullptr;
 
-		float minCamFrustumHalfWidth;
-		float minCamFrustumHalfHeight;
+		float minCamFrustumHalfWidth = 0.0F;
+		float minCamFrustumHalfHeight = 0.0F;
 
 		RE::BSTSmartPointer<InputHandler> inputHandler = RE::make_smart<InputHandler>(this);
 		bool inputControlledMode = false;

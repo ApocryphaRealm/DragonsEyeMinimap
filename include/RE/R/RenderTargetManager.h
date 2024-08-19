@@ -26,7 +26,7 @@ namespace RE
 				func(this, a_renderTargetIndex, a_renderTarget, a_renderTargetMode, a_unk3);
 			}
 
-			void SetupDepthStencilAt(std::int32_t a_depthStencilIndex, std::int32_t a_depthStencilMode, std::int32_t a_depthStencilSlice, bool a_unk4)
+			void SetupDepthStencilAt(std::int32_t a_depthStencilIndex, SetRenderTargetMode a_depthStencilMode, std::int32_t a_depthStencilSlice, bool a_unk4)
 			{
 				using func_t = decltype(&RenderTargetManager::SetupDepthStencilAt);
 				REL::Relocation<func_t> func{ RELOCATION_ID(75647, 77454) };

@@ -1,6 +1,7 @@
 #include "Settings.h"
 
 #include "Minimap.h"
+#include "DebugWidget.h"
 
 #include "IUI/API.h"
 
@@ -113,6 +114,10 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 					{
 						DEM::Minimap::InitSingleton(msg->newInstance);
 					}
+					else if (pathToNew == DEM::DebugWidget::path)
+					{
+						DEM::DebugWidget::InitSingleton(msg->newInstance);
+					}
 				}
 				break;
 			}
@@ -131,6 +136,7 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 					auto hudMenu = static_cast<RE::HUDMenu*>(msg->menu);
 
 					hudMenu->GetRuntimeData().objects.push_back(DEM::Minimap::GetSingleton());
+					hudMenu->GetRuntimeData().objects.push_back(DEM::DebugWidget::GetSingleton());
 				}
 				logger::info("Finished loading HUD patches");
 				break;

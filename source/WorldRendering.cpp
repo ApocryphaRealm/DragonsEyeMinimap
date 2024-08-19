@@ -62,7 +62,6 @@ namespace debug
 	}
 }
 
-
 namespace DEM
 {
 	void Minimap::UpdateFogOfWar()
@@ -190,15 +189,13 @@ namespace DEM
 		else 
 		{
 			unkData.unk8 = true;
-		}
-
-        RE::TESObjectCELL* currentCell = nullptr;
-
-		RE::TESObjectCELL* interiorCell = tes->interiorCell;
+		}		
 
 		// 2. Culling step /////////////////////////////////////////////////////////////////////////////////////////////////
 
-		if (interiorCell)
+		 RE::TESObjectCELL* currentCell = nullptr;
+
+		if (RE::TESObjectCELL* interiorCell = tes->interiorCell)
 		{
 			currentCell = interiorCell;
 		}
@@ -212,10 +209,9 @@ namespace DEM
 			RE::TESObjectCELL* skyCell = worldSpace->GetSkyCell();
 			if (skyCell && skyCell->IsAttached())
             {
-				if (cullingProcess->CullTerrain(tes->gridCells, unkData, nullptr) == 1)
-				{
-					currentCell = skyCell;
-				}
+				currentCell = skyCell;
+
+				CullTerrain(tes->gridCells, unkData, nullptr);
             }
 		}
 
@@ -268,9 +264,9 @@ namespace DEM
         RE::BSGraphics::RenderTargetManager* renderTargetManager = RE::BSGraphics::RenderTargetManager::GetSingleton();
 
         int depthStencil = renderTargetManager->GetDepthStencil();
-		renderTargetManager->SetupDepthStencilAt(depthStencil, 0, 0, false);
-
+		renderTargetManager->SetupDepthStencilAt(depthStencil, RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR, 0, false);
 		renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR, true);
+
 		RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
 
 		// 4. Post process step (Add fog of war) ///////////////////////////////////////////////////////////////////////////
@@ -287,51 +283,19 @@ namespace DEM
 
 			RE::BSGraphics::RendererShadowState* rendererShadowState = RE::BSGraphics::RendererShadowState::GetSingleton();
 
-			if (rendererShadowState->alphaBlendWriteMode != 8)
-			{
-				rendererShadowState->alphaBlendWriteMode = 8;
-				rendererShadowState->stateUpdateFlags.set(RE::BSGraphics::ShaderFlags::DIRTY_ALPHA_BLEND);
-			}
-
-			if (rendererShadowState->depthStencilDepthMode != RE::BSGraphics::DepthStencilDepthMode::kDisabled)
-			{
-				rendererShadowState->depthStencilDepthMode = RE::BSGraphics::DepthStencilDepthMode::kDisabled;
-				if (rendererShadowState->depthStencilDepthModePrevious != RE::BSGraphics::DepthStencilDepthMode::kDisabled)
-				{
-					rendererShadowState->stateUpdateFlags.set(RE::BSGraphics::ShaderFlags::DIRTY_DEPTH_MODE);
-				}
-				else
-				{
-					rendererShadowState->stateUpdateFlags.reset(RE::BSGraphics::ShaderFlags::DIRTY_DEPTH_MODE);
-				}
-			}
+			rendererShadowState->SetAlphaBlendWriteMode(8);
+			rendererShadowState->SetDepthStencilDepthMode(RE::BSGraphics::DepthStencilDepthMode::kDisabled);
 
 			renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE, true);
 			RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
 
-			if (rendererShadowState->depthStencilDepthMode != RE::BSGraphics::DepthStencilDepthMode::kTestWrite)
-			{
-				rendererShadowState->depthStencilDepthMode = RE::BSGraphics::DepthStencilDepthMode::kTestWrite;
-				if (rendererShadowState->depthStencilDepthModePrevious != RE::BSGraphics::DepthStencilDepthMode::kTestWrite)
-				{
-					rendererShadowState->stateUpdateFlags.set(RE::BSGraphics::ShaderFlags::DIRTY_DEPTH_MODE);
-				}
-				else
-				{
-					rendererShadowState->stateUpdateFlags.reset(RE::BSGraphics::ShaderFlags::DIRTY_DEPTH_MODE);
-				}
-			}
-
-			if (rendererShadowState->alphaBlendWriteMode != 1)
-			{
-				rendererShadowState->alphaBlendWriteMode = 1;
-				rendererShadowState->stateUpdateFlags.set(RE::BSGraphics::ShaderFlags::DIRTY_ALPHA_BLEND);
-			}
+			rendererShadowState->SetDepthStencilDepthMode(RE::BSGraphics::DepthStencilDepthMode::kTestWrite);
+			rendererShadowState->SetAlphaBlendWriteMode(1);
 		}
 
 		// 5. Finish rendering and dispatch ////////////////////////////////////////////////////////////////////////////////
 
-        renderTargetManager->SetupDepthStencilAt(-1, 3, 0, false);
+        renderTargetManager->SetupDepthStencilAt(-1, RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE, 0, false);
 		RE::ImageSpaceShaderParam& imageSpaceShaderParam = cullingProcess->GetImageSpaceShaderParam();
 		RE::BSGraphics::RenderTargetProperties& renderLocalMapSwapData = renderTargetManager->renderTargetData[RE::RENDER_TARGET::kLOCAL_MAP_SWAP];
 		float localMapSwapWidth = renderLocalMapSwapData.width;
@@ -362,29 +326,86 @@ namespace DEM
         shaderAccumulator->ClearActiveRenderPasses(false);
 	}
 
-	// For some reason, some render passes are not cleared after rendering the minimap.
-	// Get from the pool the passes used, trace them to the shader properties of the
-	// geometries rendered and clear them here. This is the best I can to avoid CTD
-	// because of memory leakage allocating render passes.
-	void Minimap::ClearPendingRenderPasses()
+	// Terrain render passes can be allocated multiple times but only cleared once per frame.
+	// I don't understand why only terrain render passes work this way, but once Draw is called
+	// before entering my code, make sure we clear them so there is no memory leakage.
+	void Minimap::ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object)
 	{
-		std::set<RE::BSShaderProperty*> shaderProperties;
+		RE::NiNode* node = a_object->AsNode();
 
-		RE::RenderPassCache::Pool& pool = RE::RenderPassCache::GetSingleton()->pools[0];
-		static constexpr uint32_t poolMaxAlloc = 65535;
-
-		for (uint32_t passIndex = 0; passIndex < poolMaxAlloc; ++passIndex)
+		if (!node)
 		{
-			RE::BSRenderPass* pass = &pool.passes[passIndex];
-			if (pass->passEnum != 0)
+			return;
+		}
+
+		for (RE::NiPointer<RE::NiAVObject>& object : node->children)
+		{
+			if (object->flags.any(RE::NiAVObject::Flag::kRenderUse))
 			{
-				shaderProperties.insert(pass->shaderProperty);
+				if (RE::BSGeometry* geometry = object->AsGeometry())
+				{
+					auto shaderProp = (RE::BSShaderProperty*)(geometry->properties[RE::BSGeometry::States::kEffect].get());
+					if (shaderProp)
+					{
+						shaderProp->DoClearRenderPasses();
+					}
+				}
+			}
+
+			ClearTerrainRenderPasses(object);
+		}
+	};
+
+	void Minimap::CullTerrain(const RE::GridCellArray* a_gridCells, RE::LocalMapMenu::LocalMapCullingProcess::UnkData& a_unkData,
+							  const RE::TESObjectCELL* a_cell)
+	{
+		RE::CullJobDescriptor& cullJobDesc = a_unkData.ptr->cullJobDesc;
+
+		for (int gridCellX = 0; gridCellX < a_gridCells->length; gridCellX++)
+		{
+			for (int gridCellY = 0; gridCellY < a_gridCells->length; gridCellY++)
+			{
+				RE::TESObjectCELL* cell = a_gridCells->GetCell(gridCellX, gridCellY);
+				if (!cell || !cell->IsAttached())
+				{
+					continue;
+				}
+
+				static constexpr int sceneIndices[4] = { 2, 3, 6, 7 };
+
+				for (int i = 0; i < 4; i++)
+				{
+					int sceneIndex = sceneIndices[i];
+					if (sceneIndex != 2 || a_unkData.unk8)
+					{
+						RE::NiPointer<RE::NiNode> cell3D = cell->GetRuntimeData().loadedData->cell3D;
+
+						RE::NiPointer<RE::NiAVObject> scene = (cell3D && sceneIndex < cell3D->children.size()) ? cell3D->children[sceneIndex] : nullptr;
+
+						if (scene)
+						{
+							if (sceneIndex == 2)
+							{
+								ClearTerrainRenderPasses(scene);
+							}
+
+							bool isCellSceneHidden = scene->flags.any(RE::NiAVObject::Flag::kHidden);
+							scene->flags.reset(RE::NiAVObject::Flag::kHidden);
+
+							cullJobDesc.scene = scene;
+
+							cullJobDesc.Cull(0, 0);
+
+							if (isCellSceneHidden)
+							{
+								scene->flags.set(RE::NiAVObject::Flag::kHidden);
+							}
+						}
+					}
+				}
 			}
 		}
 
-		for (RE::BSShaderProperty* shaderProperty : shaderProperties)
-		{
-			shaderProperty->DoClearRenderPasses();
-		}
+		cullJobDesc.scene = nullptr;
 	}
 }
