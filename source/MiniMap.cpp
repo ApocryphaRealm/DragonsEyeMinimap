@@ -8,7 +8,26 @@
 
 namespace debug
 {
-	std::uint32_t GetCurrentNumOfUsedPasses();
+	std::uint32_t GetCurrentNumOfUsedPasses()
+	{
+		RE::RenderPassCache* renderPassCache = RE::RenderPassCache::GetSingleton();
+
+		RE::RenderPassCache::Pool& pool = renderPassCache->pools[0];
+
+		uint32_t usedPasses = 0;
+		static constexpr uint32_t passCount = 65535;
+
+		for (uint32_t passIndex = 0; passIndex < passCount; ++passIndex)
+		{
+			const RE::BSRenderPass& pass = pool.passes[passIndex];
+			if (pass.passEnum != 0)
+			{
+				usedPasses++;
+			}
+		}
+
+		return usedPasses;
+	}
 }
 
 namespace DEM
@@ -66,6 +85,8 @@ namespace DEM
 
 			RE::NiPoint3 playerPos = RE::PlayerCharacter::GetSingleton()->GetPosition();
 			cameraContext->SetDefaultStateInitialPosition(playerPos);
+
+			InitPixelShader();
 		}
 	}
 
@@ -122,9 +143,14 @@ namespace DEM
 			RenderOffscreen();
 		}
 
-		std::uint32_t usedPasses = debug::GetCurrentNumOfUsedPasses();
+		auto debugWidget = DebugWidget::GetSingleton();
 
-		DebugWidget::GetSingleton()->SetRenderPasses(usedPasses);
+		if (debugWidget)
+		{
+			std::uint32_t usedPasses = debug::GetCurrentNumOfUsedPasses();
+
+			debugWidget->SetRenderPasses(usedPasses);
+		}
 	}
 
 	void Minimap::Advance()

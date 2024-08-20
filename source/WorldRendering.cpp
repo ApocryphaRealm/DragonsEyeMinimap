@@ -10,6 +10,8 @@
 #include "RE/R/RenderPassCache.h"
 #include "RE/R/RenderTargetManager.h"
 
+#include <d3dcompiler.h>
+
 namespace RE
 {
 	class BSPortalGraphEntry : public NiRefObject
@@ -40,30 +42,58 @@ namespace RE
 	}
 }
 
-namespace debug
-{
-	std::uint32_t GetCurrentNumOfUsedPasses()
-	{
-		RE::RenderPassCache* renderPassCache = RE::RenderPassCache::GetSingleton();
-
-		RE::RenderPassCache::Pool& pool = renderPassCache->pools[0];
-
-		uint32_t usedPasses = 0;
-		static constexpr uint32_t passCount = 65535;
-
-		for (uint32_t passIndex = 0; passIndex < passCount; ++passIndex) {
-			const RE::BSRenderPass& pass = pool.passes[passIndex];
-			if (pass.passEnum != 0) {
-				usedPasses++;
-			}
-		}
-
-		return usedPasses;
-	}
-}
-
 namespace DEM
 {
+	void Minimap::InitPixelShader()
+	{
+		static constexpr std::uint32_t compileFlags = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_PACK_MATRIX_COLUMN_MAJOR;
+
+		static constexpr const char* pixelShaderSrcCode =
+		{
+#include "ISLocalMap.hlsl.h"
+		};
+
+		REX::W32::ID3DBlob* psBlob;
+		ID3DBlob* errorBlob;
+		if (FAILED(D3DCompile(pixelShaderSrcCode, strlen(pixelShaderSrcCode),
+							  nullptr, nullptr, nullptr,
+							  "main", "ps_5_0", compileFlags, 0,
+							  reinterpret_cast<ID3DBlob**>(&psBlob), &errorBlob)))
+		{
+			logger::critical("Pixel shader failed to compile");
+			if (errorBlob)
+			{
+				logger::critical("{}", static_cast<LPCSTR>(errorBlob->GetBufferPointer()));
+			}
+		}
+		else
+		{
+			logger::debug("Pixel shader succesfully compiled");
+		}
+
+		REX::W32::ID3D11Device* device = RE::BSGraphics::Renderer::GetSingleton()->GetRuntimeData().forwarder;
+
+		if (FAILED(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(),
+			nullptr, &moddedPSProgram)))
+		{
+			logger::critical("Failed to create pixel shader");
+			return;
+		}
+
+		logger::debug("Pixel shader succesfully created");
+
+		RE::ImageSpaceEffect* localMapShaderEffect = RE::ImageSpaceManager::GetSingleton()->effects[RE::ImageSpaceManager::ISLocalMap];
+
+		auto localMapShader = skyrim_cast<RE::BSImagespaceShader*>(localMapShaderEffect);
+
+		if (localMapShader)
+		{
+			localMapPS = *localMapShader->pixelShaders.begin();
+
+			originalPSProgram = localMapPS->shader;
+		}
+	}
+
 	void Minimap::UpdateFogOfWar()
 	{
 		auto& fogOfWarOverlayHolder = reinterpret_cast< RE::NiPointer<RE::NiNode>&>(cullingProcess->GetFogOfWarOverlay());
@@ -140,6 +170,8 @@ namespace DEM
 
 	void Minimap::RenderOffscreen()
 	{
+		localMapPS->shader = moddedPSProgram;
+
 		// 1. Setup culling step ///////////////////////////////////////////////////////////////////////////////////////////
 
 		RE::ShadowSceneNode* mainShadowSceneNode = RE::ShadowSceneNode::GetMain();
@@ -148,20 +180,14 @@ namespace DEM
 
 		shaderAccumulator->GetRuntimeData().activeShadowSceneNode = mainShadowSceneNode;
 
-		RE::NiTObjectArray<RE::NiPointer<RE::NiAVObject>>& mainShadowSceneChildren = mainShadowSceneNode->GetChildren();
-
-		RE::NiPointer<RE::NiAVObject>& objectLODRoot = mainShadowSceneChildren[3];
+		RE::NiTObjectArray<RE::NiPointer<RE::NiAVObject>>& mainShadowSceneChildren = mainShadowSceneNode->GetChildren();		
 
 		bool unk219 = mainShadowSceneNode->GetRuntimeData().unk219;
 		mainShadowSceneNode->GetRuntimeData().unk219 = true;
 
+		RE::NiPointer<RE::NiAVObject>& objectLODRoot = mainShadowSceneChildren[3];
 		bool areLODsHidden = objectLODRoot->GetFlags().any(RE::NiAVObject::Flag::kHidden);
 		objectLODRoot->GetFlags().reset(RE::NiAVObject::Flag::kHidden);
-		bool isByte_1431D1D30 = byte_1431D1D30;
-		bool isByte_141E0DC5C_D = byte_141E0DC5C;
-		byte_1431D1D30 = true;
-		byte_141E0DC5D = byte_141E0DC5C = false;
-		dword_1431D0D8C = 0;
 
 		RE::BSGraphics::Renderer* renderer = RE::BSGraphics::Renderer::GetSingleton();
 		renderer->SetClearColor(0.0F, 0.0F, 0.0F, 1.0F);
@@ -171,17 +197,6 @@ namespace DEM
 
 		RE::LocalMapMenu::LocalMapCullingProcess::UnkData unkData{ cullingProcess };
 		
-		bool isWaterRenderingEnabled = enableWaterRendering;
-		enableWaterRendering = false;
-		bool isUsingMapBrightnessAndContrastBoost = useMapBrightnessAndContrastBoost;
-		useMapBrightnessAndContrastBoost = true;
-		
-		float prevWaterSSRIntensity = waterSSRIntensity;
-		waterSSRIntensity = 0.0F;
-
-		bool prevUseWaterReflections = useWaterReflections;
-		useWaterReflections = false;
-
 		if (worldSpace && worldSpace->flags.any(RE::TESWorldSpace::Flag::kFixedDimensions))
 		{
 			unkData.unk8 = false;
@@ -193,7 +208,7 @@ namespace DEM
 
 		// 2. Culling step /////////////////////////////////////////////////////////////////////////////////////////////////
 
-		 RE::TESObjectCELL* currentCell = nullptr;
+		RE::TESObjectCELL* currentCell = nullptr;
 
 		if (RE::TESObjectCELL* interiorCell = tes->interiorCell)
 		{
@@ -296,8 +311,11 @@ namespace DEM
 		// 5. Finish rendering and dispatch ////////////////////////////////////////////////////////////////////////////////
 
         renderTargetManager->SetupDepthStencilAt(-1, RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE, 0, false);
+
 		RE::ImageSpaceShaderParam& imageSpaceShaderParam = cullingProcess->GetImageSpaceShaderParam();
+
 		RE::BSGraphics::RenderTargetProperties& renderLocalMapSwapData = renderTargetManager->renderTargetData[RE::RENDER_TARGET::kLOCAL_MAP_SWAP];
+
 		float localMapSwapWidth = renderLocalMapSwapData.width;
 		float localMapSwapHeight = renderLocalMapSwapData.height;
 
@@ -315,15 +333,10 @@ namespace DEM
 		}
 
 		mainShadowSceneNode->GetRuntimeData().unk219 = unk219;
-		enableWaterRendering = isWaterRenderingEnabled;
-		useMapBrightnessAndContrastBoost = isUsingMapBrightnessAndContrastBoost;
-		waterSSRIntensity = prevWaterSSRIntensity;
-		useWaterReflections = prevUseWaterReflections;
-		byte_1431D1D30 = isByte_1431D1D30;
-		byte_141E0DC5D = byte_141E0DC5C = isByte_141E0DC5C_D;
-		dword_1431D0D8C = 0;
 
         shaderAccumulator->ClearActiveRenderPasses(false);
+
+		localMapPS->shader = originalPSProgram;
 	}
 
 	// Terrain render passes can be allocated multiple times but only cleared once per frame.

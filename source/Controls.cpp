@@ -7,7 +7,8 @@ namespace DEM
 	bool Minimap::InputHandler::CanProcess(RE::InputEvent* a_event)
 	{
 		auto ui = RE::UI::GetSingleton();
-		return ui->menuStack.size() == 1 && ui->menuStack.front() == ui->GetMenu(RE::HUDMenu::MENU_NAME);
+
+		return !ui->GameIsPaused() && miniMap->localMap_->enabled && miniMap->IsVisible();
 	}
 
 	bool Minimap::InputHandler::ProcessThumbstick(RE::ThumbstickEvent* a_event)
@@ -37,12 +38,21 @@ namespace DEM
 			auto controlMap = RE::ControlMap::GetSingleton();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
-			logger::debug("ProcessButton (ButtonEvent): [{}] {} ({})", (std::uint32_t)buttonEvent->GetDevice(), buttonEvent->GetIDCode(), buttonEvent->Value() ? "pressed" : "released");
+			std::uint32_t localMapKey = controlMap->GetMappedKey(userEvents->localMap, buttonEvent->GetDevice(), RE::UserEvents::INPUT_CONTEXT_IDS::kMap);
+
+			static bool init = false;
+
+			if (!init)
+			{
+				logger::debug("Key bound to local map event: [{}] {}", (std::uint32_t)buttonEvent->GetDevice(), localMapKey);
+				init = true;
+			}
 
 			std::string_view userEventName = controlMap->GetUserEventName(buttonEvent->GetIDCode(), buttonEvent->GetDevice(), RE::ControlMap::InputContextID::kMap);
 
-			if (buttonEvent->GetDevice() == RE::INPUT_DEVICE::kKeyboard && buttonEvent->GetIDCode() == 38)
-			//if (userEventName == userEvents->localMap)
+			logger::debug("ProcessButton (ButtonEvent): [{}] {} ({}) ({})", (std::uint32_t)buttonEvent->GetDevice(), buttonEvent->GetIDCode(), buttonEvent->Value() ? "pressed" : "released", userEventName);
+
+			if (buttonEvent->GetIDCode() == localMapKey)
 			{
 				miniMap->inputControlledMode = buttonEvent->Value();
 
@@ -68,7 +78,7 @@ namespace DEM
 
 				if (isZoomIn || isZoomOut)
 				{
-					float zoom;
+					float zoom = 1;
 
 					if (buttonEvent->GetDevice() == RE::INPUT_DEVICE::kMouse)
 					{

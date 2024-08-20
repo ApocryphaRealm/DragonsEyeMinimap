@@ -136,7 +136,13 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 					auto hudMenu = static_cast<RE::HUDMenu*>(msg->menu);
 
 					hudMenu->GetRuntimeData().objects.push_back(DEM::Minimap::GetSingleton());
-					hudMenu->GetRuntimeData().objects.push_back(DEM::DebugWidget::GetSingleton());
+
+					auto debugWidget = DEM::DebugWidget::GetSingleton();
+
+					if (debugWidget)
+					{
+						hudMenu->GetRuntimeData().objects.push_back(debugWidget);
+					}
 				}
 				logger::info("Finished loading HUD patches");
 				break;

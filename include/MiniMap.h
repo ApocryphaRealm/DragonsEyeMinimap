@@ -82,6 +82,14 @@ namespace DEM
 
 		static Minimap* GetSingleton() { return singleton; }
 
+		bool IsVisible() const
+		{
+			RE::GFxValue::DisplayInfo displayInfo;
+			displayObj.GetDisplayInfo(&displayInfo);
+
+			return displayInfo.GetVisible();
+		}
+
 		void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs);
 
 		void Advance();
@@ -113,7 +121,8 @@ namespace DEM
 		void CreateMarkers();
 		void RefreshMarkers();
 
-		// 3D world rendering
+		// 3D rendering
+		void InitPixelShader();
 		void UpdateFogOfWar();
 		void RenderOffscreen();
 		void ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object);
@@ -160,5 +169,9 @@ namespace DEM
 		std::uint32_t& dword_1431D0D8C = *REL::Relocation<std::uint32_t*>{ RELOCATION_ID(527629, 414558) }.get();
 		bool& byte_1431D1D30 = *REL::Relocation<bool*>{ RELOCATION_ID(527793, 414746) }.get();
 		bool& useMapBrightnessAndContrastBoost = *REL::Relocation<bool*>{ RELOCATION_ID(528107, 415052) }.get();
+
+		RE::BSGraphics::PixelShader* localMapPS = nullptr;
+		REX::W32::ID3D11PixelShader* originalPSProgram = nullptr;
+		REX::W32::ID3D11PixelShader* moddedPSProgram = nullptr;
 	};
 }

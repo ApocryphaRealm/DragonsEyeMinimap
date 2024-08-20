@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.21)
 
 project(
 	DragonsEyeMinimap
-	VERSION 0.5.0
+	VERSION 0.6.0
 	LANGUAGES CXX
 )
 
@@ -31,6 +31,14 @@ source_group(
 		${headers}
 		${sources}
 )
+
+function(make_includable input_file output_file)
+    file(READ ${input_file} content)
+    set(content "R\"${delim}(\n${content})${delim}\"")
+    file(WRITE ${output_file} "${content}")
+endfunction(make_includable)
+
+make_includable(shaders/ISLocalMap.hlsl include/ISLocalMap.hlsl.h)
 
 ########################################################################################################################
 ## Configure target DLL

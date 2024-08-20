@@ -28,7 +28,9 @@ void AdvanceMovieHUDMenu(RE::HUDMenu* a_hudMenu, float a_interval, std::uint32_t
 
 void PreDisplayHUDMenu(RE::HUDMenu* a_hudMenu)
 {
-	if (!RE::UI::GetSingleton()->IsMenuOpen(RE::MapMenu::MENU_NAME))
+	auto miniMap = DEM::Minimap::GetSingleton();
+
+	if (miniMap->IsVisible())
 	{
 		DEM::Minimap::GetSingleton()->PreRender();
 	}
