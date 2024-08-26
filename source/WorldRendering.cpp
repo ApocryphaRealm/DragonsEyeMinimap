@@ -44,56 +44,6 @@ namespace RE
 
 namespace DEM
 {
-	void Minimap::InitPixelShader()
-	{
-		static constexpr std::uint32_t compileFlags = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_PACK_MATRIX_COLUMN_MAJOR;
-
-		static constexpr const char* pixelShaderSrcCode =
-		{
-#include "ISLocalMap.hlsl.h"
-		};
-
-		REX::W32::ID3DBlob* psBlob;
-		ID3DBlob* errorBlob;
-		if (FAILED(D3DCompile(pixelShaderSrcCode, strlen(pixelShaderSrcCode),
-							  nullptr, nullptr, nullptr,
-							  "main", "ps_5_0", compileFlags, 0,
-							  reinterpret_cast<ID3DBlob**>(&psBlob), &errorBlob)))
-		{
-			logger::critical("Pixel shader failed to compile");
-			if (errorBlob)
-			{
-				logger::critical("{}", static_cast<LPCSTR>(errorBlob->GetBufferPointer()));
-			}
-		}
-		else
-		{
-			logger::debug("Pixel shader succesfully compiled");
-		}
-
-		REX::W32::ID3D11Device* device = RE::BSGraphics::Renderer::GetSingleton()->GetRuntimeData().forwarder;
-
-		if (FAILED(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(),
-			nullptr, &moddedPSProgram)))
-		{
-			logger::critical("Failed to create pixel shader");
-			return;
-		}
-
-		logger::debug("Pixel shader succesfully created");
-
-		RE::ImageSpaceEffect* localMapShaderEffect = RE::ImageSpaceManager::GetSingleton()->effects[RE::ImageSpaceManager::ISLocalMap];
-
-		auto localMapShader = skyrim_cast<RE::BSImagespaceShader*>(localMapShaderEffect);
-
-		if (localMapShader)
-		{
-			localMapPS = *localMapShader->pixelShaders.begin();
-
-			originalPSProgram = localMapPS->shader;
-		}
-	}
-
 	void Minimap::UpdateFogOfWar()
 	{
 		auto& fogOfWarOverlayHolder = reinterpret_cast< RE::NiPointer<RE::NiNode>&>(cullingProcess->GetFogOfWarOverlay());
@@ -170,8 +120,6 @@ namespace DEM
 
 	void Minimap::RenderOffscreen()
 	{
-		localMapPS->shader = moddedPSProgram;
-
 		// 1. Setup culling step ///////////////////////////////////////////////////////////////////////////////////////////
 
 		RE::ShadowSceneNode* mainShadowSceneNode = RE::ShadowSceneNode::GetMain();
@@ -216,11 +164,6 @@ namespace DEM
 		}
 		else if (worldSpace)
 		{
-			if (worldSpace->flags.none(RE::TESWorldSpace::Flag::kSmallWorld))
-			{
-				enableWaterRendering = true;
-			}
-
 			RE::TESObjectCELL* skyCell = worldSpace->GetSkyCell();
 			if (skyCell && skyCell->IsAttached())
             {
@@ -335,8 +278,6 @@ namespace DEM
 		mainShadowSceneNode->GetRuntimeData().unk219 = unk219;
 
         shaderAccumulator->ClearActiveRenderPasses(false);
-
-		localMapPS->shader = originalPSProgram;
 	}
 
 	// Terrain render passes can be allocated multiple times but only cleared once per frame.
@@ -357,7 +298,7 @@ namespace DEM
 			{
 				if (RE::BSGeometry* geometry = object->AsGeometry())
 				{
-					auto shaderProp = (RE::BSShaderProperty*)(geometry->properties[RE::BSGeometry::States::kEffect].get());
+					auto shaderProp = static_cast<RE::BSShaderProperty*>(geometry->properties[RE::BSGeometry::States::kEffect].get());
 					if (shaderProp)
 					{
 						shaderProp->DoClearRenderPasses();

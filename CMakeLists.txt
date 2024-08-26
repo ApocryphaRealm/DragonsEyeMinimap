@@ -30,15 +30,7 @@ source_group(
 	FILES
 		${headers}
 		${sources}
-)
-
-function(make_includable input_file output_file)
-    file(READ ${input_file} content)
-    set(content "R\"${delim}(\n${content})${delim}\"")
-    file(WRITE ${output_file} "${content}")
-endfunction(make_includable)
-
-make_includable(shaders/ISLocalMap.hlsl include/ISLocalMap.hlsl.h)
+) 
 
 ########################################################################################################################
 ## Configure target DLL

@@ -122,7 +122,6 @@ namespace DEM
 		void RefreshMarkers();
 
 		// 3D rendering
-		void InitPixelShader();
 		void UpdateFogOfWar();
 		void RenderOffscreen();
 		void ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object);
@@ -158,20 +157,8 @@ namespace DEM
 		const float& localMapPanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMousePanSpeed:MapMenu")->data.f;
 		const float& localMapMouseZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMouseZoomSpeed:MapMenu")->data.f;
 		const float& localMapGamepadZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadZoomSpeed:MapMenu")->data.f;
+
 		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 189820) }.get();
-
-		bool& useWaterReflections = RE::INIPrefSettingCollection::GetSingleton()->GetSetting("bUseWaterReflections:Water")->data.b;
-		float& waterSSRIntensity = RE::INISettingCollection::GetSingleton()->GetSetting("fWaterSSRIntensity:Display")->data.f;
-		bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(501260, 359696) }.get();
-		bool& byte_141E0DC5C = *REL::Relocation<bool*>{ RELOCATION_ID(513141, 390865) }.get();
-		bool& byte_141E0DC5D = *REL::Relocation<bool*>{ RELOCATION_ID(513142, 390866) }.get();
-		bool& enableWaterRendering = *REL::Relocation<bool*>{ RELOCATION_ID(513342, 391120) }.get();
-		std::uint32_t& dword_1431D0D8C = *REL::Relocation<std::uint32_t*>{ RELOCATION_ID(527629, 414558) }.get();
-		bool& byte_1431D1D30 = *REL::Relocation<bool*>{ RELOCATION_ID(527793, 414746) }.get();
-		bool& useMapBrightnessAndContrastBoost = *REL::Relocation<bool*>{ RELOCATION_ID(528107, 415052) }.get();
-
-		RE::BSGraphics::PixelShader* localMapPS = nullptr;
-		REX::W32::ID3D11PixelShader* originalPSProgram = nullptr;
-		REX::W32::ID3D11PixelShader* moddedPSProgram = nullptr;
+		const bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(501260, 359696) }.get();
 	};
 }

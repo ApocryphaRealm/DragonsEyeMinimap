@@ -85,8 +85,6 @@ namespace DEM
 
 			RE::NiPoint3 playerPos = RE::PlayerCharacter::GetSingleton()->GetPosition();
 			cameraContext->SetDefaultStateInitialPosition(playerPos);
-
-			InitPixelShader();
 		}
 	}
 
