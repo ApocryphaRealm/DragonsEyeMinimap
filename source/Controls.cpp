@@ -33,6 +33,8 @@ namespace DEM
 	
 	bool Minimap::InputHandler::ProcessButton(RE::ButtonEvent* a_event)
 	{
+		auto controls = RE::PlayerControls::GetSingleton();
+
 		if (RE::ButtonEvent* buttonEvent = a_event->AsButtonEvent())
 		{
 			auto controlMap = RE::ControlMap::GetSingleton();
@@ -54,20 +56,40 @@ namespace DEM
 
 			if (buttonEvent->GetIDCode() == localMapKey)
 			{
-				miniMap->inputControlledMode = buttonEvent->Value();
-
-				RE::PlayerControls::GetSingleton()->lookHandler->SetInputEventHandlingEnabled(!miniMap->inputControlledMode);
-
-				if (miniMap->inputControlledMode)
+				if (buttonEvent->Value())
 				{
-					miniMap->UnfoldControls();
-					controlMap->enabledControls.reset(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
+					if (!miniMap->inputControlledMode)
+					{
+						RE::PlayerControls::GetSingleton()->lookHandler->SetInputEventHandlingEnabled(false);
+						miniMap->UnfoldControls();
+						if (REL::Module::IsAE())
+						{
+							controlMap->enabledControls.reset(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
+						}
+						else
+						{
+							controlMap->enabledControls.set(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
+						}
+					}
 				}
 				else
 				{
-					miniMap->FoldControls();
-					controlMap->enabledControls.set(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
+					if (miniMap->inputControlledMode)
+					{
+						RE::PlayerControls::GetSingleton()->lookHandler->SetInputEventHandlingEnabled(true);
+						miniMap->FoldControls();
+						if (REL::Module::IsAE())
+						{
+							controlMap->enabledControls.set(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
+						}
+						else
+						{
+							controlMap->enabledControls.reset(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
+						}
+					}
 				}
+
+				miniMap->inputControlledMode = buttonEvent->Value();
 			}
 			else if (miniMap->inputControlledMode)
 			{
@@ -95,7 +117,6 @@ namespace DEM
 					}
 
 					miniMap->cameraContext->zoomInput += zoom;
-
 				}
 			}
 		}

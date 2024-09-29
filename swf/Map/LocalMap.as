@@ -44,11 +44,6 @@ class Map.LocalMap extends MovieClip
 		a_targetClip._height = textureHeight;
 	}
 
-	private function onEnterFrame():Void
-	{
-		GameDelegate.call("UpdateOnEnterFrame", []);
-	}
-
 	/* API */
 	public function InitMap():Void
 	{

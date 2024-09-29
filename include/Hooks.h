@@ -2,16 +2,9 @@
 
 #include "utils/Trampoline.h"
 
-namespace RE
-{
-	class BSWaterShader;
-}
-
 void AcceptHUDMenu(RE::HUDMenu* a_hudMenu, RE::FxDelegateHandler::CallbackProcessor* a_gameDelegate);
 void AdvanceMovieHUDMenu(RE::HUDMenu* a_hudMenu, float a_interval, std::uint32_t a_currentTime);
 void PreDisplayHUDMenu(RE::HUDMenu* a_hudMenu);
-
-void SetupWaterShaderTechnique(RE::BSWaterShader* a_shader, std::uint32_t a_technique);
 
 namespace hooks
 {
@@ -51,21 +44,10 @@ namespace hooks
 		static inline REL::Relocation<bool (RE::NiCamera::*)(const RE::NiPoint3&, float&, float&, float&, float)> WorldPtToScreenPt3;
 	};
 
-	class BSWaterShader
-	{
-	public:
-		static inline REL::Relocation<std::uintptr_t> vTable{ RE::VTABLE_BSWaterShader[0] };
-
-		static inline REL::Relocation<bool (RE::BSWaterShader::*)(std::uint32_t)> SetupTechnique;
-	};
-
-
 	static inline void Install()
 	{
 		HUDMenu::Accept = HUDMenu::vTable.write_vfunc(1, AcceptHUDMenu);
 		HUDMenu::AdvanceMovie = HUDMenu::vTable.write_vfunc(5, AdvanceMovieHUDMenu);
 		HUDMenu::PreDisplay = HUDMenu::vTable.write_vfunc(7, PreDisplayHUDMenu);
-
-		BSWaterShader::SetupTechnique = BSWaterShader::vTable.write_vfunc(2, &SetupWaterShaderTechnique);
 	}
 }

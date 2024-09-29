@@ -136,7 +136,7 @@ class Map.MapMenu
 
 		for (var j:Number = 0; j < dataLen; j = j + REFRESH_STRIDE)
 		{
-			var marker:MapMarker = markers[i];
+			var marker:MovieClip = markers[i];
 			marker._visible = MarkerData[j + REFRESH_SHOW];
 			if (marker._visible)
 			{

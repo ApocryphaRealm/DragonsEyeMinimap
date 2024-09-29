@@ -37,14 +37,3 @@ void PreDisplayHUDMenu(RE::HUDMenu* a_hudMenu)
 
 	hooks::HUDMenu::PreDisplay(a_hudMenu);
 }
-
-void SetupWaterShaderTechnique(RE::BSWaterShader* a_shader, std::uint32_t a_technique)
-{
-	if (RE::BSGraphics::BSShaderAccumulator::GetCurrentAccumulator()->renderMode == 18)
-	{
-		// Fixes water flickering
-		a_technique &= ~0x802;
-	}
-
-	hooks::BSWaterShader::SetupTechnique(a_shader, a_technique);
-}

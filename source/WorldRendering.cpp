@@ -118,6 +118,13 @@ namespace DEM
 		}
 	}
 
+	struct RenderSaveState
+	{
+
+	};
+
+	RenderSaveState renderSaveState;
+
 	void Minimap::RenderOffscreen()
 	{
 		// 1. Setup culling step ///////////////////////////////////////////////////////////////////////////////////////////
@@ -128,10 +135,10 @@ namespace DEM
 
 		shaderAccumulator->GetRuntimeData().activeShadowSceneNode = mainShadowSceneNode;
 
-		RE::NiTObjectArray<RE::NiPointer<RE::NiAVObject>>& mainShadowSceneChildren = mainShadowSceneNode->GetChildren();		
+		RE::NiTObjectArray<RE::NiPointer<RE::NiAVObject>>& mainShadowSceneChildren = mainShadowSceneNode->GetChildren();
 
-		bool unk219 = mainShadowSceneNode->GetRuntimeData().unk219;
-		mainShadowSceneNode->GetRuntimeData().unk219 = true;
+		bool isLightUpdateDisabled = mainShadowSceneNode->GetRuntimeData().disableLightUpdate;
+		mainShadowSceneNode->GetRuntimeData().disableLightUpdate = true;
 
 		RE::NiPointer<RE::NiAVObject>& objectLODRoot = mainShadowSceneChildren[3];
 		bool areLODsHidden = objectLODRoot->GetFlags().any(RE::NiAVObject::Flag::kHidden);
@@ -275,7 +282,7 @@ namespace DEM
 			objectLODRoot->GetFlags().set(RE::NiAVObject::Flag::kHidden);
 		}
 
-		mainShadowSceneNode->GetRuntimeData().unk219 = unk219;
+		mainShadowSceneNode->GetRuntimeData().disableLightUpdate = isLightUpdateDisabled;
 
         shaderAccumulator->ClearActiveRenderPasses(false);
 	}
@@ -292,7 +299,7 @@ namespace DEM
 			return;
 		}
 
-		for (RE::NiPointer<RE::NiAVObject>& object : node->children)
+		for (RE::NiPointer<RE::NiAVObject>& object : node->children) if (object)
 		{
 			if (object->flags.any(RE::NiAVObject::Flag::kRenderUse))
 			{
@@ -320,39 +327,35 @@ namespace DEM
 			for (int gridCellY = 0; gridCellY < a_gridCells->length; gridCellY++)
 			{
 				RE::TESObjectCELL* cell = a_gridCells->GetCell(gridCellX, gridCellY);
-				if (!cell || !cell->IsAttached())
+				if (cell && cell->IsAttached())
 				{
-					continue;
-				}
-
-				static constexpr int sceneIndices[4] = { 2, 3, 6, 7 };
-
-				for (int i = 0; i < 4; i++)
-				{
-					int sceneIndex = sceneIndices[i];
-					if (sceneIndex != 2 || a_unkData.unk8)
+					for (int sceneIndex : { 2, 3, 6, 7 }) if (sceneIndex != 2 || a_unkData.unk8)
 					{
-						RE::NiPointer<RE::NiNode> cell3D = cell->GetRuntimeData().loadedData->cell3D;
-
-						RE::NiPointer<RE::NiAVObject> scene = (cell3D && sceneIndex < cell3D->children.size()) ? cell3D->children[sceneIndex] : nullptr;
-
-						if (scene)
+						if (RE::NiPointer<RE::NiNode> cell3D = cell->GetRuntimeData().loadedData->cell3D)
 						{
-							if (sceneIndex == 2)
+							RE::NiTObjectArray<RE::NiPointer<RE::NiAVObject>>& cellScenes = cell3D->GetChildren();
+
+							if (sceneIndex < cellScenes.size())
 							{
-								ClearTerrainRenderPasses(scene);
-							}
+								if (RE::NiPointer<RE::NiAVObject> scene = cellScenes[sceneIndex])
+								{
+									if (sceneIndex == 2)
+									{
+										ClearTerrainRenderPasses(scene);
+									}
 
-							bool isCellSceneHidden = scene->flags.any(RE::NiAVObject::Flag::kHidden);
-							scene->flags.reset(RE::NiAVObject::Flag::kHidden);
+									bool isCellSceneHidden = scene->flags.any(RE::NiAVObject::Flag::kHidden);
+									scene->flags.reset(RE::NiAVObject::Flag::kHidden);
 
-							cullJobDesc.scene = scene;
+									cullJobDesc.scene = scene;
 
-							cullJobDesc.Cull(0, 0);
+									cullJobDesc.Cull(0, 0);
 
-							if (isCellSceneHidden)
-							{
-								scene->flags.set(RE::NiAVObject::Flag::kHidden);
+									if (isCellSceneHidden)
+									{
+										scene->flags.set(RE::NiAVObject::Flag::kHidden);
+									}
+								}
 							}
 						}
 					}
