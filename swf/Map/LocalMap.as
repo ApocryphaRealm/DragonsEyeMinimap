@@ -49,8 +49,8 @@ class Map.LocalMap extends MovieClip
 	{
 		mapTextureLoader.loadClip("img://Local_Map", LocalMapHolder);
 
-		var textureTopLeft:Object = {x: _x, y: _y};
-		var textureBottomRight:Object = {x: _x + textureWidth, y: _y + textureHeight};
+		var textureTopLeft:Object = {x: LocalMapHolder._x, y: LocalMapHolder._y};
+		var textureBottomRight:Object = {x: textureTopLeft.x + textureWidth, y: textureTopLeft.y + textureHeight};
 		_parent.localToGlobal(textureTopLeft);
 		_parent.localToGlobal(textureBottomRight);
 

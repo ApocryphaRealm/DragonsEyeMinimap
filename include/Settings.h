@@ -22,10 +22,12 @@ namespace settings
 		inline float positionX = 0.65F;
 		inline float positionY = 0.2F;
 		inline float scale = 1.0F;
+		inline std::uint32_t shape = 0;
 	}
 
 	namespace controls
 	{
 		inline bool followPlayerCameraRotation = true;
+		inline float holdDownToControlSecs = 0.15F;
 	}
 }

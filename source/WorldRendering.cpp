@@ -118,13 +118,6 @@ namespace DEM
 		}
 	}
 
-	struct RenderSaveState
-	{
-
-	};
-
-	RenderSaveState renderSaveState;
-
 	void Minimap::RenderOffscreen()
 	{
 		// 1. Setup culling step ///////////////////////////////////////////////////////////////////////////////////////////

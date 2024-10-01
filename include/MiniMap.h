@@ -14,9 +14,11 @@ namespace DEM
 		{
 			enum
 			{
-				kCombatant,
+				kEnemy,
 				kHostile,
-				kGuard
+				kGuard,
+				kDead,
+				kTotal
 			};
 		};
 
@@ -44,6 +46,12 @@ namespace DEM
 	class Minimap : public RE::HUDObject
 	{
 	public:
+		enum class Shape
+		{
+			kSquare,
+			kCircle
+		};
+
 		class InputHandler : public RE::MenuEventHandler
 		{
 		public:
@@ -88,6 +96,23 @@ namespace DEM
 			displayObj.GetDisplayInfo(&displayInfo);
 
 			return displayInfo.GetVisible();
+		}
+
+		bool IsShown() const
+		{
+			return localMap && localMap_->enabled;
+		}
+
+		void Show()
+		{
+			localMap_->inForeground = localMap_->enabled = true;
+			localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ true });
+		}
+
+		void Hide()
+		{
+			localMap_->inForeground = localMap_->enabled = false;
+			localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ false });
 		}
 
 		void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs);
@@ -135,6 +160,8 @@ namespace DEM
 		static inline Minimap* singleton = nullptr;
 
 		// members
+		Shape shape = static_cast<Shape>(settings::display::shape);
+
 		RE::LocalMapMenu* localMap = nullptr;
 		RE::LocalMapMenu::RUNTIME_DATA* localMap_ = nullptr;
 		RE::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
@@ -146,9 +173,7 @@ namespace DEM
 		RE::BSTSmartPointer<InputHandler> inputHandler = RE::make_smart<InputHandler>(this);
 		bool inputControlledMode = false;
 
-		RE::BSTArray<RE::NiPointer<RE::Actor>> enemyActors;
-		RE::BSTArray<RE::NiPointer<RE::Actor>> hostileActors;
-		RE::BSTArray<RE::NiPointer<RE::Actor>> guardActors;
+		RE::BSTArray<RE::NiPointer<RE::Actor>> actorLists[ExtraMarker::Type::kTotal];
 		RE::GFxValue extraMarkerData;
 		bool isCameraUpdatePending = true;
 

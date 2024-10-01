@@ -76,6 +76,8 @@ target_sources(
 	${PROJECT_NAME}
 	INTERFACE
 	"$<BUILD_INTERFACE:CommonLibSSE.natvis>"
+	PRIVATE
+	${CMAKE_CURRENT_BINARY_DIR}/version.rc
 )
 
 ########################################################################################################################

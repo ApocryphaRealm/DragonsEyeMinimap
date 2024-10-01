@@ -21,13 +21,17 @@ namespace settings
 			iniSettingCollection->AddSettings(
 				MakeSetting("fPositionX:Display", positionX),
 				MakeSetting("fPositionY:Display", positionY),
-				MakeSetting("fScale:Display", scale));
+				MakeSetting("fScale:Display", scale),
+				MakeSetting("uShape:Display", shape)
+			);
 		}
 
 		{
 			using namespace controls;
 			iniSettingCollection->AddSettings(
-				MakeSetting("bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation));
+				MakeSetting("bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation),
+				MakeSetting("fHoldDownToControlSecs:Controls", holdDownToControlSecs)
+			);
 		}
 
 		if (!iniSettingCollection->ReadFromFile(a_iniFileName))
@@ -45,11 +49,13 @@ namespace settings
 			positionX = iniSettingCollection->GetSetting<float>("fPositionX:Display");
 			positionY = iniSettingCollection->GetSetting<float>("fPositionY:Display");
 			scale = iniSettingCollection->GetSetting<float>("fScale:Display");
+			shape = iniSettingCollection->GetSetting<std::uint32_t>("uShape:Display");
 		}
 
 		{
 			using namespace controls;
 			followPlayerCameraRotation = iniSettingCollection->GetSetting<bool>("bFollowPlayerCameraRotation:Controls");
+			holdDownToControlSecs = iniSettingCollection->GetSetting<float>("fHoldDownToControlSecs:Controls");
 		}
 	}
 }

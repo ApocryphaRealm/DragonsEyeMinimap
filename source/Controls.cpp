@@ -6,9 +6,13 @@ namespace DEM
 {
 	bool Minimap::InputHandler::CanProcess(RE::InputEvent* a_event)
 	{
-		auto ui = RE::UI::GetSingleton();
+		if (RE::UI::GetSingleton()->GameIsPaused() || !miniMap->IsVisible())
+		{
+			miniMap->inputControlledMode = false;
+			return false;
+		}
 
-		return !ui->GameIsPaused() && miniMap->localMap_->enabled && miniMap->IsVisible();
+		return true;
 	}
 
 	bool Minimap::InputHandler::ProcessThumbstick(RE::ThumbstickEvent* a_event)
@@ -42,57 +46,72 @@ namespace DEM
 
 			std::uint32_t localMapKey = controlMap->GetMappedKey(userEvents->localMap, buttonEvent->GetDevice(), RE::UserEvents::INPUT_CONTEXT_IDS::kMap);
 
-			static bool init = false;
-
-			if (!init)
-			{
-				logger::debug("Key bound to local map event: [{}] {}", (std::uint32_t)buttonEvent->GetDevice(), localMapKey);
-				init = true;
-			}
-
-			std::string_view userEventName = controlMap->GetUserEventName(buttonEvent->GetIDCode(), buttonEvent->GetDevice(), RE::ControlMap::InputContextID::kMap);
-
-			logger::debug("ProcessButton (ButtonEvent): [{}] {} ({}) ({})", (std::uint32_t)buttonEvent->GetDevice(), buttonEvent->GetIDCode(), buttonEvent->Value() ? "pressed" : "released", userEventName);
-
 			if (buttonEvent->GetIDCode() == localMapKey)
 			{
-				if (buttonEvent->Value())
+				bool isPressed = buttonEvent->Value();
+				bool isReleased = !isPressed;
+				float heldDownSecs = buttonEvent->GetRuntimeData().heldDownSecs;
+
+				if (!miniMap->IsShown())
 				{
-					if (!miniMap->inputControlledMode)
+					if (isReleased || (isPressed && heldDownSecs >= 2 * settings::controls::holdDownToControlSecs))
 					{
-						RE::PlayerControls::GetSingleton()->lookHandler->SetInputEventHandlingEnabled(false);
-						miniMap->UnfoldControls();
-						if (REL::Module::IsAE())
-						{
-							controlMap->enabledControls.reset(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
-						}
-						else
-						{
-							controlMap->enabledControls.set(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
-						}
+						miniMap->Show();
 					}
 				}
 				else
 				{
-					if (miniMap->inputControlledMode)
+					if (isReleased && heldDownSecs < settings::controls::holdDownToControlSecs)
 					{
-						RE::PlayerControls::GetSingleton()->lookHandler->SetInputEventHandlingEnabled(true);
-						miniMap->FoldControls();
-						if (REL::Module::IsAE())
-						{
-							controlMap->enabledControls.set(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
-						}
-						else
-						{
-							controlMap->enabledControls.reset(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
-						}
+						miniMap->Hide();
 					}
 				}
 
-				miniMap->inputControlledMode = buttonEvent->Value();
+				if (miniMap->IsShown())
+				{
+					if (isPressed && heldDownSecs >= settings::controls::holdDownToControlSecs)
+					{
+						if (!miniMap->inputControlledMode)
+						{
+							miniMap->inputControlledMode = true;
+
+							RE::PlayerControls::GetSingleton()->lookHandler->SetInputEventHandlingEnabled(false);
+							miniMap->UnfoldControls();
+							if (REL::Module::IsAE())
+							{
+								controlMap->enabledControls.reset(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
+							}
+							else
+							{
+								controlMap->enabledControls.set(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
+							}
+						}
+					}
+					else
+					{
+						if (miniMap->inputControlledMode)
+						{
+							miniMap->inputControlledMode = false;
+
+							RE::PlayerControls::GetSingleton()->lookHandler->SetInputEventHandlingEnabled(true);
+							miniMap->FoldControls();
+							if (REL::Module::IsAE())
+							{
+								controlMap->enabledControls.set(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
+							}
+							else
+							{
+								controlMap->enabledControls.reset(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
+							}
+						}
+					}
+				}
 			}
-			else if (miniMap->inputControlledMode)
+			
+			if (miniMap->inputControlledMode)
 			{
+				std::string_view userEventName = controlMap->GetUserEventName(buttonEvent->GetIDCode(), buttonEvent->GetDevice(), RE::ControlMap::InputContextID::kMap);
+
 				bool isZoomIn = userEventName == userEvents->zoomIn;
 				bool isZoomOut = userEventName == userEvents->zoomOut;
 
