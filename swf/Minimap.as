@@ -4,7 +4,6 @@ var Swimming:Boolean;
 var HorseMode:Boolean;
 var WarHorseMode:Boolean;
 
-var hudElements:Array;
 
 function Minimap(a_positionX:Number, a_positionY:Number):Void
 {
@@ -21,18 +20,19 @@ function Minimap(a_positionX:Number, a_positionY:Number):Void
 	Swimming = true;
 	HorseMode = true;
 	WarHorseMode = true;
-
-	var hudElements:Array = _level0.HUDMovieBaseInstance.HudElements;
 }
 
 function AddToHudElements():Void
 {
-	hudElements.push(this);
+	_level0.HUDMovieBaseInstance.HudElements.push(this);
 }
 
 // For some reason, when casting a rune, this will be removed from the HUD elements list, make sure that we re add it
 function onEnterFrame():Void
 {
+	Test.text = _level0.HUDMovieBaseInstance.HudElements.toString();
+
+	var hudElements:Array = _level0.HUDMovieBaseInstance.HudElements;
 	var hudElementsLen:Number = hudElements.length;
 	for (var i:Number = 0; i < hudElementsLen; i++)
 	{
@@ -42,6 +42,6 @@ function onEnterFrame():Void
 		}
 	}
 
-	AddToHudElements();
+	hudElements.push(this);
 
 }
