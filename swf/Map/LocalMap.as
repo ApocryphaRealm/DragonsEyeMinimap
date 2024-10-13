@@ -7,7 +7,8 @@ class Map.LocalMap extends MovieClip
 	public var LocationName:TextField;
 	public var ClearedHint:TextField;
 	public var LocalMapHolder:MovieClip;
-	public var TestTf:TextField;
+	public var VisionCone:MovieClip;
+	public var Test:TextField;
 
 	/* API */
 	public var IconDisplay:MapMenu;
@@ -22,8 +23,7 @@ class Map.LocalMap extends MovieClip
 	{
 		super();
 
-		TestTf = _parent.TestTf;
-		TestTf.text = "Hello from local map";
+		Test = _parent.Test;
 
 		textureWidth = LocalMapHolder._width;
 		textureHeight = LocalMapHolder._height;
@@ -64,6 +64,13 @@ class Map.LocalMap extends MovieClip
 		{
 			_parent.gotoAndPlay(a_show ? "fadeIn" : "fadeOut");
 			isShown = a_show;
+			if (isShown)
+			{
+				_level0.HUDMovieBaseInstance.LocationLockBase._alpha = 0.0;
+			}
+			else{
+				_level0.HUDMovieBaseInstance.LocationLockBase._alpha = 1.0;
+			}
 		}
 	}
 

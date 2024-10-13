@@ -3,10 +3,12 @@
 #include "Minimap.h"
 
 #include "IUI/API.h"
+#include "LMU/API.h"
 
 #include "IUI/GFxLoggers.h"
 
 void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg);
+void LocalMapUpgradeMessageListener(SKSE::MessagingInterface::Message* a_msg);
 
 void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 {
@@ -16,6 +18,15 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 		if (SKSE::GetMessagingInterface()->RegisterListener("InfinityUI", InfinityUIMessageListener)) 
 		{
 			logger::info("Successfully registered for Infinity UI messages!");
+		}
+		else
+		{
+			logger::error("Infinity UI installation not detected. Please, go to ... to get it");
+		}
+
+		if (SKSE::GetMessagingInterface()->RegisterListener("LocalMapUpgrade", LocalMapUpgradeMessageListener)) 
+		{
+			logger::info("Successfully registered for Local Map Upgrade messages!");
 		}
 		else
 		{
@@ -78,12 +89,14 @@ void LogMapMembers(const IUI::API::Message* a_msg)
 
 void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 {
+	using namespace IUI;
+
 	if (!a_msg || std::string_view(a_msg->sender) != "InfinityUI") 
 	{
 		return;
 	}
 
-	if (auto message = IUI::API::TranslateAs<IUI::API::Message>(a_msg)) 
+	if (auto message = API::TranslateAs<API::Message>(a_msg)) 
 	{
 		std::string_view movieUrl = message->movie->GetMovieDef()->GetFileURL();
 
@@ -94,18 +107,18 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 
 		switch (a_msg->type)
 		{
-		case IUI::API::Message::Type::kStartLoadInstances:
+		case API::Message::Type::kStartLoadInstances:
 			{
 				logger::info("Started loading patches");
 				break;
 			}
-		case IUI::API::Message::Type::kPreReplaceInstance:
+		case API::Message::Type::kPreReplaceInstance:
 			{
 				break;
 			}
-		case IUI::API::Message::Type::kPostPatchInstance:
+		case API::Message::Type::kPostPatchInstance:
 			{
-				if (auto msg = IUI::API::TranslateAs<IUI::API::PostPatchInstanceMessage>(a_msg))
+				if (auto msg = API::TranslateAs<API::PostPatchInstanceMessage>(a_msg))
 				{
 					std::string pathToNew = msg->newInstance.ToString().c_str();
 
@@ -116,17 +129,17 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 				}
 				break;
 			}
-		case IUI::API::Message::Type::kAbortPatchInstance:
+		case API::Message::Type::kAbortPatchInstance:
 			{
-				if (auto msg = IUI::API::TranslateAs<IUI::API::AbortPatchInstanceMessage>(a_msg))
+				if (auto msg = API::TranslateAs<API::AbortPatchInstanceMessage>(a_msg))
 				{
 					std::string pathToOriginal = msg->originalValue.ToString().c_str();
 				}
 				break;
 			}
-		case IUI::API::Message::Type::kFinishLoadInstances:
+		case API::Message::Type::kFinishLoadInstances:
 			{
-				if (auto msg = IUI::API::TranslateAs<IUI::API::FinishLoadInstancesMessage>(a_msg))
+				if (auto msg = API::TranslateAs<API::FinishLoadInstancesMessage>(a_msg))
 				{
 					auto hudMenu = static_cast<RE::HUDMenu*>(msg->menu);
 
@@ -135,11 +148,39 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 				logger::info("Finished loading HUD patches");
 				break;
 			}
-		case IUI::API::Message::Type::kPostInitExtensions:
+		case API::Message::Type::kPostInitExtensions:
 			{
-				if (auto msg = IUI::API::TranslateAs<IUI::API::PostInitExtensionsMessage>(a_msg))
+				if (auto msg = API::TranslateAs<API::PostInitExtensionsMessage>(a_msg))
 				{
 					logger::debug("Extensions initialization finished");
+				}
+				break;
+			}
+		default:
+			break;
+		}
+	}
+}
+
+void LocalMapUpgradeMessageListener(SKSE::MessagingInterface::Message* a_msg)
+{
+	using namespace LMU;
+
+	if (!a_msg || std::string_view(a_msg->sender) != "LocalMapUpgrade")
+	{
+		return;
+	}
+
+	if (auto message = API::TranslateAs<API::Message>(a_msg)) 
+	{
+		switch (a_msg->type)
+		{
+		case API::Message::Type::kPostCreateMarkersHookChance:
+			{
+				if (auto msg = API::TranslateAs<API::PostCreateMarkersHookChanceMessage>(a_msg))
+				{
+					DEM::Minimap::PostCreateMarkers = msg->PostCreateMarkers;
+					logger::debug("Post create markers hooked");
 				}
 				break;
 			}

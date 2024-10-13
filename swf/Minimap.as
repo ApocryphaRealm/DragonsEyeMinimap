@@ -4,6 +4,8 @@ var Swimming:Boolean;
 var HorseMode:Boolean;
 var WarHorseMode:Boolean;
 
+var hudElements:Array;
+
 function Minimap(a_positionX:Number, a_positionY:Number):Void
 {
 	var positionX0 = Stage.width * a_positionX;
@@ -20,10 +22,26 @@ function Minimap(a_positionX:Number, a_positionY:Number):Void
 	HorseMode = true;
 	WarHorseMode = true;
 
-	_level0.HUDMovieBaseInstance.LocationLockBase._alpha = 0.0;
+	var hudElements:Array = _level0.HUDMovieBaseInstance.HudElements;
 }
 
 function AddToHudElements():Void
 {
-	_level0.HUDMovieBaseInstance.HudElements.push(this);
+	hudElements.push(this);
+}
+
+// For some reason, when casting a rune, this will be removed from the HUD elements list, make sure that we re add it
+function onEnterFrame():Void
+{
+	var hudElementsLen:Number = hudElements.length;
+	for (var i:Number = 0; i < hudElementsLen; i++)
+	{
+		if (hudElements[i] == this)
+		{
+			return;
+		}
+	}
+
+	AddToHudElements();
+
 }

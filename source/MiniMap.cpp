@@ -168,6 +168,7 @@ namespace DEM
 
 			localMap->PopulateData();
 			localMap_->iconDisplay.Invoke("CreateMarkers", nullptr, nullptr, 0);
+			PostCreateMarkers(localMap_->iconDisplay._objectInterface, localMap_->iconDisplay._value.obj, localMap_->iconDisplay.IsDisplayObject());
 			localMap->RefreshMarkers();
 
 			if (settings::controls::followPlayerCameraRotation)

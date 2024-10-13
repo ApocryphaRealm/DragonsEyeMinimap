@@ -122,6 +122,7 @@ namespace DEM
 
 		// members
 		IUI::GFxDisplayObject displayObj;
+		static inline void (*PostCreateMarkers)(RE::GFxValue::ObjectInterface* a_objIface, void* a_data, bool a_isDObj);
 
 	private:
 		Minimap(const IUI::GFxDisplayObject& a_gfxMinimap) :

@@ -263,7 +263,6 @@ namespace RE
 
 			void ToString(GString* pstr, const GFxValue& thisVal) const;
 
-		protected:
 			// members
 			GFxMovieRoot* _movieRoot;  // 0
 		};
@@ -402,7 +401,6 @@ namespace RE
 
 		GFC_MEMORY_REDEFINE_NEW(GFxValue, GStatGroups::kGStatGroup_Default);
 
-	protected:
 		[[nodiscard]] bool IsManagedValue() const;
 		void               AcquireManagedValue(const GFxValue& a_rhs);
 		void               ReleaseManagedValue();
