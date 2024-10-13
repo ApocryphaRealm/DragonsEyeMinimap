@@ -10,8 +10,6 @@
 #include "RE/R/RenderPassCache.h"
 #include "RE/R/RenderTargetManager.h"
 
-#include <d3dcompiler.h>
-
 namespace RE
 {
 	class BSPortalGraphEntry : public NiRefObject

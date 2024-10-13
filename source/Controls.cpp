@@ -1,7 +1,5 @@
 #include "Minimap.h"
 
-#include "utils/Logger.h"
-
 namespace DEM
 {
 	bool Minimap::InputHandler::CanProcess(RE::InputEvent* a_event)
@@ -76,7 +74,9 @@ namespace DEM
 							miniMap->inputControlledMode = true;
 
 							RE::PlayerControls::GetSingleton()->lookHandler->SetInputEventHandlingEnabled(false);
+
 							miniMap->UnfoldControls();
+
 							if (REL::Module::IsAE())
 							{
 								controlMap->enabledControls.reset(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
@@ -94,7 +94,9 @@ namespace DEM
 							miniMap->inputControlledMode = false;
 
 							RE::PlayerControls::GetSingleton()->lookHandler->SetInputEventHandlingEnabled(true);
+
 							miniMap->FoldControls();
+
 							if (REL::Module::IsAE())
 							{
 								controlMap->enabledControls.set(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);

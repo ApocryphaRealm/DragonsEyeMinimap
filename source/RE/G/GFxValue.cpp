@@ -723,7 +723,7 @@ namespace RE
 	GString GFxValue::ToString() const
 	{
 		using func_t = GString* (GFxValue::*)(GString*) const;
-		REL::Relocation<func_t> func{ RELOCATION_ID(80274, 82297) };
+		REL::Relocation<func_t> func{ REL::VariantID{ 80274, 82297, 0xF29AB0 } };
 
 		GString retVal;
 		func(this, &retVal);

@@ -1,11 +1,6 @@
 #include "Hooks.h"
 
-#include "utils/Logger.h"
-
-#include "RE/H/HUDMenu.h"
-
 #include "Minimap.h"
-
 
 void AcceptHUDMenu(RE::HUDMenu* a_hudMenu, RE::FxDelegateHandler::CallbackProcessor* a_gameDelegate)
 {

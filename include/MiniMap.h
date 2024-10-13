@@ -142,11 +142,6 @@ namespace DEM
 
 		void InitLocalMap();
 
-		// 2D markers
-		void CreateMarkers();
-		void RefreshMarkers();
-
-		// 3D rendering
 		void UpdateFogOfWar();
 		void RenderOffscreen();
 		void ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object);
@@ -173,8 +168,6 @@ namespace DEM
 		RE::BSTSmartPointer<InputHandler> inputHandler = RE::make_smart<InputHandler>(this);
 		bool inputControlledMode = false;
 
-		RE::BSTArray<RE::NiPointer<RE::Actor>> actorLists[ExtraMarker::Type::kTotal];
-		RE::GFxValue extraMarkerData;
 		bool isCameraUpdatePending = true;
 
 		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
