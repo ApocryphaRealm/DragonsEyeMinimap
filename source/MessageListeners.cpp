@@ -175,9 +175,19 @@ void LocalMapUpgradeMessageListener(SKSE::MessagingInterface::Message* a_msg)
 	{
 		switch (a_msg->type)
 		{
-		case API::Message::Type::kPostCreateMarkersHookChance:
+		case API::Message::Type::kPixelShaderPropertiesHook:
 			{
-				if (auto msg = API::TranslateAs<API::PostCreateMarkersHookChanceMessage>(a_msg))
+				if (auto msg = API::TranslateAs<API::PixelShaderPropertiesHookMessage>(a_msg))
+				{
+					DEM::Minimap::SetPixelShaderProperties = msg->SetPixelShaderProperties;
+					DEM::Minimap::GetPixelShaderProperties = msg->GetPixelShaderProperties;
+					logger::debug("Pixel shaders properties hooked");
+				}
+				break;
+			}
+		case API::Message::Type::kPostCreateMarkersHook:
+			{
+				if (auto msg = API::TranslateAs<API::PostCreateMarkersHookMessage>(a_msg))
 				{
 					DEM::Minimap::PostCreateMarkers = msg->PostCreateMarkers;
 					logger::debug("Post create markers hooked");

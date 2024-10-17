@@ -6,6 +6,8 @@
 
 #include "Settings.h"
 
+#include "LMU/API.h"
+
 namespace DEM
 {
 	struct ExtraMarker
@@ -46,11 +48,8 @@ namespace DEM
 	class Minimap : public RE::HUDObject
 	{
 	public:
-		enum class Shape
-		{
-			kSquare,
-			kCircle
-		};
+		using Shape = LMU::PixelShaderProperty::Shape;
+		using Style = LMU::PixelShaderProperty::Style;
 
 		class InputHandler : public RE::MenuEventHandler
 		{
@@ -120,9 +119,9 @@ namespace DEM
 		void Advance();
 		void PreRender();
 
-		// members
-		IUI::GFxDisplayObject displayObj;
 		static inline void (*PostCreateMarkers)(RE::GFxValue::ObjectInterface* a_objIface, void* a_data, bool a_isDObj);
+		static inline void (*SetPixelShaderProperties)(LMU::PixelShaderProperty::Shape a_shape, LMU::PixelShaderProperty::Style a_style);
+		static inline void (*GetPixelShaderProperties)(LMU::PixelShaderProperty::Shape& a_shape, LMU::PixelShaderProperty::Style& a_style);
 
 	private:
 		Minimap(const IUI::GFxDisplayObject& a_gfxMinimap) :
@@ -156,7 +155,10 @@ namespace DEM
 		static inline Minimap* singleton = nullptr;
 
 		// members
+		IUI::GFxDisplayObject displayObj;
+
 		Shape shape = static_cast<Shape>(settings::display::shape);
+		Style style = settings::display::color ? Style::kColor : Style::kBlackNWhite;
 
 		RE::LocalMapMenu* localMap = nullptr;
 		RE::LocalMapMenu::RUNTIME_DATA* localMap_ = nullptr;
@@ -178,6 +180,6 @@ namespace DEM
 		const float& localMapGamepadZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadZoomSpeed:MapMenu")->data.f;
 
 		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 189820) }.get();
-		const bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(501260, 359696) }.get();
+		const bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ REL::VariantID{ 501260, 359696, 0x1E70DFC } }.get();
 	};
 }

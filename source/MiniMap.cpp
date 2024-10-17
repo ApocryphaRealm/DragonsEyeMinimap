@@ -1,5 +1,7 @@
 #include "Minimap.h"
 
+#include <numbers>
+
 namespace DEM
 {
 	bool Minimap::ProcessMessage(RE::UIMessage* a_message)
@@ -52,7 +54,7 @@ namespace DEM
 			localMap_->root.Invoke("InitMap");
 
 			RE::GFxValue altBackgroundShape;
-			localMap_->root.GetMember(shape == Shape::kCircle ? "BackgroundArtSquare" : "BackgroundArtCircle", &altBackgroundShape);
+			localMap_->root.GetMember(shape == Shape::kRound ? "BackgroundArtSquare" : "BackgroundArtCircle", &altBackgroundShape);
 
 			if (altBackgroundShape.IsDisplayObject())
 			{
@@ -128,6 +130,7 @@ namespace DEM
 			std::array<RE::GFxValue, 2> title;
 
 			RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+			float playerCameraRotation = RE::PlayerCamera::GetSingleton()->GetRuntimeData2().yaw;
 
 			if (RE::TESObjectCELL* parentCell = player->parentCell)
 			{
@@ -135,8 +138,7 @@ namespace DEM
 
 				if (settings::controls::followPlayerCameraRotation)
 				{
-					float playerNorthRotation = -RE::PlayerCamera::GetSingleton()->GetRuntimeData2().yaw;
-					cameraContext->SetNorthRotation(-playerNorthRotation);
+					cameraContext->SetNorthRotation(playerCameraRotation);
 				}
 				else
 				{
@@ -176,10 +178,25 @@ namespace DEM
 				RE::GFxValue youAreHereMarker;
 				localMap_->iconDisplay.GetMember("YouAreHereMarker", &youAreHereMarker);
 
+				float playerToCamAngle = player->GetAngleZ() - playerCameraRotation;
+				float playerToCamAngleDeg = playerToCamAngle * 180 * std::numbers::inv_pi;
+
 				RE::GFxValue::DisplayInfo youAreHereMarkerDisplayInfo;
 				youAreHereMarker.GetDisplayInfo(&youAreHereMarkerDisplayInfo);
-				youAreHereMarkerDisplayInfo.SetRotation(0);
+				youAreHereMarkerDisplayInfo.SetRotation(playerToCamAngleDeg);
 				youAreHereMarker.SetDisplayInfo(youAreHereMarkerDisplayInfo);
+			}
+			else
+			{
+				RE::GFxValue visionCone;
+				localMap_->iconDisplay.GetMember("VisionCone", &visionCone);
+
+				float playerCameraRotationDeg = playerCameraRotation * 180 * std::numbers::inv_pi;
+
+				RE::GFxValue::DisplayInfo visionConeDisplayInfo;
+				visionCone.GetDisplayInfo(&visionConeDisplayInfo);
+				visionConeDisplayInfo.SetRotation(playerCameraRotationDeg);
+				visionCone.SetDisplayInfo(visionConeDisplayInfo);
 			}
 
 			isCameraUpdatePending = true;

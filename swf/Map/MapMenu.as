@@ -23,10 +23,12 @@ class Map.MapMenu
 	public var PlayerLocationMarkerType:String;
 	public var MarkerDescriptionObj:MovieClip;
 
+	public var VisionCone:MovieClip;
+
 	public var ExtraMarkerData:Array = new Array();
 
 	/* Properties */
-	private var localMap:MovieClip;
+	private var localMap:LocalMap;
 	private var mapHeight:Number;
 	private var mapWidth:Number;
 	private var markerContainer:MovieClip;
@@ -47,10 +49,12 @@ class Map.MapMenu
 		mapWidth = localMap.textureWidth;
 		mapHeight = localMap.textureHeight;
 
-		Test = localMap.Test;
+		VisionCone = localMap.VisionCone;
 
 		markerContainer = localMap.createEmptyMovieClip();
 		markers = new Array();
+
+		Test = localMap.Test;
 	}
 
 	/* API */
@@ -119,6 +123,7 @@ class Map.MapMenu
 		var radius:Number = center_x - 15;
 
 		var i:Number = 0;
+		var youAreHereMarkerFound:Boolean = false;
 		for (var j:Number = 0; j < dataLen; j = j + REFRESH_STRIDE)
 		{
 			var marker:MovieClip = markers[i];
@@ -154,12 +159,17 @@ class Map.MapMenu
 
 				if (marker.Icon == YouAreHereMarker)
 				{
+					youAreHereMarkerFound = true;
 					localMap.VisionCone._visible = marker._visible;
 					localMap.VisionCone._x = marker._x;
 					localMap.VisionCone._y = marker._y;
 				}
 			}
 			++i;
+		}
+		if (!youAreHereMarkerFound)
+		{
+			localMap.VisionCone._visible = false;
 		}
 	}
 }

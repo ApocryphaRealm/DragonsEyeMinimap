@@ -4,7 +4,6 @@ var Swimming:Boolean;
 var HorseMode:Boolean;
 var WarHorseMode:Boolean;
 
-
 function Minimap(a_positionX:Number, a_positionY:Number):Void
 {
 	var positionX0 = Stage.width * a_positionX;

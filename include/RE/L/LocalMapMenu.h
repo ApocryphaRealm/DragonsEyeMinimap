@@ -4,7 +4,6 @@
 #include "RE/B/BSTArray.h"
 #include "RE/B/BSTSmartPointer.h"
 #include "RE/G/GFxValue.h"
-#include "RE/I/ImageData.h"
 #include "RE/I/ImageSpaceShaderParam.h"
 #include "RE/L/LocalMapCamera.h"
 #include "RE/M/MenuEventHandler.h"
@@ -178,16 +177,16 @@ namespace RE
 
 		struct RUNTIME_DATA
 		{
-			ImageData imageData;						 // 00
-			GFxValue root;								 // 18
-			GFxValue iconDisplay;						 // 30
-			GFxMovieView* movieView;					 // 48
-			BSTSmartPointer<InputHandler> inputHandler;	 // 50
-			std::int32_t selectedMarkerIndex;			 // 58
-			bool enabled;								 // 5C
-			bool usingCursor;							 // 5D
-			bool inForeground;							 // 5E
-			std::uint8_t pad5F;							 // 5F
+			BSScaleformExternalTexture    imageData;			// 00
+			GFxValue                      root;					// 18
+			GFxValue                      iconDisplay;			// 30
+			GFxMovieView*                 movieView;			// 48
+			BSTSmartPointer<InputHandler> inputHandler;			// 50
+			std::int32_t                  selectedMarkerIndex;	// 58
+			bool                          enabled;				// 5C
+			bool                          usingCursor;			// 5D
+			bool                          inForeground;			// 5E
+			std::uint8_t                  pad5F;				// 5F
 		};
 		static_assert(sizeof(RUNTIME_DATA) == 0x60);
 
@@ -258,15 +257,15 @@ namespace RE
 		}
 
 		// members
-		BSTArray<MapMarker> mapMarkers;				 // 00000
-		GFxValue markerData;						 // 00018
-		GPointF topLeft;							 // 00030
-		GPointF bottomRight;						 // 00038
+		BSTArray<MapMarker>    mapMarkers;			 // 00000
+		GFxValue               markerData;			 // 00018
+		GPointF                topLeft;				 // 00030
+		GPointF                bottomRight;			 // 00038
 		LocalMapCullingProcess localCullingProcess;	 // 00040
-		RUNTIME_DATA runtimeData;					 // 303A0, 30418
+		RUNTIME_DATA           runtimeData;			 // 303A0, 30418
 #if !defined(ENABLE_SKYRIM_AE) && !defined(ENABLE_SKYRIM_SE)
-		std::uint32_t unk30478;	 // 30478
-		std::uint32_t pad3047C;	 // 3047C
+		std::uint32_t          unk30478;			 // 30478
+		std::uint32_t          pad3047C;			 // 3047C
 #endif
 	};
 #ifndef ENABLE_SKYRIM_VR

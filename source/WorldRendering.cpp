@@ -118,6 +118,12 @@ namespace DEM
 
 	void Minimap::RenderOffscreen()
 	{
+		LMU::PixelShaderProperty::Shape prevShaderShape;
+		LMU::PixelShaderProperty::Style prevShaderStyle;
+
+		GetPixelShaderProperties(prevShaderShape, prevShaderStyle);
+		SetPixelShaderProperties(shape, style);
+
 		// 1. Setup culling step ///////////////////////////////////////////////////////////////////////////////////////////
 
 		RE::ShadowSceneNode* mainShadowSceneNode = RE::ShadowSceneNode::GetMain();
@@ -276,6 +282,8 @@ namespace DEM
 		mainShadowSceneNode->GetRuntimeData().disableLightUpdate = isLightUpdateDisabled;
 
         shaderAccumulator->ClearActiveRenderPasses(false);
+
+		SetPixelShaderProperties(prevShaderShape, prevShaderStyle);
 	}
 
 	// Terrain render passes can be allocated multiple times but only cleared once per frame.

@@ -22,7 +22,8 @@ namespace settings
 				MakeSetting("fPositionX:Display", positionX),
 				MakeSetting("fPositionY:Display", positionY),
 				MakeSetting("fScale:Display", scale),
-				MakeSetting("uShape:Display", shape)
+				MakeSetting("uShape:Display", shape),
+				MakeSetting("bColor:Display", color)
 			);
 		}
 
@@ -50,6 +51,7 @@ namespace settings
 			positionY = iniSettingCollection->GetSetting<float>("fPositionY:Display");
 			scale = iniSettingCollection->GetSetting<float>("fScale:Display");
 			shape = iniSettingCollection->GetSetting<std::uint32_t>("uShape:Display");
+			color = iniSettingCollection->GetSetting<bool>("bColor:Display");
 		}
 
 		{
