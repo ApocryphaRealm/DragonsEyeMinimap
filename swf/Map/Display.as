@@ -4,7 +4,7 @@ import Map.MapMarker;
 import Shared.ButtonChange;
 import Shared.GlobalFunc;
 
-class Map.MapMenu
+class Map.Display
 {
 	/* Constants */
 	private static var REFRESH_SHOW:Number = 0;
@@ -17,23 +17,26 @@ class Map.MapMenu
 	private static var CREATE_UNDISCOVERED:Number = 2;
 	private static var CREATE_STRIDE:Number = 3;
 
+	private static var SHAPE_SQUARED:Number = 0;
+	private static var SHAPE_ROUND:Number = 1;
+
 	/* API */
-	public var MarkerData:Array;
+	public var MarkerData:Array = new Array();
+	public var ExtraMarkerData:Array = new Array();
 	public var YouAreHereMarker:MovieClip;
 	public var PlayerLocationMarkerType:String;
 	public var MarkerDescriptionObj:MovieClip;
 
-	public var VisionCone:MovieClip;
-
-	public var ExtraMarkerData:Array = new Array();
-
 	/* Properties */
 	private var localMap:LocalMap;
+	private var visionCone:MovieClip;
 	private var mapHeight:Number;
 	private var mapWidth:Number;
+	private var mapRadius:Number;
+	private var mapCenter:Object = new Object();
+	private var markerToCenter:Object = new Object();
 	private var markerContainer:MovieClip;
-
-	private var markerDescriptionHolder:MovieClip;
+	private var shape:Number = SHAPE_SQUARED;
 
 	private var markers:Array;
 
@@ -42,19 +45,27 @@ class Map.MapMenu
 	/* Test */
 	private var Test:TextField;
 
-	function MapMenu(a_localMap:LocalMap)
+	function Display(a_localMap:LocalMap)
 	{
 		localMap = a_localMap;
 
 		mapWidth = localMap.textureWidth;
 		mapHeight = localMap.textureHeight;
+		mapRadius = mapWidth / 2;
+		mapCenter._x = mapWidth / 2;
+		mapCenter._y = mapHeight / 2;
 
-		VisionCone = localMap.VisionCone;
+		visionCone = localMap.VisionCone;
 
 		markerContainer = localMap.createEmptyMovieClip();
 		markers = new Array();
 
 		Test = localMap.Test;
+	}
+
+	public function SetShape(a_shape:Number):Void
+	{
+		shape = a_shape;
 	}
 
 	/* API */
@@ -100,7 +111,7 @@ class Map.MapMenu
 			marker.label = MarkerData[j + CREATE_NAME];
 			marker.textField._visible = false;
 			marker.visible = false;
-			marker.Type = createIconType;
+			marker.Type = markerType;
 
 			if (MarkerData[j + CREATE_UNDISCOVERED] && marker.IconClip != undefined)
 			{
@@ -118,10 +129,6 @@ class Map.MapMenu
 	{
 		var dataLen:Number = MarkerData.length;
 
-		var center_x:Number = mapWidth / 2;
-		var center_y:Number = mapHeight / 2;
-		var radius:Number = center_x - 15;
-
 		var i:Number = 0;
 		var youAreHereMarkerFound:Boolean = false;
 		for (var j:Number = 0; j < dataLen; j = j + REFRESH_STRIDE)
@@ -134,42 +141,45 @@ class Map.MapMenu
 				marker._y = MarkerData[j + REFRESH_Y] * mapHeight;
 				marker._rotation = MarkerData[j + REFRESH_ROTATION];
 
-				var rel_x:Number = center_x - marker._x;
-				var rel_y:Number = center_y - marker._y;
-
-				var distance:Number = Math.sqrt(rel_x * rel_x + rel_y * rel_y);
-
-				if (distance > radius)
+				if (shape == SHAPE_ROUND)
 				{
-					if (marker.Type == "QuestTargetMarker" ||
-						marker.Type == "QuestTargetDoorMarker" ||
-						marker.Type == "MultipleQuestTargetMarker")
-					{
-						var angle:Number = Math.atan2(rel_y, rel_x);
+					markerToCenter._x = mapCenter._x - marker._x;
+					markerToCenter._y = mapCenter._y - marker._y;
 
-						marker._x = center_x - radius * Math.cos(angle);
-						marker._y = center_y - radius * Math.sin(angle);
-						marker._rotation = angle * 180 / Math.PI + 90;
-					}
-					else
+					var distance:Number = Math.sqrt(markerToCenter._x * markerToCenter._x + markerToCenter._y * markerToCenter._y);
+
+					if (distance > mapRadius - 20)
 					{
-						marker._visible = false;
+						if (marker.Type == "QuestTargetMarker" ||
+							marker.Type == "QuestTargetDoorMarker" ||
+							marker.Type == "MultipleQuestTargetMarker")
+						{
+							var angle:Number = Math.atan2(markerToCenter._y, markerToCenter._x);
+
+							marker._x = mapCenter._x - mapRadius * Math.cos(angle);
+							marker._y = mapCenter._y - mapRadius * Math.sin(angle);
+							marker._rotation = angle * 180 / Math.PI + 90;
+						}
+						else
+						{
+							marker._visible = false;
+						}
 					}
 				}
 
 				if (marker.Icon == YouAreHereMarker)
 				{
 					youAreHereMarkerFound = true;
-					localMap.VisionCone._visible = marker._visible;
-					localMap.VisionCone._x = marker._x;
-					localMap.VisionCone._y = marker._y;
+					visionCone._visible = marker._visible;
+					visionCone._x = marker._x;
+					visionCone._y = marker._y;
 				}
 			}
 			++i;
 		}
 		if (!youAreHereMarkerFound)
 		{
-			localMap.VisionCone._visible = false;
+			visionCone._visible = false;
 		}
 	}
 }

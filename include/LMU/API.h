@@ -40,14 +40,14 @@ namespace LMU
 		{
 			static constexpr inline Type type = Type::kPostCreateMarkersHook;
 
-			void (*PostCreateMarkers)(RE::GFxValue::ObjectInterface* a_objIface, void* a_data, bool a_isDObj) = {};
+			void (*PostCreateMarkers)(RE::GFxValue&) = {};
 		};
 
 		template <typename T>
 		concept valid_message = std::is_base_of_v<Message, T>;
 
 		template <typename MessageT>
-		requires valid_message<MessageT> inline const MessageT* TranslateAs(SKSE::MessagingInterface::Message* a_msg)
+			requires valid_message<MessageT> inline const MessageT* TranslateAs(SKSE::MessagingInterface::Message* a_msg)
 		{
 			if constexpr (std::is_same_v<Message, MessageT>) {
 				return static_cast<Message*>(a_msg->data);

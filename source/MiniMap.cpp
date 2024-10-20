@@ -52,18 +52,10 @@ namespace DEM
 			view->GetVariable(&localMap_->root, (std::string(DEM::Minimap::path) + ".MapClip").c_str());
 
 			localMap_->root.Invoke("InitMap");
+			localMap_->root.Invoke("SetShape", std::array<RE::GFxValue, 1>{ static_cast<std::uint32_t>(shape) });
 
-			RE::GFxValue altBackgroundShape;
-			localMap_->root.GetMember(shape == Shape::kRound ? "BackgroundArtSquare" : "BackgroundArtCircle", &altBackgroundShape);
-
-			if (altBackgroundShape.IsDisplayObject())
-			{
-				altBackgroundShape.SetMember("_visible", false);
-			}
-
-			view->CreateArray(&localMap->markerData);
 			localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay);
-			localMap_->iconDisplay.SetMember("MarkerData", localMap->markerData);
+			localMap_->iconDisplay.GetMember("MarkerData", &localMap->markerData);
 
 			Show();
 		}
@@ -132,9 +124,11 @@ namespace DEM
 			RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
 			float playerCameraRotation = RE::PlayerCamera::GetSingleton()->GetRuntimeData2().yaw;
 
+			float cellNorthRotation = 0.0F;
+
 			if (RE::TESObjectCELL* parentCell = player->parentCell)
 			{
-				float cellNorthRotation = parentCell->GetNorthRotation();
+				cellNorthRotation = -parentCell->GetNorthRotation();
 
 				if (settings::controls::followPlayerCameraRotation)
 				{
@@ -170,7 +164,7 @@ namespace DEM
 
 			localMap->PopulateData();
 			localMap_->iconDisplay.Invoke("CreateMarkers", nullptr, nullptr, 0);
-			PostCreateMarkers(localMap_->iconDisplay._objectInterface, localMap_->iconDisplay._value.obj, localMap_->iconDisplay.IsDisplayObject());
+			PostCreateMarkers(localMap_->iconDisplay);
 			localMap->RefreshMarkers();
 
 			if (settings::controls::followPlayerCameraRotation)
@@ -189,13 +183,14 @@ namespace DEM
 			else
 			{
 				RE::GFxValue visionCone;
-				localMap_->iconDisplay.GetMember("VisionCone", &visionCone);
+				localMap_->root.GetMember("VisionCone", &visionCone);
 
-				float playerCameraRotationDeg = playerCameraRotation * 180 * std::numbers::inv_pi;
+				float playerCameraToNorthAngle = playerCameraRotation - cellNorthRotation;
+				float playerCameraToNorthAngleDeg = playerCameraToNorthAngle * 180 * std::numbers::inv_pi;
 
 				RE::GFxValue::DisplayInfo visionConeDisplayInfo;
 				visionCone.GetDisplayInfo(&visionConeDisplayInfo);
-				visionConeDisplayInfo.SetRotation(playerCameraRotationDeg);
+				visionConeDisplayInfo.SetRotation(playerCameraToNorthAngleDeg);
 				visionCone.SetDisplayInfo(visionConeDisplayInfo);
 			}
 

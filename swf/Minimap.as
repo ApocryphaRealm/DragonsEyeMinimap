@@ -26,11 +26,10 @@ function AddToHudElements():Void
 	_level0.HUDMovieBaseInstance.HudElements.push(this);
 }
 
-// For some reason, when casting a rune, this will be removed from the HUD elements list, make sure that we re add it
+// For some reason, when casting a rune, this will be removed from the HUD elements list,
+// make sure that "this" is always on that list.
 function onEnterFrame():Void
 {
-	Test.text = _level0.HUDMovieBaseInstance.HudElements.toString();
-
 	var hudElements:Array = _level0.HUDMovieBaseInstance.HudElements;
 	var hudElementsLen:Number = hudElements.length;
 	for (var i:Number = 0; i < hudElementsLen; i++)
