@@ -187,6 +187,8 @@ namespace DEM
 
         cullJobDesc.camera = camera;
 
+		// This piece of code causes CTD to Nolvus pack user (no idea why, but it does not seem to have effect anyways)
+#if ENABLE_NOLVUS_PACK_CTD_CAUSE_CODE
         RE::BSPortalGraphEntry* portalGraphEntry = RE::Main__GetPortalGraphEntry(RE::Main::GetSingleton());
 		
         if (portalGraphEntry)
@@ -198,6 +200,7 @@ namespace DEM
 				cullJobDesc.Cull(1, 0);
             }
         }
+#endif
 
         if (mainShadowSceneChildren.capacity() > 9)
         {
