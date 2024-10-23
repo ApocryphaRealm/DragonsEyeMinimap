@@ -41,5 +41,4 @@ function onEnterFrame():Void
 	}
 
 	hudElements.push(this);
-
 }

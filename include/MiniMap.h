@@ -66,6 +66,9 @@ namespace DEM
 			bool ProcessMouseMove(RE::MouseMoveEvent* a_event) final;	 // 04
 			bool ProcessButton(RE::ButtonEvent* a_event) final;			 // 05
 
+			bool ProcessKeyboardOrMouseButton(RE::ButtonEvent* a_butonEvent);
+			bool ProcessGamepadButton(RE::ButtonEvent* a_buttonEvent);
+
 			Minimap* miniMap;
 		};
 
@@ -118,6 +121,8 @@ namespace DEM
 
 		void Advance();
 		void PreRender();
+
+		void RefreshPlatform();
 
 		static inline void (*PostCreateMarkers)(RE::GFxValue& a_iconDisplay);
 		static inline void (*SetPixelShaderProperties)(LMU::PixelShaderProperty::Shape a_shape, LMU::PixelShaderProperty::Style a_style);
@@ -175,7 +180,8 @@ namespace DEM
 
 		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
 		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;
-		const float& localMapPanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMousePanSpeed:MapMenu")->data.f;
+		const float& localMapMousePanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMousePanSpeed:MapMenu")->data.f;
+		const float& localMapGamepadPanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadPanSpeed:MapMenu")->data.f;
 		const float& localMapMouseZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMouseZoomSpeed:MapMenu")->data.f;
 		const float& localMapGamepadZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadZoomSpeed:MapMenu")->data.f;
 

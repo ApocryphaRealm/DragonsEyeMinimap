@@ -15,6 +15,25 @@ namespace DEM
 
 	bool Minimap::InputHandler::ProcessThumbstick(RE::ThumbstickEvent* a_event)
 	{
+		auto controlMap = RE::ControlMap::GetSingleton();
+		auto userEvents = RE::UserEvents::GetSingleton();
+
+		std::string_view gameplayUserEventName = controlMap->GetUserEventName(a_event->GetIDCode(), RE::INPUT_DEVICE::kGamepad, RE::ControlMap::InputContextID::kGameplay);
+		std::string_view userEventName = controlMap->GetUserEventName(a_event->GetIDCode(), RE::INPUT_DEVICE::kGamepad, RE::ControlMap::InputContextID::kMap);
+
+		if (miniMap->inputControlledMode)
+		{
+			if (userEventName == userEvents->look)
+			{
+				float xOffset = 2 * a_event->xValue * std::abs(a_event->xValue) * miniMap->localMapGamepadPanSpeed;
+				float yOffset = 2 * a_event->yValue * std::abs(a_event->yValue) * miniMap->localMapGamepadPanSpeed;
+
+				RE::NiPoint3 translationOffset = miniMap->cameraContext->cameraRoot->local.rotate * RE::NiPoint3{ 0, yOffset, xOffset };
+
+				miniMap->cameraContext->defaultState->translation += translationOffset;
+			}
+		}
+
 		return true;
 	}
 
@@ -22,10 +41,10 @@ namespace DEM
 	{
 		if (miniMap->inputControlledMode)
 		{
-			float xOffset = -a_event->mouseInputX * miniMap->localMapPanSpeed;
-			float yOffset = a_event->mouseInputY * miniMap->localMapPanSpeed;
+			float xOffset = -a_event->mouseInputX * miniMap->localMapMousePanSpeed;
+			float yOffset = a_event->mouseInputY * miniMap->localMapMousePanSpeed;
 
-			RE::NiPoint3 translationOffset = miniMap->cameraContext->cameraRoot->local.rotate * RE::NiPoint3(0, yOffset, xOffset);
+			RE::NiPoint3 translationOffset = miniMap->cameraContext->cameraRoot->local.rotate * RE::NiPoint3{ 0, yOffset, xOffset };
 
 			miniMap->cameraContext->defaultState->translation += translationOffset;
 		}
@@ -39,106 +58,152 @@ namespace DEM
 
 		if (RE::ButtonEvent* buttonEvent = a_event->AsButtonEvent())
 		{
-			auto controlMap = RE::ControlMap::GetSingleton();
-			auto userEvents = RE::UserEvents::GetSingleton();
-
-			std::uint32_t localMapKey = controlMap->GetMappedKey(userEvents->localMap, buttonEvent->GetDevice(), RE::UserEvents::INPUT_CONTEXT_IDS::kMap);
-
-			if (buttonEvent->GetIDCode() == localMapKey)
+			switch (buttonEvent->GetDevice())
 			{
-				bool isPressed = buttonEvent->Value();
-				bool isReleased = !isPressed;
-				float heldDownSecs = buttonEvent->GetRuntimeData().heldDownSecs;
+			case RE::INPUT_DEVICE::kKeyboard:
+			case RE::INPUT_DEVICE::kMouse:
+				return ProcessKeyboardOrMouseButton(buttonEvent);
+			case RE::INPUT_DEVICE::kGamepad:
+				return ProcessGamepadButton(buttonEvent);
+			
+			}
+		}
 
-				if (!miniMap->IsShown())
+		return false;
+	}
+
+	bool Minimap::InputHandler::ProcessKeyboardOrMouseButton(RE::ButtonEvent* a_buttonEvent)
+	{
+		auto controlMap = RE::ControlMap::GetSingleton();
+		auto userEvents = RE::UserEvents::GetSingleton();
+
+		std::string_view userEventName = controlMap->GetUserEventName(a_buttonEvent->GetIDCode(), a_buttonEvent->GetDevice(), RE::ControlMap::InputContextID::kMap);
+
+		if (userEventName == userEvents->localMap)
+		{
+			bool isPressed = a_buttonEvent->Value();
+			bool isReleased = !isPressed;
+			float heldDownSecs = a_buttonEvent->GetRuntimeData().heldDownSecs;
+
+			if (!miniMap->IsShown())
+			{
+				if (isReleased || (isPressed && heldDownSecs >= 2 * settings::controls::holdDownToControlSecs))
 				{
-					if (isReleased || (isPressed && heldDownSecs >= 2 * settings::controls::holdDownToControlSecs))
+					miniMap->Show();
+				}
+			}
+			else
+			{
+				if (isReleased && heldDownSecs < settings::controls::holdDownToControlSecs)
+				{
+					miniMap->Hide();
+				}
+			}
+
+			if (miniMap->IsShown())
+			{
+				if (isPressed && heldDownSecs >= settings::controls::holdDownToControlSecs)
+				{
+					if (!miniMap->inputControlledMode)
 					{
-						miniMap->Show();
+						miniMap->inputControlledMode = true;
+
+						controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, false);
+						controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, false);
+
+						miniMap->UnfoldControls();
 					}
 				}
 				else
 				{
-					if (isReleased && heldDownSecs < settings::controls::holdDownToControlSecs)
+					if (miniMap->inputControlledMode)
 					{
-						miniMap->Hide();
-					}
-				}
+						miniMap->inputControlledMode = false;
 
-				if (miniMap->IsShown())
-				{
-					if (isPressed && heldDownSecs >= settings::controls::holdDownToControlSecs)
-					{
-						if (!miniMap->inputControlledMode)
-						{
-							miniMap->inputControlledMode = true;
+						controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, true);
+						controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, true);
 
-							RE::PlayerControls::GetSingleton()->lookHandler->SetInputEventHandlingEnabled(false);
-
-							miniMap->UnfoldControls();
-
-							if (REL::Module::IsAE())
-							{
-								controlMap->enabledControls.reset(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
-							}
-							else
-							{
-								controlMap->enabledControls.set(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
-							}
-						}
-					}
-					else
-					{
-						if (miniMap->inputControlledMode)
-						{
-							miniMap->inputControlledMode = false;
-
-							RE::PlayerControls::GetSingleton()->lookHandler->SetInputEventHandlingEnabled(true);
-
-							miniMap->FoldControls();
-
-							if (REL::Module::IsAE())
-							{
-								controlMap->enabledControls.set(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
-							}
-							else
-							{
-								controlMap->enabledControls.reset(RE::UserEvents::USER_EVENT_FLAG::kWheelZoom);
-							}
-						}
+						miniMap->FoldControls();
 					}
 				}
 			}
-			
-			if (miniMap->inputControlledMode)
+		}
+
+		if (miniMap->inputControlledMode)
+		{
+			if (userEventName == userEvents->zoomIn)
 			{
-				std::string_view userEventName = controlMap->GetUserEventName(buttonEvent->GetIDCode(), buttonEvent->GetDevice(), RE::ControlMap::InputContextID::kMap);
+				miniMap->cameraContext->zoomInput += miniMap->localMapMouseZoomSpeed;
+			}
+			else if (userEventName == userEvents->zoomOut)
+			{
+				miniMap->cameraContext->zoomInput -= miniMap->localMapMouseZoomSpeed;
+			}
+		}
 
-				bool isZoomIn = userEventName == userEvents->zoomIn;
-				bool isZoomOut = userEventName == userEvents->zoomOut;
+		return true;
+	}
 
-				bool isLocalMapMoveMode = userEventName == userEvents->localMapMoveMode;
+	bool Minimap::InputHandler::ProcessGamepadButton(RE::ButtonEvent* a_buttonEvent)
+	{
+		auto controlMap = RE::ControlMap::GetSingleton();
+		auto userEvents = RE::UserEvents::GetSingleton();
 
-				if (isZoomIn || isZoomOut)
+		std::string_view gameplayUserEventName = controlMap->GetUserEventName(a_buttonEvent->GetIDCode(), RE::INPUT_DEVICE::kGamepad, RE::ControlMap::InputContextID::kGameplay);
+
+		if (gameplayUserEventName == userEvents->togglePOV)
+		{
+			bool isPressed = a_buttonEvent->Value();
+			bool isReleased = !isPressed;
+			float heldDownSecs = a_buttonEvent->GetRuntimeData().heldDownSecs;
+
+			if (isReleased && heldDownSecs < settings::controls::holdDownToControlSecs)
+			{
+				miniMap->IsShown() ? miniMap->Hide() : miniMap->Show();
+			}
+
+			if (miniMap->IsShown())
+			{
+				if (isPressed && heldDownSecs >= settings::controls::holdDownToControlSecs)
 				{
-					float zoom = 1;
-
-					if (buttonEvent->GetDevice() == RE::INPUT_DEVICE::kMouse)
+					if (!miniMap->inputControlledMode)
 					{
-						zoom = miniMap->localMapMouseZoomSpeed;
-					}
-					else if (buttonEvent->GetDevice() == RE::INPUT_DEVICE::kGamepad)
-					{
-						zoom = miniMap->localMapGamepadZoomSpeed;
-					}
+						miniMap->inputControlledMode = true;
 
-					if (isZoomOut)
-					{
-						zoom *= -1;
-					}
+						controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, false);
+						controlMap->ToggleControls(RE::ControlMap::UEFlag::kFighting, false);
 
-					miniMap->cameraContext->zoomInput += zoom;
+						miniMap->UnfoldControls();
+					}
 				}
+				else
+				{
+					if (miniMap->inputControlledMode)
+					{
+						miniMap->inputControlledMode = false;
+
+						controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, true);
+						controlMap->ToggleControls(RE::ControlMap::UEFlag::kFighting, true);
+
+						miniMap->FoldControls();
+					}
+				}
+			}
+		}
+
+		controlMap->ToggleControls(RE::ControlMap::UEFlag::kPOVSwitch, !miniMap->IsShown());
+
+		if (miniMap->inputControlledMode)
+		{
+			std::string_view mapUserEventName = controlMap->GetUserEventName(a_buttonEvent->GetIDCode(), RE::INPUT_DEVICE::kGamepad, RE::ControlMap::InputContextID::kMap);
+
+			if (mapUserEventName == userEvents->zoomIn)
+			{
+				miniMap->cameraContext->zoomInput += a_buttonEvent->Value() * miniMap->localMapGamepadZoomSpeed;
+			}
+			else if (mapUserEventName == userEvents->zoomOut)
+			{
+				miniMap->cameraContext->zoomInput -= a_buttonEvent->Value() * miniMap->localMapGamepadZoomSpeed;
 			}
 		}
 

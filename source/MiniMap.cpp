@@ -84,37 +84,6 @@ namespace DEM
 		minCamFrustumHalfHeight = cameraContext->defaultState->minFrustumHalfHeight;
 	}
 
-	void Minimap::PreRender()
-	{
-		if (IsVisible() && IsShown())
-		{
-			if (isCameraUpdatePending)
-			{
-				RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
-
-				RE::NiPoint3 playerPos = player->GetPosition();
-				cameraContext->defaultState->initialPosition.x = playerPos.x;
-				cameraContext->defaultState->initialPosition.y = playerPos.y;
-
-				if (!inputControlledMode)
-				{
-					cameraContext->defaultState->translation = RE::NiPoint3::Zero();
-				}
-
-				cameraContext->Update();
-
-				isCameraUpdatePending = false;
-
-				RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->GetRuntimeData2().loadedAreaBound;
-				cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
-
-				UpdateFogOfWar();
-			}
-
-			RenderOffscreen();
-		}
-	}
-
 	void Minimap::Advance()
 	{
 		if (IsVisible() && IsShown())
@@ -196,5 +165,41 @@ namespace DEM
 
 			isCameraUpdatePending = true;
 		}
+	}
+
+	void Minimap::PreRender()
+	{
+		if (IsVisible() && IsShown())
+		{
+			if (isCameraUpdatePending)
+			{
+				RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+
+				RE::NiPoint3 playerPos = player->GetPosition();
+				cameraContext->defaultState->initialPosition.x = playerPos.x;
+				cameraContext->defaultState->initialPosition.y = playerPos.y;
+
+				if (!inputControlledMode)
+				{
+					cameraContext->defaultState->translation = RE::NiPoint3::Zero();
+				}
+
+				cameraContext->Update();
+
+				isCameraUpdatePending = false;
+
+				RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->GetRuntimeData2().loadedAreaBound;
+				cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
+
+				UpdateFogOfWar();
+			}
+
+			RenderOffscreen();
+		}
+	}
+
+	void Minimap::RefreshPlatform()
+	{
+		bool gamepadConnected = RE::BSInputDeviceManager::GetSingleton()->IsGamepadConnected();
 	}
 }

@@ -32,3 +32,10 @@ void PreDisplayHUDMenu(RE::HUDMenu* a_hudMenu)
 
 	hooks::HUDMenu::PreDisplay(a_hudMenu);
 }
+
+void RefreshPlatformHUDMenu(RE::HUDMenu* a_hudMenu)
+{
+	hooks::HUDMenu::RefreshPlatform(a_hudMenu);
+
+	DEM::Minimap::GetSingleton()->RefreshPlatform();
+}
