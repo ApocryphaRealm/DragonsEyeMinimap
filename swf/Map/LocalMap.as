@@ -6,6 +6,8 @@ class Map.LocalMap extends MovieClip
 	/* Constants */
 	private static var SHAPE_SQUARED:Number = 0;
 	private static var SHAPE_ROUND:Number = 1;
+	private static var PLATFORM_PC: Number = 0;
+	private static var PLATFORM_PC_GAMEPAD: Number = 1;
 
 	/* Stage elements */
 	public var LocationName:TextField;
@@ -13,24 +15,24 @@ class Map.LocalMap extends MovieClip
 	public var LocalMapHolder:MovieClip;
 	public var BackgroundArtSquare:MovieClip;
 	public var BackgroundArtCircle:MovieClip;
+	public var Controls:MovieClip;
 	public var VisionCone:MovieClip;
-
-	public var Test:TextField;
 
 	/* API */
 	public var IconDisplay:Display;
+	public var pcControlButtons:Array = new Array();
+	public var gamepadControlButtons:Array = new Array();
 
 	/* Properties */
 	public var textureHeight:Number;
 	public var textureWidth:Number;
 	private var mapTextureLoader:MovieClipLoader;
 	private var isShown:Boolean;
+	private var controlButtons:Array;
 
 	function LocalMap()
 	{
 		super();
-
-		Test = _parent.Test;
 
 		textureWidth = LocalMapHolder._width;
 		textureHeight = LocalMapHolder._height;
@@ -99,5 +101,36 @@ class Map.LocalMap extends MovieClip
 	{
 		LocationName.text = a_name == undefined ? "" : a_name;
 		ClearedHint.text = a_cleared == undefined ? "" : "(" + a_cleared + ")";
+	}
+
+	/* API */
+	public function FoldControls():Void
+	{
+		Controls.gotoAndStop("Folded");
+		Controls.ControlButtonHolder.attachMovie(controlButtons[0], "controlButton", getNextHighestDepth());
+	}
+
+	/* API */
+	public function UnfoldControls():Void
+	{
+		Controls.gotoAndStop("Unfolded");
+		Controls.MoveButtonHolder.attachMovie(controlButtons[1], "moveButton", getNextHighestDepth());
+		Controls.ZoomInButtonHolder.attachMovie(controlButtons[2], "zoomInButton", getNextHighestDepth());
+		Controls.ZoomOutButtonHolder.attachMovie(controlButtons[3], "zoomOutButton", getNextHighestDepth());
+	}
+
+	/* API */
+	public function SetPlatform(platform:Number, ps3Switch:Boolean):Void
+	{
+		if (platform == PLATFORM_PC)
+		{
+			controlButtons = pcControlButtons;
+		}
+		else if (platform == PLATFORM_PC_GAMEPAD)
+		{
+			controlButtons = gamepadControlButtons;
+		}
+
+		FoldControls();
 	}
 }

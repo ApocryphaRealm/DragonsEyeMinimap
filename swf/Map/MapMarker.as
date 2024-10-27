@@ -14,7 +14,7 @@ class Map.MapMarker extends gfx.controls.Button
 	var stateMap:Array;
 	var textField:TextField;
 
-	var Type:Number;
+	var Type:String;
 
 	function MapMarker()
 	{

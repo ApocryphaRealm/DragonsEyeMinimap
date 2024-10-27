@@ -57,6 +57,8 @@ namespace DEM
 			localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay);
 			localMap_->iconDisplay.GetMember("MarkerData", &localMap->markerData);
 
+			RefreshPlatform();
+
 			Show();
 		}
 	}
@@ -132,7 +134,9 @@ namespace DEM
 			localMap_->root.Invoke("SetTitle", nullptr, title);
 
 			localMap->PopulateData();
-			localMap_->iconDisplay.Invoke("CreateMarkers", nullptr, nullptr, 0);
+
+			localMap_->iconDisplay.Invoke("CreateMarkers", std::array<RE::GFxValue, 4>{ settings::display::showEnemyActors, settings::display::showHostileActors,
+																						settings::display::showGuardActors, settings::display::showDeadActors });
 			PostCreateMarkers(localMap_->iconDisplay);
 			localMap->RefreshMarkers();
 
@@ -200,6 +204,51 @@ namespace DEM
 
 	void Minimap::RefreshPlatform()
 	{
-		bool gamepadConnected = RE::BSInputDeviceManager::GetSingleton()->IsGamepadConnected();
+		if (localMap)
+		{
+			auto controlMap = RE::ControlMap::GetSingleton();
+			auto userEvents = RE::UserEvents::GetSingleton();
+
+			RE::BSFixedString controlButton;
+			RE::BSFixedString moveButton;
+			RE::BSFixedString zoomInButton;
+			RE::BSFixedString zoomOutButton;
+
+			RE::GFxValue pcControlButtons;
+			localMap_->root.GetMember("pcControlButtons", &pcControlButtons);
+			pcControlButtons.ClearElements();
+
+			controlMap->GetButtonNameFromUserEvent(userEvents->localMap, RE::INPUT_DEVICE::kKeyboard, controlButton);
+			pcControlButtons.PushBack(RE::GFxValue{ controlButton.c_str() });
+
+			controlMap->GetButtonNameFromUserEvent(userEvents->look, RE::INPUT_DEVICE::kMouse, moveButton);
+			pcControlButtons.PushBack(RE::GFxValue{ moveButton.c_str() });
+
+			controlMap->GetButtonNameFromUserEvent(userEvents->zoomIn, RE::INPUT_DEVICE::kMouse, zoomInButton);
+			pcControlButtons.PushBack(RE::GFxValue{ zoomInButton.c_str() });
+
+			controlMap->GetButtonNameFromUserEvent(userEvents->zoomOut, RE::INPUT_DEVICE::kMouse, zoomOutButton);
+			pcControlButtons.PushBack(RE::GFxValue{ zoomOutButton.c_str() });
+
+			RE::GFxValue gamepadControlButtons;
+			localMap_->root.GetMember("gamepadControlButtons", &gamepadControlButtons);
+			gamepadControlButtons.ClearElements();
+
+			controlMap->GetButtonNameFromUserEvent(userEvents->togglePOV, RE::INPUT_DEVICE::kGamepad, controlButton);
+			gamepadControlButtons.PushBack(RE::GFxValue{ controlButton.c_str() });
+
+			controlMap->GetButtonNameFromUserEvent(userEvents->look, RE::INPUT_DEVICE::kGamepad, moveButton);
+			gamepadControlButtons.PushBack(RE::GFxValue{ moveButton.c_str() });
+
+			controlMap->GetButtonNameFromUserEvent(userEvents->zoomIn, RE::INPUT_DEVICE::kGamepad, zoomInButton);
+			gamepadControlButtons.PushBack(RE::GFxValue{ zoomInButton.c_str() });
+
+			controlMap->GetButtonNameFromUserEvent(userEvents->zoomOut, RE::INPUT_DEVICE::kGamepad, zoomOutButton);
+			gamepadControlButtons.PushBack(RE::GFxValue{ zoomOutButton.c_str() });
+
+			bool isGamepadEnabled = RE::BSInputDeviceManager::GetSingleton()->IsGamepadEnabled();
+
+			localMap_->root.Invoke("SetPlatform", std::array<RE::GFxValue, 2>{ isGamepadEnabled, false });
+		}
 	}
 }

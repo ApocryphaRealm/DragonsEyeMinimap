@@ -37,13 +37,12 @@ class Map.Display
 	private var markerToCenter:Object = new Object();
 	private var markerContainer:MovieClip;
 	private var shape:Number = SHAPE_SQUARED;
+	private var showEnemyMarkers:Boolean = true;
+	private var showHostileMarkers:Boolean = true;
+	private var showGuardMarkers:Boolean = true;
+	private var showDeadMarkers:Boolean = true;
 
 	private var markers:Array;
-
-	private var iPlatform:Number;
-
-	/* Test */
-	private var Test:TextField;
 
 	function Display(a_localMap:LocalMap)
 	{
@@ -59,8 +58,6 @@ class Map.Display
 
 		markerContainer = localMap.createEmptyMovieClip();
 		markers = new Array();
-
-		Test = localMap.Test;
 	}
 
 	public function SetShape(a_shape:Number):Void
@@ -75,8 +72,14 @@ class Map.Display
 	}
 
 	/* API */
-	public function CreateMarkers():Void
+	public function CreateMarkers(a_showEnemyMarkers:Boolean, a_showHostileMarkers:Boolean,
+								  a_showGuardMarkers:Boolean, a_showDeadMarkers:Boolean):Void
 	{
+		showEnemyMarkers = a_showEnemyMarkers;
+		showHostileMarkers = a_showHostileMarkers;
+		showGuardMarkers = a_showGuardMarkers;
+		showDeadMarkers = a_showDeadMarkers;
+
 		markerContainer.removeMovieClip();
 		markerContainer = localMap.createEmptyMovieClip("MarkerClips", 1);
 
@@ -134,7 +137,17 @@ class Map.Display
 		for (var j:Number = 0; j < dataLen; j = j + REFRESH_STRIDE)
 		{
 			var marker:MovieClip = markers[i];
+
 			marker._visible = MarkerData[j + REFRESH_SHOW];
+
+			if ((marker.Type == "EnemyMarker"   && !showEnemyMarkers) ||
+				(marker.Type == "HostileMarker" && !showHostileMarkers) ||
+				(marker.Type == "GuardMarker"   && !showGuardMarkers) ||
+				(marker.Type == "DeadMarker"    && !showDeadMarkers))
+			{
+				marker._visible = false;
+			}
+
 			if (marker._visible)
 			{
 				marker._x = MarkerData[j + REFRESH_X] * mapWidth;

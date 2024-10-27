@@ -21,7 +21,16 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 		}
 		else
 		{
-			logger::error("Infinity UI installation not detected. Please, go to ... to get it");
+			SKSE::stl::report_and_fail
+			(
+				std::format
+				(
+					"\n\n"
+					"\"Infinity UI\" installation not detected.\n\n"
+					"Please, download it from:\n"
+					"www.nexusmods.com/skyrimspecialedition/mods/74483"
+				)
+			);
 		}
 
 		if (SKSE::GetMessagingInterface()->RegisterListener("LocalMapUpgrade", LocalMapUpgradeMessageListener)) 
@@ -30,60 +39,17 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 		}
 		else
 		{
-			logger::error("Infinity UI installation not detected. Please, go to ... to get it");
+			SKSE::stl::report_and_fail
+			(
+				std::format
+				(
+					"\n\n"
+					"\"Local Map Upgrade\" installation not detected.\n\n"
+					"Please, download it from:\n"
+					"www.nexusmods.com/skyrimspecialedition/mods/129756"
+				)
+			);
 		}
-	}
-}
-
-template <logger::level logLevel = logger::level::debug>
-void LogMapMembers(const IUI::API::Message* a_msg)
-{
-	RE::GFxValue value;
-	logger::at_level(logLevel, "{}", "Logging _level0...");
-	if (!a_msg->movie->GetVariable(&value, "_level0"))
-	{
-		logger::error("Could not get _level0");
-	}
-	else
-	{
-		IUI::GFxMemberLogger<logLevel> memberLogger;
-
-		memberLogger.LogMembersOf(value);
-	}
-	logger::at_level(logLevel, "{}", "Logging HUDMovieBaseInstance...");
-	if (!a_msg->movie->GetVariable(&value, "HUDMovieBaseInstance"))
-	{
-		logger::error("Could not get HUDMovieBaseInstance");
-	}
-	else
-	{
-		IUI::GFxMemberLogger<logLevel> memberLogger;
-
-		memberLogger.LogMembersOf(value);
-	}
-
-	logger::at_level(logLevel, "{}", "Logging HUDMovieBaseInstance.Minimap...");
-	if (!a_msg->movie->GetVariable(&value, DEM::Minimap::path.data()))
-	{
-		logger::error("Could not get HUDMovieBaseInstance.Minimap");
-	}
-	else
-	{
-		IUI::GFxMemberLogger<logLevel> memberLogger;
-
-		memberLogger.LogMembersOf(value);
-	}
-
-	logger::at_level(logLevel, "{}", "Logging HUDMovieBaseInstance.HudElements...");
-	if (!a_msg->movie->GetVariable(&value, "HUDMovieBaseInstance.HudElements"))
-	{
-		logger::error("Could not get HUDMovieBaseInstance.HudElements");
-	}
-	else
-	{
-		IUI::GFxArrayLogger<logLevel> arrayLogger;
-
-		arrayLogger.LogElementsOf(value);
 	}
 }
 
@@ -129,21 +95,28 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 				}
 				break;
 			}
-		case API::Message::Type::kAbortPatchInstance:
-			{
-				if (auto msg = API::TranslateAs<API::AbortPatchInstanceMessage>(a_msg))
-				{
-					std::string pathToOriginal = msg->originalValue.ToString().c_str();
-				}
-				break;
-			}
 		case API::Message::Type::kFinishLoadInstances:
 			{
 				if (auto msg = API::TranslateAs<API::FinishLoadInstancesMessage>(a_msg))
 				{
-					auto hudMenu = static_cast<RE::HUDMenu*>(msg->menu);
+					if (auto minimap = DEM::Minimap::GetSingleton())
+					{
+						auto hudMenu = static_cast<RE::HUDMenu*>(msg->menu);
 
-					hudMenu->GetRuntimeData().objects.push_back(DEM::Minimap::GetSingleton());
+						hudMenu->GetRuntimeData().objects.push_back(minimap);
+					}
+					else
+					{
+						SKSE::stl::report_and_fail
+						(
+							std::format
+							(
+								"\n\n"
+								"\"Data\\Interface\\InfinityUI\\HUDMenu\\HUDMovieBaseInstance\\Minimap.swf\" not found.\n"
+								"Please, check your installation files."
+							)
+						);
+					}
 				}
 				logger::info("Finished loading HUD patches");
 				break;

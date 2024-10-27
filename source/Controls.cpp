@@ -15,14 +15,13 @@ namespace DEM
 
 	bool Minimap::InputHandler::ProcessThumbstick(RE::ThumbstickEvent* a_event)
 	{
-		auto controlMap = RE::ControlMap::GetSingleton();
-		auto userEvents = RE::UserEvents::GetSingleton();
-
-		std::string_view gameplayUserEventName = controlMap->GetUserEventName(a_event->GetIDCode(), RE::INPUT_DEVICE::kGamepad, RE::ControlMap::InputContextID::kGameplay);
-		std::string_view userEventName = controlMap->GetUserEventName(a_event->GetIDCode(), RE::INPUT_DEVICE::kGamepad, RE::ControlMap::InputContextID::kMap);
-
 		if (miniMap->inputControlledMode)
 		{
+			auto controlMap = RE::ControlMap::GetSingleton();
+			auto userEvents = RE::UserEvents::GetSingleton();
+
+			std::string_view userEventName = controlMap->GetUserEventName(a_event->GetIDCode(), RE::INPUT_DEVICE::kGamepad, RE::ControlMap::InputContextID::kMap);
+
 			if (userEventName == userEvents->look)
 			{
 				float xOffset = 2 * a_event->xValue * std::abs(a_event->xValue) * miniMap->localMapGamepadPanSpeed;
@@ -212,17 +211,11 @@ namespace DEM
 
 	void Minimap::FoldControls()
 	{
-		RE::GFxValue controls;
-		localMap_->root.GetMember("Controls", &controls);
-
-		controls.GotoAndStop("Folded");
+		localMap_->root.Invoke("FoldControls");
 	}
 
 	void Minimap::UnfoldControls()
 	{
-		RE::GFxValue controls;
-		localMap_->root.GetMember("Controls", &controls);
-
-		controls.GotoAndStop("Unfolded");
+		localMap_->root.Invoke("UnfoldControls");
 	}
 }
