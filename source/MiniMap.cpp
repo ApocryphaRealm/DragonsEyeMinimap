@@ -11,6 +11,11 @@ namespace DEM
 			InitLocalMap();
 		}
 
+		if (localMap && !inputHandler->registered)
+		{
+			RE::MenuControls::GetSingleton()->AddHandler(inputHandler.get());
+		}
+
 		return false;
 	}
 
@@ -32,9 +37,8 @@ namespace DEM
 			cullingProcess = &localMap->localCullingProcess;
 			cameraContext = cullingProcess->GetLocalMapCamera();
 
-			// Init custom controls ///////////////////////////////////////////////////////////////////
+			// Remove vanilla local map input controller
 			RE::MenuControls::GetSingleton()->RemoveHandler(localMap_->inputHandler.get());
-			RE::MenuControls::GetSingleton()->AddHandler(inputHandler.get());
 
 			// Set init state /////////////////////////////////////////////////////////////////////////
 			localMap_->usingCursor = 0;
@@ -183,7 +187,7 @@ namespace DEM
 				cameraContext->defaultState->initialPosition.x = playerPos.x;
 				cameraContext->defaultState->initialPosition.y = playerPos.y;
 
-				if (!inputControlledMode)
+				if (!inputHandler->IsControllingMinimap())
 				{
 					cameraContext->defaultState->translation = RE::NiPoint3::Zero();
 				}
@@ -234,7 +238,7 @@ namespace DEM
 			localMap_->root.GetMember("gamepadControlButtons", &gamepadControlButtons);
 			gamepadControlButtons.ClearElements();
 
-			controlMap->GetButtonNameFromUserEvent(userEvents->togglePOV, RE::INPUT_DEVICE::kGamepad, controlButton);
+			controlMap->GetButtonNameFromUserEvent(userEvents->wait, RE::INPUT_DEVICE::kGamepad, controlButton);
 			gamepadControlButtons.PushBack(RE::GFxValue{ controlButton.c_str() });
 
 			controlMap->GetButtonNameFromUserEvent(userEvents->look, RE::INPUT_DEVICE::kGamepad, moveButton);

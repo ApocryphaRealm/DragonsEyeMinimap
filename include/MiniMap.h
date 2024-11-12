@@ -54,7 +54,7 @@ namespace DEM
 		class InputHandler : public RE::MenuEventHandler
 		{
 		public:
-			InputHandler(Minimap* a_miniMap) 
+			InputHandler(Minimap* a_miniMap)
 			: miniMap{ a_miniMap }
 			{}
 
@@ -69,10 +69,26 @@ namespace DEM
 			bool ProcessKeyboardOrMouseButton(RE::ButtonEvent* a_butonEvent);
 			bool ProcessGamepadButton(RE::ButtonEvent* a_buttonEvent);
 
-			Minimap* miniMap;
-		};
+			bool IsControllingMinimap() const { return isControllingMinimap; }
 
-		friend class InputHandler;
+			void StartControllingMinimap();
+			void StopControllingMinimap();
+
+		private:
+			Minimap* miniMap;
+
+			bool isControllingMinimap = false;
+
+			RE::MenuControls* menuControls = RE::MenuControls::GetSingleton();
+			RE::ControlMap* controlMap = RE::ControlMap::GetSingleton();
+			RE::BSInputDeviceManager* inputDeviceManager = RE::BSInputDeviceManager::GetSingleton();
+			RE::UserEvents* userEvents = RE::UserEvents::GetSingleton();
+
+			const float& localMapMousePanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMousePanSpeed:MapMenu")->data.f;
+			const float& localMapGamepadPanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadPanSpeed:MapMenu")->data.f;
+			const float& localMapMouseZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMouseZoomSpeed:MapMenu")->data.f;
+			const float& localMapGamepadZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadZoomSpeed:MapMenu")->data.f;
+		};
 
 		static constexpr inline std::string_view path = "_level0.HUDMovieBaseInstance.Minimap";
 
@@ -92,6 +108,13 @@ namespace DEM
 
 		static Minimap* GetSingleton() { return singleton; }
 
+		void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs);
+
+		void Advance();
+		void PreRender();
+		void RefreshPlatform();
+
+		// Controls
 		bool IsVisible() const
 		{
 			RE::GFxValue::DisplayInfo displayInfo;
@@ -117,13 +140,21 @@ namespace DEM
 			localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ false });
 		}
 
-		void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs);
+		void FoldControls();
+		void UnfoldControls();
 
-		void Advance();
-		void PreRender();
+		void ModTranslation(float a_xOffset, float a_yOffset, float a_zOffset = 0.0F)
+		{
+			RE::NiPoint3 translationOffset = cameraContext->cameraRoot->local.rotate * RE::NiPoint3{ a_zOffset, a_yOffset, a_xOffset };
+			cameraContext->defaultState->translation += translationOffset;
+		}
 
-		void RefreshPlatform();
+		void ModZoom(float a_zoomMod)
+		{
+			cameraContext->zoomInput += a_zoomMod;
+		}
 
+		// Local Map Upgrade interface
 		static inline void (*PostCreateMarkers)(RE::GFxValue& a_iconDisplay);
 		static inline void (*SetPixelShaderProperties)(LMU::PixelShaderProperty::Shape a_shape, LMU::PixelShaderProperty::Style a_style);
 		static inline void (*GetPixelShaderProperties)(LMU::PixelShaderProperty::Shape& a_shape, LMU::PixelShaderProperty::Style& a_style);
@@ -153,10 +184,6 @@ namespace DEM
 		void CullTerrain(const RE::GridCellArray* a_gridCells, RE::LocalMapMenu::LocalMapCullingProcess::UnkData& a_unkData,
 						 const RE::TESObjectCELL* a_cell);
 
-		// Controls
-		void FoldControls();
-		void UnfoldControls();
-
 		static inline Minimap* singleton = nullptr;
 
 		// members
@@ -174,16 +201,11 @@ namespace DEM
 		float minCamFrustumHalfHeight = 0.0F;
 
 		RE::BSTSmartPointer<InputHandler> inputHandler = RE::make_smart<InputHandler>(this);
-		bool inputControlledMode = false;
 
 		bool isCameraUpdatePending = true;
 
 		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
 		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;
-		const float& localMapMousePanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMousePanSpeed:MapMenu")->data.f;
-		const float& localMapGamepadPanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadPanSpeed:MapMenu")->data.f;
-		const float& localMapMouseZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMouseZoomSpeed:MapMenu")->data.f;
-		const float& localMapGamepadZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadZoomSpeed:MapMenu")->data.f;
 
 		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 189820) }.get();
 		const bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ REL::VariantID{ 501260, 359696, 0x1E70DFC } }.get();
