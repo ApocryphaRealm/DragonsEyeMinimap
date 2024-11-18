@@ -2,6 +2,40 @@
 
 #include <numbers>
 
+namespace RE
+{
+	bool ControlMap__GetButtonNameFromUserEvent(ControlMap* a_this, const BSFixedString& a_eventID, INPUT_DEVICE a_device, ControlMap::InputContextID a_context, BSFixedString& a_buttonName)
+	{
+		if (auto gamepad = BSInputDeviceManager::GetSingleton()->GetGamepad())
+		{
+			if (const auto& inputContext = a_this->controlMap[a_context])
+			{
+				for (const auto& mapping : inputContext->deviceMappings[a_device])
+				{
+					if (mapping.eventID == a_eventID)
+					{
+						if (mapping.inputKey == 0xFF)
+						{
+							break;
+						}
+
+						for (auto& deviceButton : gamepad->buttonNameIDMap)
+						{
+							if (mapping.inputKey == static_cast<uint16_t>(deviceButton.second))
+							{
+								a_buttonName = deviceButton.first;
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+}
+
 namespace DEM
 {
 	bool Minimap::ProcessMessage(RE::UIMessage* a_message)
@@ -237,8 +271,8 @@ namespace DEM
 			RE::GFxValue gamepadControlButtons;
 			localMap_->root.GetMember("gamepadControlButtons", &gamepadControlButtons);
 			gamepadControlButtons.ClearElements();
-
-			controlMap->GetButtonNameFromUserEvent(userEvents->wait, RE::INPUT_DEVICE::kGamepad, controlButton);
+			
+			ControlMap__GetButtonNameFromUserEvent(controlMap, userEvents->wait, RE::INPUT_DEVICE::kGamepad, RE::ControlMap::InputContextID::kGameplay, controlButton);
 			gamepadControlButtons.PushBack(RE::GFxValue{ controlButton.c_str() });
 
 			controlMap->GetButtonNameFromUserEvent(userEvents->look, RE::INPUT_DEVICE::kGamepad, moveButton);
