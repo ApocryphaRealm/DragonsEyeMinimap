@@ -179,7 +179,7 @@ namespace DEM
 		void InitLocalMap();
 
 		void UpdateFogOfWar();
-		void RenderOffscreen();
+		void RenderOffScreen();
 		void ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object);
 		void CullTerrain(const RE::GridCellArray* a_gridCells, RE::LocalMapMenu::LocalMapCullingProcess::UnkData& a_unkData,
 						 const RE::TESObjectCELL* a_cell);
@@ -190,7 +190,6 @@ namespace DEM
 		IUI::GFxDisplayObject displayObj;
 
 		Shape shape = static_cast<Shape>(settings::display::shape);
-		Style style = settings::display::color ? Style::kColor : Style::kBlackNWhite;
 
 		RE::LocalMapMenu* localMap = nullptr;
 		RE::LocalMapMenu::RUNTIME_DATA* localMap_ = nullptr;
@@ -209,5 +208,11 @@ namespace DEM
 
 		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 189820) }.get();
 		const bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ REL::VariantID{ 501260, 359696, 0x1E70DFC } }.get();
+
+		bool& useMapBrightnessAndContrastBoost = *REL::Relocation<bool*>{ RELOCATION_ID(528107, 415052) }.get();
+		bool& nodeFadeEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(513141, 390865) }.get();
+		bool& nodeDrawFadeEnabled = *REL::Relocation<bool*>{ RELOCATION_ID(513142, 390866) }.get();
+		std::uint32_t& dword_1431D0D8C = *REL::Relocation<std::uint32_t*>{ RELOCATION_ID(527629, 414558) }.get();
+		bool& byte_1431D1D30 = *REL::Relocation<bool*>{ RELOCATION_ID(527793, 414746) }.get();
 	};
 }

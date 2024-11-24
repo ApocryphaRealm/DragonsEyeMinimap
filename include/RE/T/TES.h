@@ -9,6 +9,7 @@
 #include "RE/M/MaterialIDs.h"
 #include "RE/N/NiPoint3.h"
 #include "RE/N/NiSmartPointer.h"
+#include "RE/V/Visibility.h"
 #include "SKSE/Version.h"
 
 namespace RE
@@ -78,6 +79,12 @@ namespace RE
 		float GetWaterHeight(const NiPoint3& a_pos, TESObjectCELL* a_cell) const;
 		NiAVObject* Pick(bhkPickData& a_pickData);
 		void PurgeBufferedCells();
+		void SetVisibility(VISIBILITY a_visibility, bool a_isVisible, bool a_unk00)
+		{
+			using func_t = decltype(&TES::SetVisibility);
+			REL::Relocation<func_t> func{ RELOCATION_ID(13197, 13343) };
+			return func(this, a_visibility, a_isVisible, a_unk00);
+		}
 
 		struct RUNTIME_DATA
 		{

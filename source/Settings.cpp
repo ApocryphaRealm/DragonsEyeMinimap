@@ -22,12 +22,7 @@ namespace settings
 				MakeSetting("fPositionX:Display", positionX),
 				MakeSetting("fPositionY:Display", positionY),
 				MakeSetting("fScale:Display", scale),
-				MakeSetting("uShape:Display", shape),
-				MakeSetting("bColor:Display", color),
-				MakeSetting("bShowEnemyActors:Display", showEnemyActors),
-				MakeSetting("bShowHostileActors:Display", showHostileActors),
-				MakeSetting("bShowGuardActors:Display", showGuardActors),
-				MakeSetting("bShowDeadActors:Display", showDeadActors)
+				MakeSetting("uShape:Display", shape)
 			);
 		}
 
@@ -55,11 +50,6 @@ namespace settings
 			positionY = iniSettingCollection->GetSetting<float>("fPositionY:Display");
 			scale = iniSettingCollection->GetSetting<float>("fScale:Display");
 			shape = iniSettingCollection->GetSetting<std::uint32_t>("uShape:Display");
-			color = iniSettingCollection->GetSetting<bool>("bColor:Display");
-			showEnemyActors = iniSettingCollection->GetSetting<bool>("bShowEnemyActors:Display");
-			showHostileActors = iniSettingCollection->GetSetting<bool>("bShowHostileActors:Display");
-			showGuardActors = iniSettingCollection->GetSetting<bool>("bShowGuardActors:Display");
-			showDeadActors = iniSettingCollection->GetSetting<bool>("bShowDeadActors:Display");
 		}
 
 		{

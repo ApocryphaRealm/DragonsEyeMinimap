@@ -116,15 +116,17 @@ namespace DEM
 		}
 	}
 
-	void Minimap::RenderOffscreen()
+	void Minimap::RenderOffScreen()
 	{
 		LMU::PixelShaderProperty::Shape prevShaderShape;
-		LMU::PixelShaderProperty::Style prevShaderStyle;
+		LMU::PixelShaderProperty::Style shaderStyle;
 
-		GetPixelShaderProperties(prevShaderShape, prevShaderStyle);
-		SetPixelShaderProperties(shape, style);
+		GetPixelShaderProperties(prevShaderShape, shaderStyle);
+		SetPixelShaderProperties(shape, shaderStyle);
 
 		// 1. Setup culling step ///////////////////////////////////////////////////////////////////////////////////////////
+
+		useMapBrightnessAndContrastBoost = true;
 
 		RE::ShadowSceneNode* mainShadowSceneNode = RE::ShadowSceneNode::GetMain();
 
@@ -141,6 +143,12 @@ namespace DEM
 		bool areLODsHidden = objectLODRoot->GetFlags().any(RE::NiAVObject::Flag::kHidden);
 		objectLODRoot->GetFlags().reset(RE::NiAVObject::Flag::kHidden);
 
+		bool isByte_1431D1D30 = byte_1431D1D30;
+		bool isNodeFadeEnabled = nodeFadeEnabled;
+		byte_1431D1D30 = true;
+		nodeDrawFadeEnabled = nodeFadeEnabled = false;
+		dword_1431D0D8C = 0;
+
 		RE::BSGraphics::Renderer* renderer = RE::BSGraphics::Renderer::GetSingleton();
 		renderer->SetClearColor(0.0F, 0.0F, 0.0F, 1.0F);
 
@@ -156,7 +164,8 @@ namespace DEM
 		else 
 		{
 			unkData.unk8 = true;
-		}		
+		}
+
 
 		// 2. Culling step /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -187,8 +196,6 @@ namespace DEM
 
         cullJobDesc.camera = camera;
 
-		// This piece of code causes CTD to Nolvus pack user (no idea why, but it does not seem to have effect anyways)
-#if ENABLE_NOLVUS_PACK_CTD_CAUSE_CODE
         RE::BSPortalGraphEntry* portalGraphEntry = RE::Main__GetPortalGraphEntry(RE::Main::GetSingleton());
 		
         if (portalGraphEntry)
@@ -200,7 +207,6 @@ namespace DEM
 				cullJobDesc.Cull(1, 0);
             }
         }
-#endif
 
         if (mainShadowSceneChildren.capacity() > 9)
         {
@@ -283,10 +289,15 @@ namespace DEM
 		}
 
 		mainShadowSceneNode->GetRuntimeData().disableLightUpdate = isLightUpdateDisabled;
+		byte_1431D1D30 = isByte_1431D1D30;
+		nodeDrawFadeEnabled = nodeFadeEnabled = isNodeFadeEnabled;
+		dword_1431D0D8C = 0;
 
         shaderAccumulator->ClearActiveRenderPasses(false);
 
-		SetPixelShaderProperties(prevShaderShape, prevShaderStyle);
+		useMapBrightnessAndContrastBoost = false;
+
+		SetPixelShaderProperties(prevShaderShape, shaderStyle);
 	}
 
 	// Terrain render passes can be allocated multiple times but only cleared once per frame.

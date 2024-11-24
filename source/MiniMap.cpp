@@ -173,8 +173,7 @@ namespace DEM
 
 			localMap->PopulateData();
 
-			localMap_->iconDisplay.Invoke("CreateMarkers", std::array<RE::GFxValue, 4>{ settings::display::showEnemyActors, settings::display::showHostileActors,
-																						settings::display::showGuardActors, settings::display::showDeadActors });
+			localMap_->iconDisplay.Invoke("CreateMarkers");
 			PostCreateMarkers(localMap_->iconDisplay);
 			localMap->RefreshMarkers();
 
@@ -236,7 +235,7 @@ namespace DEM
 				UpdateFogOfWar();
 			}
 
-			RenderOffscreen();
+			RenderOffScreen();
 		}
 	}
 

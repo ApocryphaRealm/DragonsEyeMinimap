@@ -23,11 +23,6 @@ namespace settings
 		inline float positionY = 0.2F;
 		inline float scale = 1.0F;
 		inline std::uint32_t shape = 0;
-		inline bool color = true;
-		inline bool showEnemyActors = true;
-		inline bool showHostileActors = true;
-		inline bool showGuardActors = true;
-		inline bool showDeadActors = true;
 	}
 
 	namespace controls
