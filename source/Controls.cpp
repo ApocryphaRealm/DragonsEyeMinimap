@@ -124,6 +124,8 @@ namespace DEM
 						StopControllingMinimap();
 						miniMap->FoldControls();
 					}
+
+					miniMap->HideControls(0.5F);
 				}
 			}
 		}
@@ -187,6 +189,8 @@ namespace DEM
 						StopControllingMinimap();
 						miniMap->FoldControls();
 					}
+
+					miniMap->HideControls(0.5F);
 				}
 			}
 		}
@@ -212,6 +216,8 @@ namespace DEM
 	{
 		isControllingMinimap = true;
 
+		miniMap->ShowControls();
+
 		controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, false);
 		controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, false);
 
@@ -225,6 +231,8 @@ namespace DEM
 	{
 		isControllingMinimap = false;
 
+		miniMap->HideControls(0.3F);
+
 		controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, true);
 		controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, true);
 
@@ -232,6 +240,29 @@ namespace DEM
 		{
 			controlMap->ToggleControls(RE::ControlMap::UEFlag::kFighting, true);
 		}
+	}
+
+	void Minimap::Show()
+	{
+		localMap_->inForeground = localMap_->enabled = true;
+		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ true });
+		ShowControls();
+	}
+
+	void Minimap::Hide()
+	{
+		localMap_->inForeground = localMap_->enabled = false;
+		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ false });
+	}
+
+	void Minimap::ShowControls()
+	{
+		localMap_->root.Invoke("ShowControls");
+	}
+
+	void Minimap::HideControls(float a_delaySecs)
+	{
+		localMap_->root.Invoke("HideControls", std::array<RE::GFxValue, 1>{ a_delaySecs });
 	}
 
 	void Minimap::FoldControls()

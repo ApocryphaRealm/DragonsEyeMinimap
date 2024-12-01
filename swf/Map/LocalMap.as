@@ -29,6 +29,7 @@ class Map.LocalMap extends MovieClip
 	private var mapTextureLoader:MovieClipLoader;
 	private var isShown:Boolean;
 	private var controlButtons:Array;
+	private var startTimeToFade:Number = 0;
 
 	function LocalMap()
 	{
@@ -104,19 +105,44 @@ class Map.LocalMap extends MovieClip
 	}
 
 	/* API */
+	public function ShowControls():Void
+	{
+		Controls.gotoAndStop("show");
+	}
+
+	/* API */
+	public function HideControls(a_delaySeconds:Number):Void
+	{
+		if (Controls._currentframe == 1)
+		{
+			startTimeToFade = getTimer();
+			onEnterFrame = function():Void
+			{
+				var elapsedTimeToFade:Number = getTimer();
+
+				if ((elapsedTimeToFade - startTimeToFade) >= a_delaySeconds * 1000)
+				{
+					 Controls.gotoAndPlay("fadeOut");
+					onEnterFrame = undefined;
+				}
+			}
+		}
+	}
+
+	/* API */
 	public function FoldControls():Void
 	{
-		Controls.gotoAndStop("Folded"); // Detaches control button movieclips automatically
-		Controls.ControlButtonHolder.attachMovie(controlButtons[0], "controlButton", getNextHighestDepth());
+		Controls.Buttons.gotoAndStop("folded"); // Detaches control button movieclips automatically
+		Controls.Buttons.ControlButtonHolder.attachMovie(controlButtons[0], "controlButton", getNextHighestDepth());
 	}
 
 	/* API */
 	public function UnfoldControls():Void
 	{
-		Controls.gotoAndStop("Unfolded");  // Detaches control button movieclip automatically
-		Controls.MoveButtonHolder.attachMovie(controlButtons[1], "moveButton", getNextHighestDepth());
-		Controls.ZoomInButtonHolder.attachMovie(controlButtons[2], "zoomInButton", getNextHighestDepth());
-		Controls.ZoomOutButtonHolder.attachMovie(controlButtons[3], "zoomOutButton", getNextHighestDepth());
+		Controls.Buttons.gotoAndStop("unfolded");  // Detaches control button movieclip automatically
+		Controls.Buttons.MoveButtonHolder.attachMovie(controlButtons[1], "moveButton", getNextHighestDepth());
+		Controls.Buttons.ZoomInButtonHolder.attachMovie(controlButtons[2], "zoomInButton", getNextHighestDepth());
+		Controls.Buttons.ZoomOutButtonHolder.attachMovie(controlButtons[3], "zoomOutButton", getNextHighestDepth());
 	}
 
 	/* API */

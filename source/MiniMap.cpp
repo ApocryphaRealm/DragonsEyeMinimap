@@ -98,6 +98,7 @@ namespace DEM
 			RefreshPlatform();
 
 			Show();
+			HideControls(3.0F);
 		}
 	}
 
@@ -286,6 +287,9 @@ namespace DEM
 			bool isGamepadEnabled = RE::BSInputDeviceManager::GetSingleton()->IsGamepadEnabled();
 
 			localMap_->root.Invoke("SetPlatform", std::array<RE::GFxValue, 2>{ isGamepadEnabled, false });
+
+			ShowControls();
+			HideControls(0.7F);
 		}
 	}
 }

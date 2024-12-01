@@ -128,18 +128,11 @@ namespace DEM
 			return localMap && localMap_->enabled;
 		}
 
-		void Show()
-		{
-			localMap_->inForeground = localMap_->enabled = true;
-			localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ true });
-		}
+		void Show();
+		void Hide();
 
-		void Hide()
-		{
-			localMap_->inForeground = localMap_->enabled = false;
-			localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ false });
-		}
-
+		void ShowControls();
+		void HideControls(float a_delaySecs);
 		void FoldControls();
 		void UnfoldControls();
 
