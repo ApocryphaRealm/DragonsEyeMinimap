@@ -97,8 +97,15 @@ namespace DEM
 
 			RefreshPlatform();
 
-			Show();
-			HideControls(3.0F);
+			if (settings::display::showOnGameStart)
+			{
+				Show();
+				HideControlsAfter(settings::controls::delayToHideControlsSecs > 3.0F ? settings::controls::delayToHideControlsSecs : 3.0F);
+			}
+			else
+			{
+				Hide();
+			}
 		}
 	}
 
@@ -288,8 +295,9 @@ namespace DEM
 
 			localMap_->root.Invoke("SetPlatform", std::array<RE::GFxValue, 2>{ isGamepadEnabled, false });
 
+			FoldControls();
 			ShowControls();
-			HideControls(0.7F);
+			HideControlsAfter(settings::controls::delayToHideControlsSecs < 1.5F ? 1.5F : settings::controls::delayToHideControlsSecs);
 		}
 	}
 }

@@ -1,10 +1,22 @@
 #include "Minimap.h"
 
+#include "utils/INISettingCollection.h"
+
+namespace RE
+{
+	bool UI__IsInMenuMode()
+	{
+		using func_t = decltype(&UI__IsInMenuMode);
+		REL::Relocation<func_t> func{ RELOCATION_ID(56476, 56833) };
+		return func();
+	}
+}
+
 namespace DEM
 {
 	bool Minimap::InputHandler::CanProcess(RE::InputEvent* a_event)
 	{
-		if (RE::UI::GetSingleton()->GameIsPaused() || !miniMap->IsVisible())
+		if (RE::UI__IsInMenuMode() || !miniMap->IsVisible())
 		{
 			if (isControllingMinimap)
 			{
@@ -125,7 +137,7 @@ namespace DEM
 						miniMap->FoldControls();
 					}
 
-					miniMap->HideControls(0.5F);
+					miniMap->HideControlsAfter(settings::controls::delayToHideControlsSecs);
 				}
 			}
 		}
@@ -190,7 +202,7 @@ namespace DEM
 						miniMap->FoldControls();
 					}
 
-					miniMap->HideControls(0.5F);
+					miniMap->HideControlsAfter(settings::controls::delayToHideControlsSecs);
 				}
 			}
 		}
@@ -231,7 +243,7 @@ namespace DEM
 	{
 		isControllingMinimap = false;
 
-		miniMap->HideControls(0.3F);
+		miniMap->HideControlsAfter(settings::controls::delayToHideControlsSecs);
 
 		controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, true);
 		controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, true);
@@ -244,6 +256,15 @@ namespace DEM
 
 	void Minimap::Show()
 	{
+		settings::display::showOnGameStart = true;
+
+		auto iniSettingCollection = utils::INISettingCollection::GetSingleton();
+		if (auto showOnGameStart = iniSettingCollection->GetSetting("bShowOnGameStart:Display"))
+		{
+			showOnGameStart->data.b = settings::display::showOnGameStart;
+			iniSettingCollection->WriteSetting(showOnGameStart);
+		}
+
 		localMap_->inForeground = localMap_->enabled = true;
 		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ true });
 		ShowControls();
@@ -251,6 +272,15 @@ namespace DEM
 
 	void Minimap::Hide()
 	{
+		settings::display::showOnGameStart = false;
+
+		auto iniSettingCollection = utils::INISettingCollection::GetSingleton();
+		if (auto showOnGameStart = iniSettingCollection->GetSetting("bShowOnGameStart:Display"))
+		{
+			showOnGameStart->data.b = settings::display::showOnGameStart;
+			iniSettingCollection->WriteSetting(showOnGameStart);
+		}
+
 		localMap_->inForeground = localMap_->enabled = false;
 		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ false });
 	}
@@ -260,18 +290,18 @@ namespace DEM
 		localMap_->root.Invoke("ShowControls");
 	}
 
-	void Minimap::HideControls(float a_delaySecs)
+	void Minimap::HideControlsAfter(float a_delaySecs)
 	{
 		localMap_->root.Invoke("HideControls", std::array<RE::GFxValue, 1>{ a_delaySecs });
 	}
 
 	void Minimap::FoldControls()
 	{
-		localMap_->root.Invoke("FoldControls");
+		localMap_->root.Invoke("FoldControls", std::array<RE::GFxValue, 1>{ settings::display::controlHideTip });
 	}
 
 	void Minimap::UnfoldControls()
 	{
-		localMap_->root.Invoke("UnfoldControls");
+		localMap_->root.Invoke("UnfoldControls", std::array<RE::GFxValue, 2>{ settings::display::controlMoveTip, settings::display::controlZoomTip });
 	}
 }

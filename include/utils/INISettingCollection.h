@@ -80,8 +80,12 @@ namespace utils
 
 		virtual void InsertSetting(RE::Setting*) { throw(""); }	 // 01
 		virtual void RemoveSetting(RE::Setting*) { throw(""); }	 // 02
+
+	public:
 		virtual bool WriteSetting(RE::Setting*) { throw(""); }	 // 03
 		virtual bool ReadSetting(RE::Setting*) { throw(""); }	 // 04
+
+	private:
 		virtual bool OpenHandle(bool) { throw(""); }			 // 05
 		virtual bool CloseHandle() { throw(""); }				 // 06
 		virtual void Unk_07() { throw(""); }					 // 07

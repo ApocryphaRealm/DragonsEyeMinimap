@@ -22,7 +22,11 @@ namespace settings
 				MakeSetting("fPositionX:Display", positionX),
 				MakeSetting("fPositionY:Display", positionY),
 				MakeSetting("fScale:Display", scale),
-				MakeSetting("uShape:Display", shape)
+				MakeSetting("uShape:Display", shape),
+				MakeSetting("bShowOnGameStart:Display", showOnGameStart),
+				MakeSetting("sControlHideTip:Display", controlHideTip),
+				MakeSetting("sControlMoveTip:Display", controlMoveTip),
+				MakeSetting("sControlZoomTip:Display", controlZoomTip)
 			);
 		}
 
@@ -30,7 +34,8 @@ namespace settings
 			using namespace controls;
 			iniSettingCollection->AddSettings(
 				MakeSetting("bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation),
-				MakeSetting("fHoldDownToControlSecs:Controls", holdDownToControlSecs)
+				MakeSetting("fHoldDownToControlSecs:Controls", holdDownToControlSecs),
+				MakeSetting("fDelayToHideControlsSecs:Controls", delayToHideControlsSecs)
 			);
 		}
 
@@ -50,12 +55,17 @@ namespace settings
 			positionY = iniSettingCollection->GetSetting<float>("fPositionY:Display");
 			scale = iniSettingCollection->GetSetting<float>("fScale:Display");
 			shape = iniSettingCollection->GetSetting<std::uint32_t>("uShape:Display");
+			showOnGameStart = iniSettingCollection->GetSetting<bool>("bShowOnGameStart:Display");
+			controlHideTip = iniSettingCollection->GetSetting<const char*>("sControlHideTip:Display");
+			controlMoveTip = iniSettingCollection->GetSetting<const char*>("sControlMoveTip:Display");
+			controlZoomTip = iniSettingCollection->GetSetting<const char*>("sControlZoomTip:Display");
 		}
 
 		{
 			using namespace controls;
 			followPlayerCameraRotation = iniSettingCollection->GetSetting<bool>("bFollowPlayerCameraRotation:Controls");
 			holdDownToControlSecs = iniSettingCollection->GetSetting<float>("fHoldDownToControlSecs:Controls");
+			delayToHideControlsSecs = iniSettingCollection->GetSetting<float>("fDelayToHideControlsSecs:Controls");
 		}
 	}
 }

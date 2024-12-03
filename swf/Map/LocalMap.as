@@ -130,16 +130,19 @@ class Map.LocalMap extends MovieClip
 	}
 
 	/* API */
-	public function FoldControls():Void
+	public function FoldControls(a_controlHideTip:String):Void
 	{
 		Controls.Buttons.gotoAndStop("folded"); // Detaches control button movieclips automatically
+		Controls.Buttons.ControlHideTip.text = a_controlHideTip;
 		Controls.Buttons.ControlButtonHolder.attachMovie(controlButtons[0], "controlButton", getNextHighestDepth());
 	}
 
 	/* API */
-	public function UnfoldControls():Void
+	public function UnfoldControls(a_controlMoveTip:String, a_controlZoomTip:String):Void
 	{
 		Controls.Buttons.gotoAndStop("unfolded");  // Detaches control button movieclip automatically
+		Controls.Buttons.MoveTip.text = a_controlMoveTip;
+		Controls.Buttons.ZoomTip.text = a_controlZoomTip;
 		Controls.Buttons.MoveButtonHolder.attachMovie(controlButtons[1], "moveButton", getNextHighestDepth());
 		Controls.Buttons.ZoomInButtonHolder.attachMovie(controlButtons[2], "zoomInButton", getNextHighestDepth());
 		Controls.Buttons.ZoomOutButtonHolder.attachMovie(controlButtons[3], "zoomOutButton", getNextHighestDepth());

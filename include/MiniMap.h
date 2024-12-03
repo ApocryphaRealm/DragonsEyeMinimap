@@ -132,7 +132,7 @@ namespace DEM
 		void Hide();
 
 		void ShowControls();
-		void HideControls(float a_delaySecs);
+		void HideControlsAfter(float a_delaySecs);
 		void FoldControls();
 		void UnfoldControls();
 
