@@ -100,10 +100,7 @@ class Map.Display
 			{
 				YouAreHereMarker = marker.Icon;
 			}
-			marker.Index = i;
-			marker.label = MarkerData[j + CREATE_NAME];
-			marker.textField._visible = false;
-			marker.visible = false;
+
 			marker.Type = markerType;
 
 			if (MarkerData[j + CREATE_UNDISCOVERED] && marker.IconClip != undefined)

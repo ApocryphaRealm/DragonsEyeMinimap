@@ -5,10 +5,14 @@
 
 void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg);
 
+const SKSE::LoadInterface* skse;
+
 SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 {
 	// Workaround for static initialization order bug of CommonLibSSE-NG
 	REL::Module::reset();
+
+	skse = a_skse;
 
 	const SKSE::PluginDeclaration* plugin = SKSE::PluginDeclaration::GetSingleton();
 

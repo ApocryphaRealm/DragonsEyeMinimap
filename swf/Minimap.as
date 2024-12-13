@@ -4,6 +4,8 @@ var Swimming:Boolean;
 var HorseMode:Boolean;
 var WarHorseMode:Boolean;
 
+var updateScaleform:Boolean = true;
+
 function Minimap(a_positionX:Number, a_positionY:Number):Void
 {
 	var positionX0 = Stage.width * a_positionX;
@@ -41,4 +43,6 @@ function onEnterFrame():Void
 	}
 
 	hudElements.push(this);
+
+	updateScaleform = true;
 }

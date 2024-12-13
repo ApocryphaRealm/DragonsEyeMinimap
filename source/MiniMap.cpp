@@ -136,80 +136,86 @@ namespace DEM
 	{
 		if (IsVisible() && IsShown())
 		{
-			std::array<RE::GFxValue, 2> title;
+			RE::GFxValue updateScaleform = displayObj.GetMember("updateScaleform");
 
-			RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
-			float playerCameraRotation = RE::PlayerCamera::GetSingleton()->GetRuntimeData2().yaw;
-
-			float cellNorthRotation = 0.0F;
-
-			if (RE::TESObjectCELL* parentCell = player->parentCell)
+			if (updateScaleform.GetBool())
 			{
-				cellNorthRotation = -parentCell->GetNorthRotation();
+				updateScaleform.SetBoolean(false);
 
-				if (settings::controls::followPlayerCameraRotation)
-				{
-					cameraContext->SetNorthRotation(playerCameraRotation);
-				}
-				else
-				{
-					cameraContext->SetNorthRotation(cellNorthRotation);
-				}
-				cameraContext->zRotation = 0.0F;
+				std::array<RE::GFxValue, 2> title;
 
-				if (parentCell->IsInteriorCell())
-				{
-					title[0] = parentCell->GetFullName();
-				}
-				else if (RE::BGSLocation* location = parentCell->GetLocation())
-				{
-					title[0] = location->GetFullName();
+				RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+				float playerCameraRotation = RE::PlayerCamera::GetSingleton()->GetRuntimeData2().yaw;
 
-					if (location->everCleared)
+				float cellNorthRotation = 0.0F;
+
+				if (RE::TESObjectCELL* parentCell = player->parentCell)
+				{
+					cellNorthRotation = -parentCell->GetNorthRotation();
+
+					if (settings::controls::followPlayerCameraRotation)
 					{
-						title[1] = clearedStr;
+						cameraContext->SetNorthRotation(playerCameraRotation);
+					}
+					else
+					{
+						cameraContext->SetNorthRotation(cellNorthRotation);
+					}
+					cameraContext->zRotation = 0.0F;
+
+					if (parentCell->IsInteriorCell())
+					{
+						title[0] = parentCell->GetFullName();
+					}
+					else if (RE::BGSLocation* location = parentCell->GetLocation())
+					{
+						title[0] = location->GetFullName();
+					
+						if (location->everCleared)
+						{
+							title[1] = clearedStr;
+						}
+					}
+					else
+					{
+						RE::TESWorldSpace* worldSpace = player->GetWorldspace();
+						title[0] = worldSpace->GetFullName();
 					}
 				}
+
+				localMap_->root.Invoke("SetTitle", nullptr, title);
+				
+				localMap->PopulateData();
+				localMap_->iconDisplay.Invoke("CreateMarkers");
+				localMap->RefreshMarkers();
+				
+				if (settings::controls::followPlayerCameraRotation)
+				{
+					RE::GFxValue youAreHereMarker;
+					localMap_->iconDisplay.GetMember("YouAreHereMarker", &youAreHereMarker);
+				
+					float playerToCamAngle = player->GetAngleZ() - playerCameraRotation;
+					float playerToCamAngleDeg = playerToCamAngle * 180 * std::numbers::inv_pi;
+				
+					RE::GFxValue::DisplayInfo youAreHereMarkerDisplayInfo;
+					youAreHereMarker.GetDisplayInfo(&youAreHereMarkerDisplayInfo);
+					youAreHereMarkerDisplayInfo.SetRotation(playerToCamAngleDeg);
+					youAreHereMarker.SetDisplayInfo(youAreHereMarkerDisplayInfo);
+				}
 				else
 				{
-					RE::TESWorldSpace* worldSpace = player->GetWorldspace();
-					title[0] = worldSpace->GetFullName();
+					RE::GFxValue visionCone;
+					localMap_->root.GetMember("VisionCone", &visionCone);
+				
+					float playerCameraToNorthAngle = playerCameraRotation - cellNorthRotation;
+					float playerCameraToNorthAngleDeg = playerCameraToNorthAngle * 180 * std::numbers::inv_pi;
+				
+					RE::GFxValue::DisplayInfo visionConeDisplayInfo;
+					visionCone.GetDisplayInfo(&visionConeDisplayInfo);
+					visionConeDisplayInfo.SetRotation(playerCameraToNorthAngleDeg);
+					visionCone.SetDisplayInfo(visionConeDisplayInfo);
 				}
-			}
 
-			localMap_->root.Invoke("SetTitle", nullptr, title);
-
-			localMap->PopulateData();
-
-			localMap_->iconDisplay.Invoke("CreateMarkers");
-			PostCreateMarkers(localMap_->iconDisplay);
-			localMap->RefreshMarkers();
-
-			if (settings::controls::followPlayerCameraRotation)
-			{
-				RE::GFxValue youAreHereMarker;
-				localMap_->iconDisplay.GetMember("YouAreHereMarker", &youAreHereMarker);
-
-				float playerToCamAngle = player->GetAngleZ() - playerCameraRotation;
-				float playerToCamAngleDeg = playerToCamAngle * 180 * std::numbers::inv_pi;
-
-				RE::GFxValue::DisplayInfo youAreHereMarkerDisplayInfo;
-				youAreHereMarker.GetDisplayInfo(&youAreHereMarkerDisplayInfo);
-				youAreHereMarkerDisplayInfo.SetRotation(playerToCamAngleDeg);
-				youAreHereMarker.SetDisplayInfo(youAreHereMarkerDisplayInfo);
-			}
-			else
-			{
-				RE::GFxValue visionCone;
-				localMap_->root.GetMember("VisionCone", &visionCone);
-
-				float playerCameraToNorthAngle = playerCameraRotation - cellNorthRotation;
-				float playerCameraToNorthAngleDeg = playerCameraToNorthAngle * 180 * std::numbers::inv_pi;
-
-				RE::GFxValue::DisplayInfo visionConeDisplayInfo;
-				visionCone.GetDisplayInfo(&visionConeDisplayInfo);
-				visionConeDisplayInfo.SetRotation(playerCameraToNorthAngleDeg);
-				visionCone.SetDisplayInfo(visionConeDisplayInfo);
 			}
 
 			isCameraUpdatePending = true;
@@ -240,10 +246,13 @@ namespace DEM
 				RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->GetRuntimeData2().loadedAreaBound;
 				cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
 
-				UpdateFogOfWar();
-			}
+				if (isFogOfWarEnabled)
+				{
+					UpdateFogOfWar();
+				}
 
-			RenderOffScreen();
+				RenderOffScreen();
+			}
 		}
 	}
 

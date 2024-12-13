@@ -148,7 +148,6 @@ namespace DEM
 		}
 
 		// Local Map Upgrade interface
-		static inline void (*PostCreateMarkers)(RE::GFxValue& a_iconDisplay);
 		static inline void (*SetPixelShaderProperties)(LMU::PixelShaderProperty::Shape a_shape, LMU::PixelShaderProperty::Style a_style);
 		static inline void (*GetPixelShaderProperties)(LMU::PixelShaderProperty::Shape& a_shape, LMU::PixelShaderProperty::Style& a_style);
 

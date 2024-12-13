@@ -7,6 +7,8 @@
 
 #include "IUI/GFxLoggers.h"
 
+extern const SKSE::LoadInterface* skse;
+
 void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg);
 void LocalMapUpgradeMessageListener(SKSE::MessagingInterface::Message* a_msg);
 
@@ -35,7 +37,24 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 
 		if (SKSE::GetMessagingInterface()->RegisterListener("LocalMapUpgrade", LocalMapUpgradeMessageListener)) 
 		{
-			logger::info("Successfully registered for Local Map Upgrade messages!");
+			auto lmuInfo = skse->GetPluginInfo("LocalMapUpgrade");
+			if (lmuInfo->version >= 0x03010000)
+			{
+				logger::info("Successfully registered for Local Map Upgrade messages!");
+			}
+			else
+			{
+				SKSE::stl::report_and_fail
+				(
+					std::format
+					(
+						"\n\n"
+						"\"Local Map Upgrade\" 3.1.0 or newer required.\n\n"
+						"Please, download it from:\n"
+						"www.nexusmods.com/skyrimspecialedition/mods/129756"
+					)
+				);
+			}
 		}
 		else
 		{
@@ -155,15 +174,6 @@ void LocalMapUpgradeMessageListener(SKSE::MessagingInterface::Message* a_msg)
 					DEM::Minimap::SetPixelShaderProperties = msg->SetPixelShaderProperties;
 					DEM::Minimap::GetPixelShaderProperties = msg->GetPixelShaderProperties;
 					logger::debug("Pixel shaders properties hooked");
-				}
-				break;
-			}
-		case API::Message::Type::kPostCreateMarkersHook:
-			{
-				if (auto msg = API::TranslateAs<API::PostCreateMarkersHookMessage>(a_msg))
-				{
-					DEM::Minimap::PostCreateMarkers = msg->PostCreateMarkers;
-					logger::debug("Post create markers hooked");
 				}
 				break;
 			}
