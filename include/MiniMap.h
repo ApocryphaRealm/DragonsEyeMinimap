@@ -150,6 +150,15 @@ namespace DEM
 			cameraContext->defaultState->translation += translationOffset;
 		}
 
+		// The map's current zoom, as the camera holds it.
+		float GetMapZoom() const { return cameraContext ? cameraContext->defaultState->zoom : 0.0F; }
+
+		// Steer the zoom to an absolute value. Main thread only.
+		void SetMapZoom(float a_zoom);
+
+		// Jump to whichever of the two zoom presets is further from where we are. Main thread only.
+		void ToggleZoomPreset();
+
 		void ModZoom(float a_zoomMod)
 		{
 			cameraContext->zoomInput += a_zoomMod;

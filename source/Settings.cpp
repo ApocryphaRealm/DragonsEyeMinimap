@@ -35,6 +35,9 @@ namespace settings
 			std::string controlZoomTip;
 
 			std::uint32_t hideKeyCode;
+			std::uint32_t zoomToggleKeyCode;
+			float zoomPreset1;
+			float zoomPreset2;
 			bool followPlayerCameraRotation;
 			float holdDownToControlSecs;
 			float delayToHideControlsSecs;
@@ -56,6 +59,9 @@ namespace settings
 			defaults.controlZoomTip = display::controlZoomTip;
 
 			defaults.hideKeyCode = controls::hideKeyCode;
+			defaults.zoomToggleKeyCode = controls::zoomToggleKeyCode;
+			defaults.zoomPreset1 = controls::zoomPreset1;
+			defaults.zoomPreset2 = controls::zoomPreset2;
 			defaults.followPlayerCameraRotation = controls::followPlayerCameraRotation;
 			defaults.holdDownToControlSecs = controls::holdDownToControlSecs;
 			defaults.delayToHideControlsSecs = controls::delayToHideControlsSecs;
@@ -141,6 +147,9 @@ namespace settings
 			{
 				using namespace controls;
 				hideKeyCode = iniSettingCollection->GetSetting<std::uint32_t>("iHideKeyCode:Controls");
+				zoomToggleKeyCode = iniSettingCollection->GetSetting<std::uint32_t>("iZoomToggleKeyCode:Controls");
+				zoomPreset1 = iniSettingCollection->GetSetting<float>("fZoomPreset1:Controls");
+				zoomPreset2 = iniSettingCollection->GetSetting<float>("fZoomPreset2:Controls");
 				followPlayerCameraRotation = iniSettingCollection->GetSetting<bool>("bFollowPlayerCameraRotation:Controls");
 				holdDownToControlSecs = iniSettingCollection->GetSetting<float>("fHoldDownToControlSecs:Controls");
 				delayToHideControlsSecs = iniSettingCollection->GetSetting<float>("fDelayToHideControlsSecs:Controls");
@@ -181,6 +190,9 @@ namespace settings
 			using namespace controls;
 			iniSettingCollection->AddSettings(
 					MakeSetting("iHideKeyCode:Controls", static_cast<std::uint32_t>(hideKeyCode)),
+				MakeSetting("iZoomToggleKeyCode:Controls", static_cast<std::uint32_t>(zoomToggleKeyCode)),
+				MakeSetting("fZoomPreset1:Controls", zoomPreset1),
+				MakeSetting("fZoomPreset2:Controls", zoomPreset2),
 				MakeSetting("bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation),
 				MakeSetting("fHoldDownToControlSecs:Controls", holdDownToControlSecs),
 				MakeSetting("fDelayToHideControlsSecs:Controls", delayToHideControlsSecs)
@@ -241,6 +253,9 @@ namespace settings
 		ok &= WriteString(kDisplaySection, "sControlZoomTip", display::controlZoomTip);
 
 		ok &= WriteUInt(kControlsSection, "iHideKeyCode", controls::hideKeyCode);
+		ok &= WriteUInt(kControlsSection, "iZoomToggleKeyCode", controls::zoomToggleKeyCode);
+		ok &= WriteFloat(kControlsSection, "fZoomPreset1", controls::zoomPreset1);
+		ok &= WriteFloat(kControlsSection, "fZoomPreset2", controls::zoomPreset2);
 		ok &= WriteBool(kControlsSection, "bFollowPlayerCameraRotation", controls::followPlayerCameraRotation);
 		ok &= WriteFloat(kControlsSection, "fHoldDownToControlSecs", controls::holdDownToControlSecs);
 		ok &= WriteFloat(kControlsSection, "fDelayToHideControlsSecs", controls::delayToHideControlsSecs);
@@ -271,6 +286,9 @@ namespace settings
 		display::controlZoomTip = defaults.controlZoomTip;
 
 		controls::hideKeyCode = defaults.hideKeyCode;
+		controls::zoomToggleKeyCode = defaults.zoomToggleKeyCode;
+		controls::zoomPreset1 = defaults.zoomPreset1;
+		controls::zoomPreset2 = defaults.zoomPreset2;
 		controls::followPlayerCameraRotation = defaults.followPlayerCameraRotation;
 		controls::holdDownToControlSecs = defaults.holdDownToControlSecs;
 		controls::delayToHideControlsSecs = defaults.delayToHideControlsSecs;

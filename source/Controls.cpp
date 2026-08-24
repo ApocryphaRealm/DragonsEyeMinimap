@@ -98,6 +98,20 @@ namespace DEM
 
 		std::string_view userEventName = controlMap->GetUserEventName(a_buttonEvent->GetIDCode(), a_buttonEvent->GetDevice(), RE::ControlMap::InputContextID::kMap);
 
+		// A tap of the zoom key jumps between the two presets. Handled before the minimap
+		// button so that binding both to the same key still gives the hide behaviour priority.
+		if (settings::controls::zoomToggleKeyCode != 0 &&
+			a_buttonEvent->GetIDCode() == settings::controls::zoomToggleKeyCode &&
+			userEventName != userEvents->localMap)
+		{
+			if (buttonMag == 0.0F && a_buttonEvent->HeldDuration() < settings::controls::holdDownToControlSecs)
+			{
+				miniMap->ToggleZoomPreset();
+			}
+
+			return true;
+		}
+
 		// With iHideKeyCode unset the minimap answers to whatever the game has bound to Local
 		// Map, as it always did. Setting it takes the minimap off that binding and onto a key
 		// of its own, so it can be hidden without disturbing the map controls.

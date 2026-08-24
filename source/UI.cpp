@@ -7,6 +7,8 @@
 
 #include "utils/Logger.h"
 
+#include <algorithm>
+
 namespace UI
 {
 	namespace
@@ -23,6 +25,9 @@ namespace UI
 
 		// While set, the next key pressed becomes the minimap's hide key instead of doing
 		// whatever it normally does.
+		// The slider the arrow keys currently drive. Set by clicking one.
+		std::string selectedSlider;
+
 		std::atomic<bool> awaitingKeyBind{ false };
 		SKSEMenuFramework::Model::InputEvent* inputHook = nullptr;
 
@@ -75,6 +80,9 @@ namespace UI
 				"igSliderFloat",
 				"igInputFloat",
 				"igInputInt",
+				"igIsKeyPressed_Bool",
+				"igIsItemClicked",
+				"igIsItemActive",
 				"igCollapsingHeader_TreeNodeFlags",
 				"igIndent",
 				"igUnindent",
@@ -129,6 +137,46 @@ namespace UI
 			return true;
 		}
 
+		// A slider that the arrow keys can also nudge, once it has been clicked. Dragging is
+		// hopeless for the last decimal place, and the framework does not turn on ImGui's own
+		// keyboard navigation, so this tracks the selection itself rather than changing a
+		// setting shared with every other mod's page.
+		bool NudgeableSlider(const char* a_label, float* a_value, float a_min, float a_max,
+							 const char* a_format, float a_step)
+		{
+			bool changed = ImGuiMCP::SliderFloat(a_label, a_value, a_min, a_max, a_format);
+
+			if (ImGuiMCP::IsItemClicked() || ImGuiMCP::IsItemActive())
+			{
+				selectedSlider = a_label;
+			}
+
+			if (selectedSlider == a_label)
+			{
+				float nudge = 0.0F;
+
+				if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_LeftArrow))
+				{
+					nudge -= a_step;
+				}
+				if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_RightArrow))
+				{
+					nudge += a_step;
+				}
+
+				if (nudge != 0.0F)
+				{
+					*a_value = std::clamp(*a_value + nudge, a_min, a_max);
+					changed = true;
+				}
+
+				ImGuiMCP::SameLine();
+				ImGuiMCP::TextDisabled("<-->");
+			}
+
+			return changed;
+		}
+
 		void HelpMarker(const char* a_description)
 		{
 			ImGuiMCP::SameLine();
@@ -148,38 +196,14 @@ namespace UI
 
 			bool changed = false;
 
-			changed |= ImGuiMCP::SliderFloat("Horizontal position", &display::positionX, -0.5F, 1.5F, "%.3f");
+			changed |= NudgeableSlider("Horizontal position", &display::positionX, -0.5F, 1.5F, "%.3f", 0.005F);
 			HelpMarker("Offset from the left of the screen as a proportion of its width. Ultra-wide setups may want a value below 0 or above 1.");
 
-			changed |= ImGuiMCP::SliderFloat("Vertical position", &display::positionY, -0.5F, 1.5F, "%.3f");
+			changed |= NudgeableSlider("Vertical position", &display::positionY, -0.5F, 1.5F, "%.3f", 0.005F);
 			HelpMarker("Offset from the top of the screen as a proportion of its height.");
 
-			changed |= ImGuiMCP::SliderFloat("Scale", &display::scale, 0.1F, 3.0F, "%.2f");
+			changed |= NudgeableSlider("Scale", &display::scale, 0.1F, 3.0F, "%.2f", 0.01F);
 			HelpMarker("Size of the minimap. 1.00 is the size the artwork was drawn at.");
-
-			// Sliders are awkward for the last couple of decimal places, so the same three
-			// values are also typeable. The -/+ buttons step them, and a slider range no
-			// longer caps what can be entered.
-			ImGuiMCP::Spacing();
-			if (ImGuiMCP::CollapsingHeader("Type exact values"))
-			{
-				ImGuiMCP::Indent();
-				changed |= ImGuiMCP::InputFloat("Horizontal position##typed", &display::positionX, 0.005F, 0.05F, "%.3f");
-				changed |= ImGuiMCP::InputFloat("Vertical position##typed", &display::positionY, 0.005F, 0.05F, "%.3f");
-				changed |= ImGuiMCP::InputFloat("Scale##typed", &display::scale, 0.01F, 0.1F, "%.2f");
-				ImGuiMCP::TextDisabled("Click a box and type, or use the -/+ buttons.");
-				ImGuiMCP::Unindent();
-			}
-
-			if (changed)
-			{
-				OnMainThread([]() {
-					if (auto* minimap = DEM::Minimap::GetSingleton())
-					{
-						minimap->ApplyDisplaySettings();
-					}
-				});
-			}
 
 			int shape = static_cast<int>(display::shape);
 			if (ImGuiMCP::Combo("Shape", &shape, kShapeNames, kShapeCount))
@@ -217,6 +241,67 @@ namespace UI
 			{
 				ImGuiMCP::Checkbox("Show minimap on game start", &display::showOnGameStart);
 				HelpMarker("The minimap has not been built yet, so this only sets what happens once it is.");
+			}
+		}
+
+		void RenderZoomSection()
+		{
+			using namespace settings;
+
+			ImGuiMCP::SeparatorText("Map zoom");
+
+			auto* minimap = DEM::Minimap::GetSingleton();
+
+			if (!minimap || !minimap->IsReady())
+			{
+				ImGuiMCP::TextDisabled("Available once the minimap is running.");
+
+				return;
+			}
+
+			// Read back from the camera every frame rather than keeping our own copy, so the
+			// slider shows where the zoom actually ended up after the game clamped it.
+			float live = minimap->GetMapZoom();
+			if (NudgeableSlider("Zoom", &live, 0.0F, 1.0F, "%.3f", 0.01F))
+			{
+				OnMainThread([live]() {
+					if (auto* target = DEM::Minimap::GetSingleton())
+					{
+						target->SetMapZoom(live);
+					}
+				});
+			}
+			HelpMarker("How far the minimap is zoomed in, right now. The game applies its own limits, so the value can settle somewhere other than where you left it.");
+
+			ImGuiMCP::TextDisabled("Camera reports %.4f", live);
+
+			ImGuiMCP::Spacing();
+
+			NudgeableSlider("Preset 1", &controls::zoomPreset1, 0.0F, 1.0F, "%.3f", 0.01F);
+			ImGuiMCP::SameLine();
+			if (ImGuiMCP::Button("Set to current##z1"))
+			{
+				controls::zoomPreset1 = minimap->GetMapZoom();
+			}
+
+			NudgeableSlider("Preset 2", &controls::zoomPreset2, 0.0F, 1.0F, "%.3f", 0.01F);
+			ImGuiMCP::SameLine();
+			if (ImGuiMCP::Button("Set to current##z2"))
+			{
+				controls::zoomPreset2 = minimap->GetMapZoom();
+			}
+			HelpMarker("Zoom the map where you want it, then press \"Set to current\" to store that level as a preset.");
+
+			int zoomKey = static_cast<int>(controls::zoomToggleKeyCode);
+			if (ImGuiMCP::InputInt("Zoom toggle key", &zoomKey))
+			{
+				controls::zoomToggleKeyCode = static_cast<std::uint32_t>(zoomKey < 0 ? 0 : zoomKey);
+			}
+			HelpMarker("Tapping this key jumps between the two presets, instead of holding the control key and scrolling. 0 disables it.");
+
+			if (controls::zoomToggleKeyCode == 0)
+			{
+				ImGuiMCP::TextDisabled("No zoom key set.");
 			}
 		}
 
@@ -411,6 +496,9 @@ namespace UI
 		ImGuiMCP::PushItemWidth(260.0F);
 
 		RenderDisplaySection();
+		ImGuiMCP::Spacing();
+
+		RenderZoomSection();
 		ImGuiMCP::Spacing();
 
 		RenderControlsSection();
