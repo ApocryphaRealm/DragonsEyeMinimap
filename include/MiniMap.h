@@ -242,6 +242,14 @@ namespace DEM
 
 		bool isCameraUpdatePending = true;
 
+		// ApplyDisplaySettings() runs twice during setup - once from the constructor, before
+		// the map's children exist at all, and once from InitLocalMap(), in the same frame as
+		// InitMap()/SetShape(). Neither has let Scaleform actually render a frame in between,
+		// and in practice that has been enough to occasionally leave the very first position
+		// wrong until something re-applies it later. This flag asks for one more application
+		// on the next real Advance(), after a frame has actually happened.
+		bool pendingInitialReapply = false;
+
 		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
 		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;
 

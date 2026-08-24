@@ -81,6 +81,9 @@ namespace DEM
 			// reached. Everything else it does is safe to repeat.
 			ApplyDisplaySettings();
 
+			// One more time, on the next Advance() - see the comment on pendingInitialReapply.
+			pendingInitialReapply = true;
+
 			if (settings::display::showOnGameStart)
 			{
 				Show();
@@ -257,40 +260,26 @@ namespace DEM
 		const float currentX = static_cast<float>(displayObj.GetMember("_x").GetNumber());
 		const float currentY = static_cast<float>(displayObj.GetMember("_y").GetNumber());
 
-		float newX = currentX + (wantX - (atRight ? artRight : artLeft));
-		float newY = currentY + (wantY - (atBottom ? artBottom : artTop));
-
-		// Keep the whole artwork on screen, so raising the scale grows it inwards rather than
-		// over the edge. The screen corners go through the same conversion as the target.
-		float screenMinX = 0.0F, screenMinY = 0.0F, screenMaxX = 0.0F, screenMaxY = 0.0F;
-		if (StageToParent(0.0F, 0.0F, screenMinX, screenMinY) &&
-			StageToParent(stageWidth, stageHeight, screenMaxX, screenMaxY))
-		{
-			if (screenMaxX < screenMinX)
-			{
-				std::swap(screenMinX, screenMaxX);
-			}
-			if (screenMaxY < screenMinY)
-			{
-				std::swap(screenMinY, screenMaxY);
-			}
-
-			// artLeft/artTop were measured before the move, so express the limits relative to
-			// the offset between the registration point and the artwork's edge.
-			const float artWidth = artRight - artLeft;
-			const float artHeight = artBottom - artTop;
-
-			const float lowX = screenMinX + (currentX - artLeft);
-			const float highX = screenMaxX - artWidth + (currentX - artLeft);
-			newX = highX >= lowX ? std::clamp(newX, lowX, highX) : lowX;
-
-			const float lowY = screenMinY + (currentY - artTop);
-			const float highY = screenMaxY - artHeight + (currentY - artTop);
-			newY = highY >= lowY ? std::clamp(newY, lowY, highY) : lowY;
-		}
+		// Deliberately not clamped to stay on screen any more. The offset is what the player
+		// asked for, and clamping it here fought that choice on some corners for reasons that
+		// were never fully pinned down (see PORT-NOTES.md). It also turned out to be
+		// unnecessary: fScale is already capped, in GetMaxScale(), to whatever keeps the
+		// artwork within a quarter of the screen, which is what actually stops the map from
+		// growing large enough to need rescuing from going off screen. An offset large enough
+		// to push a quarter-screen-sized map off screen is a choice, not a scale runaway, and
+		// is left alone.
+		const float newX = currentX + (wantX - (atRight ? artRight : artLeft));
+		const float newY = currentY + (wantY - (atBottom ? artBottom : artTop));
 
 		displayObj.SetMember("_x", newX);
 		displayObj.SetMember("_y", newY);
+
+		// For the log line below only - StageToParent is not otherwise needed once the
+		// clamp is gone, but knowing where the screen edges landed is still useful for
+		// diagnosing anything that still looks wrong.
+		float screenMinX = 0.0F, screenMinY = 0.0F, screenMaxX = 0.0F, screenMaxY = 0.0F;
+		StageToParent(0.0F, 0.0F, screenMinX, screenMinY);
+		StageToParent(stageWidth, stageHeight, screenMaxX, screenMaxY);
 
 		// The map extents the renderer uses are worked out once, by the ActionScript InitMap,
 		// from the clip's geometry at that moment. Moving or rescaling the clip afterwards
@@ -485,6 +474,12 @@ namespace DEM
 
 	void Minimap::Advance()
 	{
+		if (pendingInitialReapply)
+		{
+			pendingInitialReapply = false;
+			ApplyDisplaySettings();
+		}
+
 		if (IsVisible() && IsShown())
 		{
 			RE::GFxValue updateScaleform = displayObj.GetMember("updateScaleform");

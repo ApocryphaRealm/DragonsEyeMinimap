@@ -1,6 +1,6 @@
 # Port notes — INI-only settings → SKSE Menu Framework
 
-**Version 1.6.4.** This is a fork of
+**Version 1.6.5.** This is a fork of
 [alexsylex/DragonsEyeMinimap](https://github.com/alexsylex/DragonsEyeMinimap) 1.1.0 that adds an in-game settings page driven by
 [SKSE Menu Framework 3](https://github.com/QTR-Modding/SKSE-Menu-Framework-3), so the minimap
 can be configured while the game is running instead of only through `DragonsEyeMinimap.ini`
@@ -123,6 +123,30 @@ by `AnchorIndex()`, with the same per-corner-key-in-the-INI pattern (`fOffsetXTo
 corrected 1.6.1 positioning math rather than the broken pre-1.6.1 arithmetic. The menu's
 Offset X/Y sliders always edit whichever corner is currently selected, with a line underneath
 stating which that is.
+
+**The on-screen position clamp is removed entirely.** It was meant purely as a safety net
+against fScale growing large enough to push the map off screen, but that job was already
+being done elsewhere: GetMaxScale() caps fScale, in the menu and again when applied, to
+whatever keeps the artwork within a quarter of the screen - a size that cannot need rescuing
+from going off screen at any anchor. The clamp was pure redundancy for that purpose, and it
+turned out to also be actively wrong: corners on one side would not reach the true screen
+edge even at a (0, 0) offset, which is inconsistent with the clamp's own math (the unclamped
+target and the clamp bound are the same value when offset is 0, so the clamp should have been
+a no-op there) - something in it was misbehaving beyond what that reasoning accounts for.
+Rather than keep chasing an intermittent, per-corner discrepancy in a code path that is not
+actually load-bearing, it is gone. The offset now IS the position, unconditionally - including
+being able to push the artwork off screen if that is what is set, which is the trade a pure
+safety net makes by existing at all.
+
+**The very first position, at startup, could still be wrong until something re-applied it.**
+ApplyDisplaySettings() runs twice during setup - once from the constructor, before the map's
+children exist at all, and once from InitLocalMap(), in the same frame as InitMap()/SetShape().
+Neither of those lets Scaleform actually render a frame in between, and in practice that
+appears to have been enough to occasionally leave the very first position wrong - self-healing
+the moment anything (changing the corner, for instance) re-applied it later, once actually
+rendered frames had passed. `pendingInitialReapply` asks for one more application, the next
+time `Advance()` runs for real - i.e. after a frame has actually happened - rather than relying
+on either of the two same-frame applies during setup being reliable.
 
 **The tap-to-hide/hold-to-pan control mode is gone, along with the control-tip prompts and
 platform-button Scaleform plumbing that supported it.** `ProcessThumbstick`/`ProcessMouseMove`
