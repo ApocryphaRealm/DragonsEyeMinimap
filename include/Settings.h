@@ -35,11 +35,24 @@ namespace settings
 
 	namespace display
 	{
-		// These are the values a fresh install starts from, and the ones "Restore defaults"
-		// returns to. They are Liam's preferred layout rather than the mod's original
-		// 0.65 / 0.2 / 1.0.
-		inline float positionX = 0.86F;
-		inline float positionY = 0.04F;
+		// Which screen corner the minimap is positioned from.
+		enum class Anchor : std::uint32_t
+		{
+			kTopLeft = 0,
+			kTopRight = 1,
+			kBottomLeft = 2,
+			kBottomRight = 3
+		};
+
+		inline std::uint32_t anchor = static_cast<std::uint32_t>(Anchor::kTopRight);
+
+		// Nudge from that corner, in screen pixels. Positive x is always rightwards and
+		// positive y always downwards, whichever corner is anchored, because a rule that
+		// flips direction depending on the anchor is harder to reason about than one that
+		// does not.
+		inline float offsetX = -8.0F;
+		inline float offsetY = 8.0F;
+
 		inline float scale = 0.5F;
 		inline std::uint32_t shape = 0;
 		inline bool showOnGameStart = true;

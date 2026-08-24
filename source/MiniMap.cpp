@@ -114,15 +114,13 @@ namespace DEM
 		// The AS2 "Minimap" function positions the clip by running a stage coordinate through
 		// globalToLocal, which is relative to the clip's own transform, and assigning the
 		// result to _x/_y. That makes its output depend on where the clip already is, so
-		// calling it repeatedly walks the minimap away from where it started and the same
-		// setting stops meaning the same place.
+		// calling it repeatedly walks the minimap away from where it started.
 		//
-		// From a fixed starting state, though, the mapping from setting to _x/_y is affine:
-		// the stage coordinate is linear in the setting, and globalToLocal is affine. So probe
-		// it twice from the authored transform and keep the line. After this, position is
-		// computed directly and the AS2 function is never called again, which is what makes a
-		// setting mean one place no matter how it was arrived at - the same property the
-		// anchor-and-offset scheme in other minimap mods gets for free.
+		// From a fixed starting state the mapping from screen proportion to _x/_y is affine -
+		// the stage coordinate is linear in the proportion, and globalToLocal is affine - so
+		// probe it twice and keep the line. Afterwards the position is computed directly and
+		// the AS2 function is never called again, which is what lets a corner and an offset
+		// mean one place regardless of how the minimap got there.
 		const auto probe = [this](float a_x, float a_y) {
 			displayObj.SetMember("_x", baseX);
 			displayObj.SetMember("_y", baseY);
@@ -143,20 +141,60 @@ namespace DEM
 		positionSpanX = oneX - zeroX;
 		positionSpanY = oneY - zeroY;
 
-		// A zero span would mean every setting maps to the same place, which cannot be right
-		// and would silently pin the minimap to one spot.
 		hasPositionMapping = std::abs(positionSpanX) > 0.001F && std::abs(positionSpanY) > 0.001F;
+
+		// Where the artwork sits relative to the clip's registration point. Asking the clip
+		// for its own bounds beats assuming the registration point is a particular corner.
+		displayObj.SetMember("_xscale", baseXScale);
+		displayObj.SetMember("_yscale", baseYScale);
+
+		RE::GFxValue bounds = displayObj.Invoke("getBounds", displayObj);
+		if (bounds.IsObject())
+		{
+			RE::GFxValue xMin, xMax, yMin, yMax;
+			bounds.GetMember("xMin", &xMin);
+			bounds.GetMember("xMax", &xMax);
+			bounds.GetMember("yMin", &yMin);
+			bounds.GetMember("yMax", &yMax);
+
+			boundsLeft = static_cast<float>(xMin.GetNumber());
+			boundsTop = static_cast<float>(yMin.GetNumber());
+			boundsWidth = static_cast<float>(xMax.GetNumber()) - boundsLeft;
+			boundsHeight = static_cast<float>(yMax.GetNumber()) - boundsTop;
+		}
+
+		// The offsets are in screen pixels, so we need the screen size in the same units the
+		// AS2 side works in. If Stage is not reachable, fall back to treating one offset unit
+		// as one unit of the clip's parent space, which is 1:1 with pixels for this HUD.
+		if (auto* view = displayObj.GetMovieView())
+		{
+			RE::GFxValue width, height;
+			if (view->GetVariable(&width, "Stage.width") && width.IsNumber())
+			{
+				stageWidth = static_cast<float>(width.GetNumber());
+			}
+			if (view->GetVariable(&height, "Stage.height") && height.IsNumber())
+			{
+				stageHeight = static_cast<float>(height.GetNumber());
+			}
+		}
+
+		if (stageWidth <= 0.0F || stageHeight <= 0.0F)
+		{
+			stageWidth = std::abs(positionSpanX);
+			stageHeight = std::abs(positionSpanY);
+
+			logger::warn("Could not read Stage size; treating offsets as parent-space units");
+		}
+
+		logger::info("Position mapping: origin ({}, {}), span ({}, {}), bounds ({}, {}) {}x{}, stage {}x{}",
+					 positionOriginX, positionOriginY, positionSpanX, positionSpanY,
+					 boundsLeft, boundsTop, boundsWidth, boundsHeight, stageWidth, stageHeight);
 
 		if (!hasPositionMapping)
 		{
-			logger::error("Could not measure the minimap position mapping (span {} x {}); "
-						  "falling back to the stateful Scaleform positioning",
-						  positionSpanX, positionSpanY);
-		}
-		else
-		{
-			logger::info("Minimap position mapping: origin ({}, {}), span ({}, {})",
-						 positionOriginX, positionOriginY, positionSpanX, positionSpanY);
+			logger::error("Could not measure the minimap position mapping; falling back to the "
+						  "stateful Scaleform positioning");
 		}
 	}
 
@@ -167,33 +205,52 @@ namespace DEM
 			return;
 		}
 
-		if (hasPositionMapping)
-		{
-			// Absolute, so it depends only on the setting - never on how many times a slider
-			// has moved or what the clip was doing beforehand.
-			displayObj.SetMember("_x", positionOriginX + positionSpanX * settings::display::positionX);
-			displayObj.SetMember("_y", positionOriginY + positionSpanY * settings::display::positionY);
-		}
-		else
+		const float scale = settings::display::scale;
+
+		// _xscale/_yscale rather than _width/_height: the latter are derived from the clip's
+		// bounding box, which changes as children come and go, so the same _width stops
+		// meaning the same scale over time.
+		displayObj.SetMember("_xscale", baseXScale * scale);
+		displayObj.SetMember("_yscale", baseYScale * scale);
+
+		if (!hasPositionMapping)
 		{
 			displayObj.SetMember("_x", baseX);
 			displayObj.SetMember("_y", baseY);
-			displayObj.SetMember("_xscale", baseXScale);
-			displayObj.SetMember("_yscale", baseYScale);
+			displayObj.Invoke("Minimap", 0.5F, 0.5F);
 
-			displayObj.Invoke("Minimap", settings::display::positionX, settings::display::positionY);
+			return;
 		}
 
-		// Scale through _xscale/_yscale rather than _width/_height. The latter are derived from
-		// the clip's bounding box, which changes as children come and go, so the same _width
-		// stops meaning the same scale over time.
-		displayObj.SetMember("_xscale", baseXScale * settings::display::scale);
-		displayObj.SetMember("_yscale", baseYScale * settings::display::scale);
+		using Anchor = settings::display::Anchor;
+		const auto anchor = static_cast<Anchor>(settings::display::anchor);
 
-		logger::debug("Display settings applied: position ({}, {}), scale {} -> _x {}, _y {}, _xscale {}",
-					  settings::display::positionX, settings::display::positionY, settings::display::scale,
-					  displayObj.GetMember("_x").GetNumber(), displayObj.GetMember("_y").GetNumber(),
-					  displayObj.GetMember("_xscale").GetNumber());
+		const bool atRight = anchor == Anchor::kTopRight || anchor == Anchor::kBottomRight;
+		const bool atBottom = anchor == Anchor::kBottomLeft || anchor == Anchor::kBottomRight;
+
+		// The corner itself, in the clip's parent space.
+		const float cornerX = positionOriginX + positionSpanX * (atRight ? 1.0F : 0.0F);
+		const float cornerY = positionOriginY + positionSpanY * (atBottom ? 1.0F : 0.0F);
+
+		// Pull the artwork onto the screen: line its edge up with the corner rather than its
+		// registration point, which is what makes a right or bottom anchor usable.
+		const float visualLeft = boundsLeft * scale;
+		const float visualTop = boundsTop * scale;
+		const float visualWidth = boundsWidth * scale;
+		const float visualHeight = boundsHeight * scale;
+
+		// One offset unit is one screen pixel, converted into parent space.
+		const float unitX = positionSpanX / stageWidth;
+		const float unitY = positionSpanY / stageHeight;
+
+		displayObj.SetMember("_x", cornerX - visualLeft - (atRight ? visualWidth : 0.0F) +
+										settings::display::offsetX * unitX);
+		displayObj.SetMember("_y", cornerY - visualTop - (atBottom ? visualHeight : 0.0F) +
+										settings::display::offsetY * unitY);
+
+		logger::debug("Display applied: anchor {}, offset ({}, {}), scale {} -> _x {}, _y {}",
+					  settings::display::anchor, settings::display::offsetX, settings::display::offsetY,
+					  scale, displayObj.GetMember("_x").GetNumber(), displayObj.GetMember("_y").GetNumber());
 	}
 
 	void Minimap::ApplyShapeSetting()

@@ -34,6 +34,9 @@ namespace UI
 		constexpr const char* kShapeNames[] = { "Squared", "Round" };
 		constexpr int kShapeCount = 2;
 
+		constexpr const char* kAnchorNames[] = { "Top left", "Top right", "Bottom left", "Bottom right" };
+		constexpr int kAnchorCount = 4;
+
 		constexpr const char* kLogLevelNames[] = { "Trace", "Debug", "Info", "Warning", "Error", "Critical", "Off" };
 		constexpr int kLogLevelCount = 7;
 
@@ -196,11 +199,19 @@ namespace UI
 
 			bool changed = false;
 
-			changed |= NudgeableSlider("Horizontal position", &display::positionX, -0.5F, 1.5F, "%.3f", 0.005F);
-			HelpMarker("Offset from the left of the screen as a proportion of its width. Ultra-wide setups may want a value below 0 or above 1.");
+			int anchor = static_cast<int>(display::anchor);
+			if (ImGuiMCP::Combo("Corner", &anchor, kAnchorNames, kAnchorCount))
+			{
+				display::anchor = static_cast<std::uint32_t>(anchor);
+				changed = true;
+			}
+			HelpMarker("Which screen corner the minimap sits in. With both offsets at 0 it tucks into that corner.");
 
-			changed |= NudgeableSlider("Vertical position", &display::positionY, -0.5F, 1.5F, "%.3f", 0.005F);
-			HelpMarker("Offset from the top of the screen as a proportion of its height.");
+			changed |= NudgeableSlider("Offset X", &display::offsetX, -600.0F, 600.0F, "%.0f px", 1.0F);
+			HelpMarker("Nudge from the corner, in screen pixels. Positive is always rightwards, whichever corner is anchored.");
+
+			changed |= NudgeableSlider("Offset Y", &display::offsetY, -600.0F, 600.0F, "%.0f px", 1.0F);
+			HelpMarker("Nudge from the corner, in screen pixels. Positive is always downwards, whichever corner is anchored.");
 
 			changed |= NudgeableSlider("Scale", &display::scale, 0.1F, 3.0F, "%.2f", 0.01F);
 			HelpMarker("Size of the minimap. 1.00 is the size the artwork was drawn at.");
