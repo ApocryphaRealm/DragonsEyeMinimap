@@ -109,34 +109,91 @@ namespace DEM
 		}
 	}
 
+	void Minimap::MeasurePositionMapping()
+	{
+		// The AS2 "Minimap" function positions the clip by running a stage coordinate through
+		// globalToLocal, which is relative to the clip's own transform, and assigning the
+		// result to _x/_y. That makes its output depend on where the clip already is, so
+		// calling it repeatedly walks the minimap away from where it started and the same
+		// setting stops meaning the same place.
+		//
+		// From a fixed starting state, though, the mapping from setting to _x/_y is affine:
+		// the stage coordinate is linear in the setting, and globalToLocal is affine. So probe
+		// it twice from the authored transform and keep the line. After this, position is
+		// computed directly and the AS2 function is never called again, which is what makes a
+		// setting mean one place no matter how it was arrived at - the same property the
+		// anchor-and-offset scheme in other minimap mods gets for free.
+		const auto probe = [this](float a_x, float a_y) {
+			displayObj.SetMember("_x", baseX);
+			displayObj.SetMember("_y", baseY);
+			displayObj.SetMember("_xscale", baseXScale);
+			displayObj.SetMember("_yscale", baseYScale);
+
+			displayObj.Invoke("Minimap", a_x, a_y);
+
+			return std::make_pair(static_cast<float>(displayObj.GetMember("_x").GetNumber()),
+								  static_cast<float>(displayObj.GetMember("_y").GetNumber()));
+		};
+
+		const auto [zeroX, zeroY] = probe(0.0F, 0.0F);
+		const auto [oneX, oneY] = probe(1.0F, 1.0F);
+
+		positionOriginX = zeroX;
+		positionOriginY = zeroY;
+		positionSpanX = oneX - zeroX;
+		positionSpanY = oneY - zeroY;
+
+		// A zero span would mean every setting maps to the same place, which cannot be right
+		// and would silently pin the minimap to one spot.
+		hasPositionMapping = std::abs(positionSpanX) > 0.001F && std::abs(positionSpanY) > 0.001F;
+
+		if (!hasPositionMapping)
+		{
+			logger::error("Could not measure the minimap position mapping (span {} x {}); "
+						  "falling back to the stateful Scaleform positioning",
+						  positionSpanX, positionSpanY);
+		}
+		else
+		{
+			logger::info("Minimap position mapping: origin ({}, {}), span ({}, {})",
+						 positionOriginX, positionOriginY, positionSpanX, positionSpanY);
+		}
+	}
+
 	void Minimap::ApplyDisplaySettings()
 	{
-		if (baseWidth <= 0.0F || !displayObj.HasMember("Minimap"))
+		if (!displayObj.HasMember("Minimap"))
 		{
 			return;
 		}
 
-		// The AS2 "Minimap" function positions the clip by running a stage coordinate through
-		// globalToLocal, which is relative to the clip's own transform, and then assigns the
-		// result to _x/_y. That makes it depend on where the clip already is, so calling it
-		// twice does not put the clip in the same place twice - each call walks it further
-		// from where it started. Restoring the authored transform first gives the function
-		// the same starting state it saw when the minimap was built, which makes the result a
-		// function of the settings alone rather than of how many times a slider has moved.
-		displayObj.SetMember("_x", baseX);
-		displayObj.SetMember("_y", baseY);
-		displayObj.SetMember("_width", baseWidth);
-		displayObj.SetMember("_height", baseHeight);
+		if (hasPositionMapping)
+		{
+			// Absolute, so it depends only on the setting - never on how many times a slider
+			// has moved or what the clip was doing beforehand.
+			displayObj.SetMember("_x", positionOriginX + positionSpanX * settings::display::positionX);
+			displayObj.SetMember("_y", positionOriginY + positionSpanY * settings::display::positionY);
+		}
+		else
+		{
+			displayObj.SetMember("_x", baseX);
+			displayObj.SetMember("_y", baseY);
+			displayObj.SetMember("_xscale", baseXScale);
+			displayObj.SetMember("_yscale", baseYScale);
 
-		displayObj.Invoke("Minimap", settings::display::positionX, settings::display::positionY);
+			displayObj.Invoke("Minimap", settings::display::positionX, settings::display::positionY);
+		}
 
-		displayObj.SetMember("_width", baseWidth * settings::display::scale);
-		displayObj.SetMember("_height", baseHeight * settings::display::scale);
+		// Scale through _xscale/_yscale rather than _width/_height. The latter are derived from
+		// the clip's bounding box, which changes as children come and go, so the same _width
+		// stops meaning the same scale over time.
+		displayObj.SetMember("_xscale", baseXScale * settings::display::scale);
+		displayObj.SetMember("_yscale", baseYScale * settings::display::scale);
 
-		logger::debug("Display settings applied: position ({}, {}), scale {} -> _x {}, _y {}, _width {}",
+		logger::debug("Display settings applied: position ({}, {}), scale {} -> _x {}, _y {}, _xscale {}",
 					  settings::display::positionX, settings::display::positionY, settings::display::scale,
 					  displayObj.GetMember("_x").GetNumber(), displayObj.GetMember("_y").GetNumber(),
-					  displayObj.GetMember("_width").GetNumber());
+					  displayObj.GetMember("_xscale").GetNumber());
 	}
 
 	void Minimap::ApplyShapeSetting()
@@ -150,10 +207,42 @@ namespace DEM
 
 		shape = newShape;
 
-		if (localMap_)
+		if (!localMap_)
 		{
-			localMap_->root.Invoke("SetShape", std::array<RE::GFxValue, 1>{ static_cast<std::uint32_t>(shape) });
+			return;
 		}
+
+		// The AS2 SetShape duplicates the chosen background art into a clip called
+		// "backgroundArtMask", hands that to VisionCone.setMask, and hides the other shape's
+		// art. It was written to run once. Run twice it leaves two problems behind:
+		//
+		//  - the previous duplicate is still on the display list, and once setMask has moved
+		//    on to the new one it stops being a mask and starts being drawn, so the old shape
+		//    reappears alongside the new one;
+		//  - the art for the shape being switched *to* was hidden by the previous call, and
+		//    SetShape only ever hides the alternative, never re-shows the chosen one, so the
+		//    duplicate it takes as the new mask is invisible.
+		//
+		// Clearing the stale duplicate and un-hiding both arts first puts the clip back in the
+		// state SetShape expects to find.
+		RE::GFxValue staleMask;
+		if (localMap_->root.GetMember("backgroundArtMask", &staleMask) && staleMask.IsDisplayObject())
+		{
+			staleMask.Invoke("removeMovieClip");
+		}
+
+		for (const char* artName : { "BackgroundArtSquare", "BackgroundArtCircle" })
+		{
+			RE::GFxValue art;
+			if (localMap_->root.GetMember(artName, &art) && art.IsDisplayObject())
+			{
+				art.SetMember("_visible", RE::GFxValue{ true });
+			}
+		}
+
+		localMap_->root.Invoke("SetShape", std::array<RE::GFxValue, 1>{ static_cast<std::uint32_t>(shape) });
+
+		logger::debug("Shape set to {}", shape == Shape::kRound ? "round" : "squared");
 	}
 
 	void Minimap::SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs)

@@ -21,6 +21,11 @@ namespace UI
 
 		std::string statusMessage;
 
+		// While set, the next key pressed becomes the minimap's hide key instead of doing
+		// whatever it normally does.
+		std::atomic<bool> awaitingKeyBind{ false };
+		SKSEMenuFramework::Model::InputEvent* inputHook = nullptr;
+
 		constexpr const char* kShapeNames[] = { "Squared", "Round" };
 		constexpr int kShapeCount = 2;
 
@@ -68,6 +73,11 @@ namespace UI
 				"igCheckbox",
 				"igCombo_Str_arr",
 				"igSliderFloat",
+				"igInputFloat",
+				"igInputInt",
+				"igCollapsingHeader_TreeNodeFlags",
+				"igIndent",
+				"igUnindent",
 				"igInputText",
 				"igButton",
 				"igSameLine",
@@ -88,6 +98,34 @@ namespace UI
 				}
 			}
 
+			return true;
+		}
+
+		// Runs on the framework's input thread. Only ever writes the scan code and clears the
+		// flag, so there is nothing here that needs the main thread.
+		bool __stdcall OnInputEvent(RE::InputEvent* a_event)
+		{
+			if (!awaitingKeyBind.load())
+			{
+				return false;
+			}
+
+			auto* buttonEvent = a_event ? a_event->AsButtonEvent() : nullptr;
+			if (!buttonEvent || !buttonEvent->IsDown())
+			{
+				return false;
+			}
+
+			const auto device = buttonEvent->GetDevice();
+			if (device != RE::INPUT_DEVICE::kKeyboard && device != RE::INPUT_DEVICE::kMouse)
+			{
+				return false;
+			}
+
+			settings::controls::hideKeyCode = buttonEvent->GetIDCode();
+			awaitingKeyBind.store(false);
+
+			// Swallow it, so binding a key does not also trigger whatever it is bound to.
 			return true;
 		}
 
@@ -118,6 +156,20 @@ namespace UI
 
 			changed |= ImGuiMCP::SliderFloat("Scale", &display::scale, 0.1F, 3.0F, "%.2f");
 			HelpMarker("Size of the minimap. 1.00 is the size the artwork was drawn at.");
+
+			// Sliders are awkward for the last couple of decimal places, so the same three
+			// values are also typeable. The -/+ buttons step them, and a slider range no
+			// longer caps what can be entered.
+			ImGuiMCP::Spacing();
+			if (ImGuiMCP::CollapsingHeader("Type exact values"))
+			{
+				ImGuiMCP::Indent();
+				changed |= ImGuiMCP::InputFloat("Horizontal position##typed", &display::positionX, 0.005F, 0.05F, "%.3f");
+				changed |= ImGuiMCP::InputFloat("Vertical position##typed", &display::positionY, 0.005F, 0.05F, "%.3f");
+				changed |= ImGuiMCP::InputFloat("Scale##typed", &display::scale, 0.01F, 0.1F, "%.2f");
+				ImGuiMCP::TextDisabled("Click a box and type, or use the -/+ buttons.");
+				ImGuiMCP::Unindent();
+			}
 
 			if (changed)
 			{
@@ -173,6 +225,35 @@ namespace UI
 			using namespace settings;
 
 			ImGuiMCP::SeparatorText("Controls");
+
+			int keyCode = static_cast<int>(controls::hideKeyCode);
+			if (ImGuiMCP::InputInt("Hide/control key", &keyCode))
+			{
+				controls::hideKeyCode = static_cast<std::uint32_t>(keyCode < 0 ? 0 : keyCode);
+			}
+			HelpMarker("DirectInput scan code of the key that hides the minimap when tapped and controls it when held. "
+					   "0 means whatever the game has bound to Local Map, which is what the mod did before this setting existed.");
+
+			ImGuiMCP::SameLine();
+
+			if (awaitingKeyBind.load())
+			{
+				if (ImGuiMCP::Button("Press a key... (cancel)"))
+				{
+					awaitingKeyBind.store(false);
+				}
+			}
+			else if (ImGuiMCP::Button("Bind"))
+			{
+				awaitingKeyBind.store(true);
+			}
+
+			if (controls::hideKeyCode == 0)
+			{
+				ImGuiMCP::TextDisabled("Using the game's Local Map binding.");
+			}
+
+			ImGuiMCP::Spacing();
 
 			ImGuiMCP::Checkbox("Rotate with the player", &controls::followPlayerCameraRotation);
 			HelpMarker("On: the minimap turns to face where the player is looking. Off: north is always up, like the local map.");
@@ -291,6 +372,17 @@ namespace UI
 		}
 
 		RefreshTipBuffers();
+
+		// Only needed for the "Bind" button; without it the key can still be typed in.
+		if (GetMenuFrameworkFunction<void*>("RegisterInpoutEvent"))
+		{
+			inputHook = SKSEMenuFramework::AddInputEvent(OnInputEvent);
+		}
+		else
+		{
+			logger::info("SKSE Menu Framework does not export \"RegisterInpoutEvent\"; "
+						 "the hide key can still be set by typing its scan code");
+		}
 
 		SKSEMenuFramework::SetSection("Dragon's Eye Minimap");
 		SKSEMenuFramework::AddSectionItem("Settings", SettingsPanel::Render);
