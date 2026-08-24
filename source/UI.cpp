@@ -72,29 +72,33 @@ namespace UI
 		// unless the ones this panel needs are all there.
 		bool HasRequiredExports()
 		{
+			// These are the exported names the ImGuiMCP wrappers actually resolve, which is not
+			// always the name of the function being called: the varargs ones forward to a
+			// va_list variant, so TextDisabled resolves igTextDisabledV, not igTextDisabled.
+			// Probing the wrong name lets Register() succeed and then jump through a null
+			// pointer on the first draw, which is exactly what this guard exists to stop.
 			constexpr const char* required[] = {
 				"AddSectionItem",
 				"igTextV",
-				"igTextDisabled",
-				"igTextWrapped",
+				"igTextDisabledV",
+				"igTextWrappedV",
+				"igSetTooltipV",
 				"igSeparatorText",
+				"igSeparator",
 				"igCheckbox",
 				"igCombo_Str_arr",
 				"igSliderFloat",
-				"igInputFloat",
 				"igInputInt",
 				"igIsKeyPressed_Bool",
 				"igIsItemClicked",
 				"igIsItemActive",
-				"igCollapsingHeader_TreeNodeFlags",
-				"igIndent",
-				"igUnindent",
-				"igInputText",
+				"igIsItemHovered",
 				"igButton",
 				"igSameLine",
 				"igSpacing",
-				"igIsItemHovered",
-				"igSetTooltip",
+				"igIndent",
+				"igUnindent",
+				"igInputText",
 				"igPushItemWidth",
 				"igPopItemWidth"
 			};
@@ -127,8 +131,9 @@ namespace UI
 				return false;
 			}
 
-			const auto device = buttonEvent->GetDevice();
-			if (device != RE::INPUT_DEVICE::kKeyboard && device != RE::INPUT_DEVICE::kMouse)
+			// Keyboard only, to match what Controls.cpp will compare against. Storing a mouse
+			// IDCode here would bind a code that also matches a low keyboard scan code.
+			if (buttonEvent->GetDevice() != RE::INPUT_DEVICE::kKeyboard)
 			{
 				return false;
 			}
@@ -199,13 +204,14 @@ namespace UI
 
 			bool changed = false;
 
+			// Everything below feeds `changed`, which is acted on at the end of the section.
 			int anchor = static_cast<int>(display::anchor);
 			if (ImGuiMCP::Combo("Corner", &anchor, kAnchorNames, kAnchorCount))
 			{
 				display::anchor = static_cast<std::uint32_t>(anchor);
 				changed = true;
 			}
-			HelpMarker("Which screen corner the minimap sits in. With both offsets at 0 it tucks into that corner.");
+			HelpMarker("Which screen corner the minimap sits in. With the edge margin at 0 it tucks right into that corner.");
 
 			changed |= NudgeableSlider("Edge margin", &display::edgeMargin, 0.0F, 200.0F, "%.0f px", 1.0F);
 			HelpMarker("How far in from the corner's two edges the minimap sits. 0 puts it flush against them.");
@@ -221,6 +227,16 @@ namespace UI
 			HelpMarker("Size of the minimap. 1.00 is the size the artwork was drawn at. The top of the range is capped so the minimap stays within a quarter of the screen.");
 
 			ImGuiMCP::TextDisabled("Largest allowed: %.2f (a quarter of the screen)", maxScale);
+
+			if (changed)
+			{
+				OnMainThread([]() {
+					if (auto* target = DEM::Minimap::GetSingleton())
+					{
+						target->ApplyDisplaySettings();
+					}
+				});
+			}
 
 			int shape = static_cast<int>(display::shape);
 			if (ImGuiMCP::Combo("Shape", &shape, kShapeNames, kShapeCount))
@@ -376,19 +392,27 @@ namespace UI
 
 			ImGuiMCP::TextDisabled("The prompts drawn next to the minimap. Handy for translating them.");
 
+			// Assigning a std::string frees its old buffer. The main thread hands these to
+			// Scaleform as .c_str() while drawing the control tips, so writing them from the
+			// render thread can pull the memory out from under an Invoke that is in flight.
+			// Copy the edited text on the main thread instead.
+			const auto setTip = [](std::string* a_target, const char* a_text) {
+				OnMainThread([a_target, text = std::string(a_text)]() { *a_target = text; });
+			};
+
 			if (ImGuiMCP::InputText("Hide tip", hideTipBuffer, kTipBufferSize))
 			{
-				display::controlHideTip = hideTipBuffer;
+				setTip(&display::controlHideTip, hideTipBuffer);
 			}
 
 			if (ImGuiMCP::InputText("Move tip", moveTipBuffer, kTipBufferSize))
 			{
-				display::controlMoveTip = moveTipBuffer;
+				setTip(&display::controlMoveTip, moveTipBuffer);
 			}
 
 			if (ImGuiMCP::InputText("Zoom tip", zoomTipBuffer, kTipBufferSize))
 			{
-				display::controlZoomTip = zoomTipBuffer;
+				setTip(&display::controlZoomTip, zoomTipBuffer);
 			}
 		}
 
@@ -411,9 +435,15 @@ namespace UI
 		{
 			ImGuiMCP::SeparatorText("");
 
+			// Save and Reload drive the game's own INISettingCollection, whose handle and
+			// Setting objects the main thread also touches through Minimap::Show()/Hide().
+			// Queue them rather than racing it from the render thread.
 			if (ImGuiMCP::Button("Save"))
 			{
-				statusMessage = settings::Save() ? "Settings saved." : "Could not write the INI. See the log for why.";
+				statusMessage = "Saving...";
+				OnMainThread([]() {
+					statusMessage = settings::Save() ? "Settings saved." : "Could not write the INI. See the log for why.";
+				});
 			}
 			HelpMarker("Writes every setting on this page to the plugin's INI so it survives a restart.");
 
@@ -421,17 +451,20 @@ namespace UI
 
 			if (ImGuiMCP::Button("Reload from INI"))
 			{
-				if (settings::Reload())
-				{
-					RefreshTipBuffers();
-					ApplyLiveSettings();
+				statusMessage = "Reloading...";
+				OnMainThread([]() {
+					if (settings::Reload())
+					{
+						RefreshTipBuffers();
+						ApplyLiveSettings();
 
-					statusMessage = "Settings reloaded from the INI.";
-				}
-				else
-				{
-					statusMessage = "Could not read the INI. See the log for why.";
-				}
+						statusMessage = "Settings reloaded from the INI.";
+					}
+					else
+					{
+						statusMessage = "Could not read the INI. See the log for why.";
+					}
+				});
 			}
 			HelpMarker("Throws away any change made here since the last save and re-reads the INI from disk. Also picks up edits made to the file by hand.");
 
@@ -439,9 +472,11 @@ namespace UI
 
 			if (ImGuiMCP::Button("Restore defaults"))
 			{
-				settings::RestoreDefaults();
-				RefreshTipBuffers();
-				ApplyLiveSettings();
+				OnMainThread([]() {
+					settings::RestoreDefaults();
+					RefreshTipBuffers();
+					ApplyLiveSettings();
+				});
 
 				statusMessage = "Defaults restored. Press Save to keep them.";
 			}

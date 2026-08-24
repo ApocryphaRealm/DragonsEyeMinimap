@@ -187,6 +187,17 @@ namespace DEM
 			logger::warn("Could not read Stage size; treating offsets as parent-space units");
 		}
 
+		// The probe returns the clip's own coordinate space while the bounds arithmetic works
+		// in the parent's. The two coincide only while the artwork is authored at the origin
+		// at scale 100, which it is - but say so out loud rather than leaving a silent
+		// assumption for whoever re-authors the SWF.
+		if (baseX != 0.0F || baseY != 0.0F || baseXScale != 100.0F || baseYScale != 100.0F)
+		{
+			logger::warn("Minimap clip is authored at ({}, {}) scale ({}, {}) rather than the origin at 100%; "
+						 "anchoring and the edge margin assume otherwise and will be off",
+						 baseX, baseY, baseXScale, baseYScale);
+		}
+
 		logger::info("Position mapping: origin ({}, {}), span ({}, {}), bounds ({}, {}) {}x{}, stage {}x{}",
 					 positionOriginX, positionOriginY, positionSpanX, positionSpanY,
 					 boundsLeft, boundsTop, boundsWidth, boundsHeight, stageWidth, stageHeight);
@@ -211,7 +222,10 @@ namespace DEM
 		const float byWidth = (std::abs(positionSpanX) * 0.5F) * 100.0F / (boundsWidth * baseXScale);
 		const float byHeight = (std::abs(positionSpanY) * 0.5F) * 100.0F / (boundsHeight * baseYScale);
 
-		return std::min({ byWidth, byHeight, settings::display::kScaleSliderMax });
+		// Never below the slider's lower end: std::clamp with lo > hi is undefined, and both
+		// the menu and ApplyDisplaySettings clamp against this value.
+		return std::clamp(std::min({ byWidth, byHeight, settings::display::kScaleSliderMax }),
+						  settings::display::kScaleSliderMin, settings::display::kScaleSliderMax);
 	}
 
 	void Minimap::ApplyDisplaySettings()
@@ -347,7 +361,7 @@ namespace DEM
 
 	void Minimap::SetMapZoom(float a_zoom)
 	{
-		if (!cameraContext)
+		if (!cameraContext || !cameraContext->defaultState)
 		{
 			return;
 		}
@@ -360,6 +374,11 @@ namespace DEM
 	void Minimap::ToggleZoomPreset()
 	{
 		if (!cameraContext)
+		{
+			return;
+		}
+
+		if (!cameraContext->defaultState)
 		{
 			return;
 		}

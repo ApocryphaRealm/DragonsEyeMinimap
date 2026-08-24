@@ -30,7 +30,9 @@ namespace settings
 
 	namespace debug
 	{
-		inline logger::level logLevel = logger::level::trace;
+		// Info, matching the shipped INI. Trace here would make "Restore defaults" quietly
+		// switch the player to logging every frame.
+		inline logger::level logLevel = logger::level::info;
 	}
 
 	namespace display

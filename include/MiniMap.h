@@ -125,7 +125,8 @@ namespace DEM
 
 		bool IsShown() const
 		{
-			return localMap && localMap_->enabled;
+			// localMap_ is the pointer actually dereferenced, so it is the one to guard.
+			return localMap_ && localMap_->enabled;
 		}
 
 		void Show();
@@ -156,7 +157,12 @@ namespace DEM
 		}
 
 		// The map's current zoom, as the camera holds it.
-		float GetMapZoom() const { return cameraContext ? cameraContext->defaultState->zoom : 0.0F; }
+		float GetMapZoom() const
+		{
+			// The menu polls this from the render thread while InitLocalMap may still be
+			// running, so check both links of the chain rather than only the first.
+			return cameraContext && cameraContext->defaultState ? cameraContext->defaultState->zoom : 0.0F;
+		}
 
 		// Steer the zoom to an absolute value. Main thread only.
 		void SetMapZoom(float a_zoom);
