@@ -1,6 +1,6 @@
 # Port notes — INI-only settings → SKSE Menu Framework
 
-**Version 1.6.5.** This is a fork of
+**Version 1.6.6.** This is a fork of
 [alexsylex/DragonsEyeMinimap](https://github.com/alexsylex/DragonsEyeMinimap) 1.1.0 that adds an in-game settings page driven by
 [SKSE Menu Framework 3](https://github.com/QTR-Modding/SKSE-Menu-Framework-3), so the minimap
 can be configured while the game is running instead of only through `DragonsEyeMinimap.ini`
@@ -147,6 +147,34 @@ the moment anything (changing the corner, for instance) re-applied it later, onc
 rendered frames had passed. `pendingInitialReapply` asks for one more application, the next
 time `Advance()` runs for real - i.e. after a frame has actually happened - rather than relying
 on either of the two same-frame applies during setup being reliable.
+
+**The artwork's measured bounds were inflated by the hidden Controls clip, in a way that
+explained the per-corner offset asymmetry a real user found empirically.** `getBounds()`
+measures a clip's full render extent regardless of `_visible` - Flash does not exclude hidden
+children from it. `Controls`, permanently hidden since 1.6.2, is still a child of the tree
+`GetArtBoundsInParent()` was measuring as a whole, so its authored space was folded into
+`artLeft`/`artTop`/`artRight`/`artBottom` even though nothing of it is drawn. The corrections
+that were needed to compensate - roughly -69 on the left corners, +30 on the bottom ones, small
+adjustments on the right and top ones - are the signature of one element sitting below and to
+the left of the map artwork, exactly where a "hold to control/tap to hide" prompt with buttons
+would be authored. A resolution bug would have misplaced all four corners by proportional
+amounts; this pattern (same correction shared by both left corners, same one shared by both
+bottom corners, small corrections on the other two sides) does not fit that shape at all.
+
+Fixed by measuring `BackgroundArtSquare`/`BackgroundArtCircle` - whichever matches the current
+shape - instead of the whole clip, once `localMap_` exists to reach it. That clip is exactly
+the visible map frame, with no Controls artwork anywhere inside it. Before `localMap_` exists
+(the constructor's very first call, before `LocalMap` has even been constructed) there is
+nothing more precise to measure yet, so the whole clip's bounds remain a fallback for that one
+early call; `pendingInitialReapply` (1.6.5) already re-applies once real frames have passed,
+which is when the precise measurement takes over.
+
+Deliberately not fixed by hardcoding the four corrections a player found as new per-corner
+defaults: if the underlying measurement was wrong, baking in numbers discovered against that
+wrong measurement would double-correct once the measurement itself is fixed. The corner+offset
+system was already resolution-independent by construction - it reads Stage.width/Stage.height
+live on every apply - so a (0, 0) offset landing flush at any resolution, once the actual
+measurement bug is fixed, was the more durable answer than tuning to one player's screen.
 
 **The tap-to-hide/hold-to-pan control mode is gone, along with the control-tip prompts and
 platform-button Scaleform plumbing that supported it.** `ProcessThumbstick`/`ProcessMouseMove`
