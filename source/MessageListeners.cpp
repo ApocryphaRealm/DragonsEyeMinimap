@@ -5,6 +5,8 @@
 #include "IUI/API.h"
 #include "LMU/API.h"
 
+#include "UI.h"
+
 #include "IUI/GFxLoggers.h"
 
 extern const SKSE::LoadInterface* skse;
@@ -14,6 +16,14 @@ void LocalMapUpgradeMessageListener(SKSE::MessagingInterface::Message* a_msg);
 
 void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 {
+	// Once every plugin has finished its own post-load work, SKSE Menu Framework is
+	// certain to be in the process, so its module can be looked up and the settings
+	// page registered.
+	if (a_msg->type == SKSE::MessagingInterface::kPostPostLoad)
+	{
+		UI::Register();
+	}
+
 	// If all plugins have been loaded
 	if (a_msg->type == SKSE::MessagingInterface::kPostLoad) 
 	{
