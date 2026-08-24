@@ -60,6 +60,11 @@ namespace settings
 		}
 
 		inline float scale = 0.5F;
+
+		// The scale slider's fixed ends. The upper end is tightened further at runtime, once
+		// the artwork has been measured, so the minimap cannot exceed a quarter of the screen.
+		inline constexpr float kScaleSliderMin = 0.1F;
+		inline constexpr float kScaleSliderMax = 3.0F;
 		inline std::uint32_t shape = 0;
 		inline bool showOnGameStart = true;
 		inline std::string controlHideTip = "Hold to control/tap to hide";

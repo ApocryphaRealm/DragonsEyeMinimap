@@ -198,6 +198,22 @@ namespace DEM
 		}
 	}
 
+	float Minimap::GetMaxScale() const
+	{
+		// A quarter of the screen means one quadrant: half its width and half its height. Any
+		// bigger and a corner-anchored minimap stops being a minimap.
+		if (!hasPositionMapping || boundsWidth <= 0.0F || boundsHeight <= 0.0F ||
+			baseXScale <= 0.0F || baseYScale <= 0.0F)
+		{
+			return settings::display::kScaleSliderMax;
+		}
+
+		const float byWidth = (std::abs(positionSpanX) * 0.5F) * 100.0F / (boundsWidth * baseXScale);
+		const float byHeight = (std::abs(positionSpanY) * 0.5F) * 100.0F / (boundsHeight * baseYScale);
+
+		return std::min({ byWidth, byHeight, settings::display::kScaleSliderMax });
+	}
+
 	void Minimap::ApplyDisplaySettings()
 	{
 		if (!displayObj.HasMember("Minimap"))
@@ -205,7 +221,9 @@ namespace DEM
 			return;
 		}
 
-		const float scale = settings::display::scale;
+		// Clamped here as well as in the menu, so a hand-edited INI cannot produce a minimap
+		// that swallows the screen.
+		const float scale = std::clamp(settings::display::scale, settings::display::kScaleSliderMin, GetMaxScale());
 
 		// _xscale/_yscale rather than _width/_height: the latter are derived from the clip's
 		// bounding box, which changes as children come and go, so the same _width stops
@@ -238,10 +256,15 @@ namespace DEM
 		// Where the artwork sits relative to the registration point, at the scale in use.
 		// Anchoring against the artwork rather than the registration point is what makes a
 		// right or bottom corner usable at all.
-		const float visualLeft = boundsLeft * scale;
-		const float visualTop = boundsTop * scale;
-		const float visualWidth = boundsWidth * scale;
-		const float visualHeight = boundsHeight * scale;
+		// getBounds reports the clip's own coordinate space, so converting to parent units
+		// needs the whole scale that is actually applied, not just fScale.
+		const float xFactor = baseXScale * scale / 100.0F;
+		const float yFactor = baseYScale * scale / 100.0F;
+
+		const float visualLeft = boundsLeft * xFactor;
+		const float visualTop = boundsTop * yFactor;
+		const float visualWidth = boundsWidth * xFactor;
+		const float visualHeight = boundsHeight * yFactor;
 
 		// One margin unit is one screen pixel, converted into parent space.
 		const float unitX = std::abs(positionSpanX) / stageWidth;

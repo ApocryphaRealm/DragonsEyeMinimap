@@ -210,8 +210,17 @@ namespace UI
 			changed |= NudgeableSlider("Edge margin", &display::edgeMargin, 0.0F, 200.0F, "%.0f px", 1.0F);
 			HelpMarker("How far in from the corner's two edges the minimap sits. 0 puts it flush against them.");
 
-			changed |= NudgeableSlider("Scale", &display::scale, 0.1F, 3.0F, "%.2f", 0.01F);
-			HelpMarker("Size of the minimap. 1.00 is the size the artwork was drawn at.");
+			// The upper end is whatever keeps the minimap within a quarter of the screen, so
+			// the slider cannot ask for a size the plugin will refuse to apply.
+			auto* sized = DEM::Minimap::GetSingleton();
+			const float maxScale = sized ? sized->GetMaxScale() : display::kScaleSliderMax;
+
+			display::scale = std::clamp(display::scale, display::kScaleSliderMin, maxScale);
+
+			changed |= NudgeableSlider("Scale", &display::scale, display::kScaleSliderMin, maxScale, "%.2f", 0.01F);
+			HelpMarker("Size of the minimap. 1.00 is the size the artwork was drawn at. The top of the range is capped so the minimap stays within a quarter of the screen.");
+
+			ImGuiMCP::TextDisabled("Largest allowed: %.2f (a quarter of the screen)", maxScale);
 
 			int shape = static_cast<int>(display::shape);
 			if (ImGuiMCP::Combo("Shape", &shape, kShapeNames, kShapeCount))
