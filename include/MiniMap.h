@@ -60,34 +60,18 @@ namespace DEM
 
 			~InputHandler() final{};  // 00
 
-			// override (RE::MenuEventHandler)
+			// override (RE::MenuEventHandler). ProcessThumbstick/ProcessMouseMove are not
+			// overridden any more - the base class default (return false) is exactly what is
+			// needed now that there is no camera panning to drive from them.
 			bool CanProcess(RE::InputEvent* a_event) final;				 // 01
-			bool ProcessThumbstick(RE::ThumbstickEvent* a_event) final;	 // 03
-			bool ProcessMouseMove(RE::MouseMoveEvent* a_event) final;	 // 04
 			bool ProcessButton(RE::ButtonEvent* a_event) final;			 // 05
 
 			bool ProcessKeyboardOrMouseButton(RE::ButtonEvent* a_butonEvent);
-			bool ProcessGamepadButton(RE::ButtonEvent* a_buttonEvent);
-
-			bool IsControllingMinimap() const { return isControllingMinimap; }
-
-			void StartControllingMinimap();
-			void StopControllingMinimap();
 
 		private:
 			Minimap* miniMap;
 
-			bool isControllingMinimap = false;
-
 			RE::MenuControls* menuControls = RE::MenuControls::GetSingleton();
-			RE::ControlMap* controlMap = RE::ControlMap::GetSingleton();
-			RE::BSInputDeviceManager* inputDeviceManager = RE::BSInputDeviceManager::GetSingleton();
-			RE::UserEvents* userEvents = RE::UserEvents::GetSingleton();
-
-			const float& localMapMousePanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMousePanSpeed:MapMenu")->data.f;
-			const float& localMapGamepadPanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadPanSpeed:MapMenu")->data.f;
-			const float& localMapMouseZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMouseZoomSpeed:MapMenu")->data.f;
-			const float& localMapGamepadZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadZoomSpeed:MapMenu")->data.f;
 		};
 
 		static constexpr inline std::string_view path = "_level0.HUDMovieBaseInstance.Minimap";
@@ -112,7 +96,6 @@ namespace DEM
 
 		void Advance();
 		void PreRender();
-		void RefreshPlatform();
 
 		// Controls
 		bool IsVisible() const
@@ -145,17 +128,6 @@ namespace DEM
 		void ApplyDisplaySettings();
 		void ApplyShapeSetting();
 
-		void ShowControls();
-		void HideControlsAfter(float a_delaySecs);
-		void FoldControls();
-		void UnfoldControls();
-
-		void ModTranslation(float a_xOffset, float a_yOffset, float a_zOffset = 0.0F)
-		{
-			RE::NiPoint3 translationOffset = cameraContext->cameraRoot->local.rotate * RE::NiPoint3{ a_zOffset, a_yOffset, a_xOffset };
-			cameraContext->defaultState->translation += translationOffset;
-		}
-
 		// The map's current zoom, as the camera holds it.
 		float GetMapZoom() const
 		{
@@ -168,12 +140,8 @@ namespace DEM
 		void SetMapZoom(float a_zoom);
 
 		// Jump to whichever of the two zoom presets is further from where we are. Main thread only.
+		// Alternates the map zoom between settings::controls::zoomDefault and zoomZoomedIn.
 		void ToggleZoomPreset();
-
-		void ModZoom(float a_zoomMod)
-		{
-			cameraContext->zoomInput += a_zoomMod;
-		}
 
 		// Local Map Upgrade interface
 		static inline void (*SetPixelShaderProperties)(LMU::PixelShaderProperty::Shape a_shape, LMU::PixelShaderProperty::Style a_style);
@@ -192,7 +160,7 @@ namespace DEM
 				baseXScale = static_cast<float>(displayObj.GetMember("_xscale").GetNumber());
 				baseYScale = static_cast<float>(displayObj.GetMember("_yscale").GetNumber());
 
-				MeasurePositionMapping();
+				MeasureStage();
 
 				// One code path for the initial layout and every later change, so the two
 				// cannot drift apart.
@@ -202,7 +170,15 @@ namespace DEM
 
 		void InitLocalMap();
 
-		void MeasurePositionMapping();
+		void MeasureStage();
+
+		// Converts a point in stage (screen) pixels into the minimap clip's parent space,
+		// which is the space _x and _y are expressed in. Returns false if the parent or the
+		// movie view cannot be reached.
+		bool StageToParent(float a_stageX, float a_stageY, float& a_outX, float& a_outY);
+
+		// The artwork's box in the parent's space, at whatever transform is applied right now.
+		bool GetArtBoundsInParent(float& a_left, float& a_top, float& a_right, float& a_bottom);
 
 		void UpdateFogOfWar();
 		void RenderOffScreen();
@@ -221,24 +197,12 @@ namespace DEM
 		float baseXScale = 100.0F;
 		float baseYScale = 100.0F;
 
-		// Where the clip lands for a screen proportion of 0, and how far a whole screen moves
-		// it. Measured once, so position can be computed rather than asked for. See
-		// MeasurePositionMapping().
-		float positionOriginX = 0.0F;
-		float positionOriginY = 0.0F;
-		float positionSpanX = 0.0F;
-		float positionSpanY = 0.0F;
-		bool hasPositionMapping = false;
+		// The artwork's size at scale 1, learned the first time it is measured for real. Used
+		// only to work out the largest scale that still fits a quarter of the screen.
+		float artWidthAtScaleOne = 0.0F;
+		float artHeightAtScaleOne = 0.0F;
 
-		// The clip's visual box relative to its own registration point, at scale 1. Without
-		// this, anchoring to the right or bottom edge would put the registration point there
-		// and leave most of the minimap off screen.
-		float boundsLeft = 0.0F;
-		float boundsTop = 0.0F;
-		float boundsWidth = 0.0F;
-		float boundsHeight = 0.0F;
-
-		// Screen size in the units the offsets are expressed in.
+		// Screen size in stage pixels.
 		float stageWidth = 0.0F;
 		float stageHeight = 0.0F;
 
@@ -251,6 +215,10 @@ namespace DEM
 
 		float minCamFrustumHalfWidth = 0.0F;
 		float minCamFrustumHalfHeight = 0.0F;
+
+		// Which of the two zoom presets ToggleZoomPreset last chose. Not persisted - it
+		// resets to "default" every game launch, which is a reasonable place to start from.
+		bool zoomedIn = false;
 
 		RE::BSTSmartPointer<InputHandler> inputHandler = RE::make_smart<InputHandler>(this);
 

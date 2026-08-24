@@ -13,22 +13,20 @@ namespace UI
 {
 	namespace
 	{
-		constexpr std::size_t kTipBufferSize = 256;
-
-		// ImGui edits text through a fixed char buffer, so the control tips live here while the
-		// panel is open and are copied back into settings:: as soon as they are edited.
-		char hideTipBuffer[kTipBufferSize]{};
-		char moveTipBuffer[kTipBufferSize]{};
-		char zoomTipBuffer[kTipBufferSize]{};
-
 		std::string statusMessage;
 
-		// While set, the next key pressed becomes the minimap's hide key instead of doing
-		// whatever it normally does.
 		// The slider the arrow keys currently drive. Set by clicking one.
 		std::string selectedSlider;
 
-		std::atomic<bool> awaitingKeyBind{ false };
+		// Which key, if any, the next keypress should be bound to. kNone means the Bind
+		// buttons are idle; OnInputEvent clears it back to kNone as soon as it captures one.
+		enum class BindTarget
+		{
+			kNone,
+			kHide,
+			kZoom
+		};
+		std::atomic<BindTarget> bindTarget{ BindTarget::kNone };
 		SKSEMenuFramework::Model::InputEvent* inputHook = nullptr;
 
 		constexpr const char* kShapeNames[] = { "Squared", "Round" };
@@ -39,21 +37,6 @@ namespace UI
 
 		constexpr const char* kLogLevelNames[] = { "Trace", "Debug", "Info", "Warning", "Error", "Critical", "Off" };
 		constexpr int kLogLevelCount = 7;
-
-		void CopyToBuffer(char (&a_buffer)[kTipBufferSize], const std::string& a_value)
-		{
-			const std::size_t length = a_value.size() < kTipBufferSize - 1 ? a_value.size() : kTipBufferSize - 1;
-
-			std::memcpy(a_buffer, a_value.data(), length);
-			a_buffer[length] = '\0';
-		}
-
-		void RefreshTipBuffers()
-		{
-			CopyToBuffer(hideTipBuffer, settings::display::controlHideTip);
-			CopyToBuffer(moveTipBuffer, settings::display::controlMoveTip);
-			CopyToBuffer(zoomTipBuffer, settings::display::controlZoomTip);
-		}
 
 		// The framework renders from the renderer's present hook, which is not the thread
 		// Scaleform and the rest of the game expect to be talked to. Anything that reaches into
@@ -98,7 +81,6 @@ namespace UI
 				"igSpacing",
 				"igIndent",
 				"igUnindent",
-				"igInputText",
 				"igPushItemWidth",
 				"igPopItemWidth"
 			};
@@ -117,29 +99,46 @@ namespace UI
 		}
 
 		// Runs on the framework's input thread. Only ever writes the scan code and clears the
-		// flag, so there is nothing here that needs the main thread.
+		// target, so there is nothing here that needs the main thread.
 		bool __stdcall OnInputEvent(RE::InputEvent* a_event)
 		{
-			if (!awaitingKeyBind.load())
+			const BindTarget target = bindTarget.load();
+			if (target == BindTarget::kNone)
 			{
 				return false;
 			}
 
 			auto* buttonEvent = a_event ? a_event->AsButtonEvent() : nullptr;
-			if (!buttonEvent || !buttonEvent->IsDown())
+
+			// IsPressed() (any nonzero value) rather than IsDown() (only the very first frame
+			// of the press): the framework's own contract for when this callback fires and
+			// with which frame of the event is undocumented, so accepting any pressed frame is
+			// the more robust match. Only capturing once is handled below by clearing the
+			// target, not by requiring a particular frame.
+			if (!buttonEvent || !buttonEvent->IsPressed())
 			{
 				return false;
 			}
 
-			// Keyboard only, to match what Controls.cpp will compare against. Storing a mouse
+			// Keyboard only, to match what Controls.cpp compares against. Storing a mouse
 			// IDCode here would bind a code that also matches a low keyboard scan code.
 			if (buttonEvent->GetDevice() != RE::INPUT_DEVICE::kKeyboard)
 			{
 				return false;
 			}
 
-			settings::controls::hideKeyCode = static_cast<std::int32_t>(buttonEvent->GetIDCode());
-			awaitingKeyBind.store(false);
+			const auto code = static_cast<std::int32_t>(buttonEvent->GetIDCode());
+
+			if (target == BindTarget::kHide)
+			{
+				settings::controls::hideKeyCode = code;
+			}
+			else if (target == BindTarget::kZoom)
+			{
+				settings::controls::zoomToggleKeyCode = code;
+			}
+
+			bindTarget.store(BindTarget::kNone);
 
 			// Swallow it, so binding a key does not also trigger whatever it is bound to.
 			return true;
@@ -196,6 +195,31 @@ namespace UI
 			}
 		}
 
+		// A key-code box plus a Bind button that captures the next keypress into it. Shared by
+		// the hide key and the zoom key so the two behave identically.
+		void KeyBindRow(const char* a_label, std::int32_t* a_keyCode, BindTarget a_target, const char* a_bindButtonId)
+		{
+			int keyCode = *a_keyCode;
+			if (ImGuiMCP::InputInt(a_label, &keyCode))
+			{
+				*a_keyCode = keyCode < 0 ? 0 : keyCode;
+			}
+
+			ImGuiMCP::SameLine();
+
+			if (bindTarget.load() == a_target)
+			{
+				if (ImGuiMCP::Button("Press a key... (cancel)"))
+				{
+					bindTarget.store(BindTarget::kNone);
+				}
+			}
+			else if (ImGuiMCP::Button(a_bindButtonId))
+			{
+				bindTarget.store(a_target);
+			}
+		}
+
 		void RenderDisplaySection()
 		{
 			using namespace settings;
@@ -211,10 +235,13 @@ namespace UI
 				display::anchor = static_cast<std::uint32_t>(anchor);
 				changed = true;
 			}
-			HelpMarker("Which screen corner the minimap sits in. With the edge margin at 0 it tucks right into that corner.");
+			HelpMarker("Which screen corner the minimap sits in. With both offsets at 0 the artwork lines up flush with that corner.");
 
-			changed |= NudgeableSlider("Edge margin", &display::edgeMargin, 0.0F, 200.0F, "%.0f px", 1.0F);
-			HelpMarker("How far in from the corner's two edges the minimap sits. 0 puts it flush against them.");
+			changed |= NudgeableSlider("Offset X", &display::offsetX, -600.0F, 600.0F, "%.0f px", 1.0F);
+			HelpMarker("Nudge from the corner, in screen pixels. Positive is always rightwards, whichever corner is anchored.");
+
+			changed |= NudgeableSlider("Offset Y", &display::offsetY, -600.0F, 600.0F, "%.0f px", 1.0F);
+			HelpMarker("Nudge from the corner, in screen pixels. Positive is always downwards, whichever corner is anchored.");
 
 			// The upper end is whatever keeps the minimap within a quarter of the screen, so
 			// the slider cannot ask for a size the plugin will refuse to apply.
@@ -259,8 +286,8 @@ namespace UI
 				bool shown = minimap->IsShown();
 				if (ImGuiMCP::Checkbox("Show minimap", &shown))
 				{
-					// Show()/Hide() also persist bShowOnGameStart, exactly as tapping the
-					// control key in game does, so this doubles as the on-start setting.
+					// Show()/Hide() also persist bShowOnGameStart, exactly as pressing the
+					// hide key in game does, so this doubles as the on-start setting.
 					OnMainThread([shown]() {
 						if (auto* target = DEM::Minimap::GetSingleton())
 						{
@@ -283,19 +310,58 @@ namespace UI
 
 			ImGuiMCP::SeparatorText("Map zoom");
 
-			auto* minimap = DEM::Minimap::GetSingleton();
+			// The key, and the two levels it alternates between, do not need the minimap to
+			// exist - only the live slider and "Set to current" do, since those talk to the
+			// camera. Keeping the key controls out from behind that gate is what makes it
+			// possible to bind or type the zoom key before the minimap has loaded.
+			KeyBindRow("Zoom toggle key", &controls::zoomToggleKeyCode, BindTarget::kZoom, "Bind##zoom");
+			HelpMarker("Press this key to jump between the two zoom levels below, instead of holding the control key and scrolling. 0 disables it.");
 
-			if (!minimap || !minimap->IsReady())
+			if (controls::zoomToggleKeyCode == 0)
 			{
-				ImGuiMCP::TextDisabled("Available once the minimap is running.");
+				ImGuiMCP::TextDisabled("No zoom key set.");
+			}
+
+			ImGuiMCP::Spacing();
+
+			auto* minimap = DEM::Minimap::GetSingleton();
+			const bool ready = minimap && minimap->IsReady();
+
+			NudgeableSlider("Default zoom", &controls::zoomDefault, 0.0F, 1.0F, "%.3f", 0.01F);
+			if (ready)
+			{
+				ImGuiMCP::SameLine();
+				if (ImGuiMCP::Button("Set to current##default"))
+				{
+					controls::zoomDefault = minimap->GetMapZoom();
+				}
+			}
+
+			NudgeableSlider("Zoomed in", &controls::zoomZoomedIn, 0.0F, 1.0F, "%.3f", 0.01F);
+			if (ready)
+			{
+				ImGuiMCP::SameLine();
+				if (ImGuiMCP::Button("Set to current##zoomedin"))
+				{
+					controls::zoomZoomedIn = minimap->GetMapZoom();
+				}
+			}
+			HelpMarker("The zoom toggle key alternates between these two. Zoom the map where you want it, then press \"Set to current\" to store that level rather than typing a number in units the game does not document.");
+
+			if (!ready)
+			{
+				ImGuiMCP::TextDisabled("Zoom the map in game and use \"Set to current\" once the minimap is running - "
+									   "the numbers above are in the camera's own units, which are not documented.");
 
 				return;
 			}
 
+			ImGuiMCP::Spacing();
+
 			// Read back from the camera every frame rather than keeping our own copy, so the
 			// slider shows where the zoom actually ended up after the game clamped it.
 			float live = minimap->GetMapZoom();
-			if (NudgeableSlider("Zoom", &live, 0.0F, 1.0F, "%.3f", 0.01F))
+			if (NudgeableSlider("Live zoom", &live, 0.0F, 1.0F, "%.3f", 0.01F))
 			{
 				OnMainThread([live]() {
 					if (auto* target = DEM::Minimap::GetSingleton())
@@ -305,37 +371,6 @@ namespace UI
 				});
 			}
 			HelpMarker("How far the minimap is zoomed in, right now. The game applies its own limits, so the value can settle somewhere other than where you left it.");
-
-			ImGuiMCP::TextDisabled("Camera reports %.4f", live);
-
-			ImGuiMCP::Spacing();
-
-			NudgeableSlider("Preset 1", &controls::zoomPreset1, 0.0F, 1.0F, "%.3f", 0.01F);
-			ImGuiMCP::SameLine();
-			if (ImGuiMCP::Button("Set to current##z1"))
-			{
-				controls::zoomPreset1 = minimap->GetMapZoom();
-			}
-
-			NudgeableSlider("Preset 2", &controls::zoomPreset2, 0.0F, 1.0F, "%.3f", 0.01F);
-			ImGuiMCP::SameLine();
-			if (ImGuiMCP::Button("Set to current##z2"))
-			{
-				controls::zoomPreset2 = minimap->GetMapZoom();
-			}
-			HelpMarker("Zoom the map where you want it, then press \"Set to current\" to store that level as a preset.");
-
-			int zoomKey = controls::zoomToggleKeyCode;
-			if (ImGuiMCP::InputInt("Zoom toggle key", &zoomKey))
-			{
-				controls::zoomToggleKeyCode = zoomKey < 0 ? 0 : zoomKey;
-			}
-			HelpMarker("Tapping this key jumps between the two presets, instead of holding the control key and scrolling. 0 disables it.");
-
-			if (controls::zoomToggleKeyCode == 0)
-			{
-				ImGuiMCP::TextDisabled("No zoom key set.");
-			}
 		}
 
 		void RenderControlsSection()
@@ -344,76 +379,18 @@ namespace UI
 
 			ImGuiMCP::SeparatorText("Controls");
 
-			int keyCode = controls::hideKeyCode;
-			if (ImGuiMCP::InputInt("Hide key", &keyCode))
-			{
-				controls::hideKeyCode = keyCode < 0 ? 0 : keyCode;
-			}
-			HelpMarker("DirectInput scan code of a key that shows or hides the minimap the moment it is pressed. "
-					   "0 disables it. This is separate from the game's Local Map key, which keeps its own "
-					   "tap-to-hide and hold-to-control behaviour either way.");
-
-			ImGuiMCP::SameLine();
-
-			if (awaitingKeyBind.load())
-			{
-				if (ImGuiMCP::Button("Press a key... (cancel)"))
-				{
-					awaitingKeyBind.store(false);
-				}
-			}
-			else if (ImGuiMCP::Button("Bind"))
-			{
-				awaitingKeyBind.store(true);
-			}
+			KeyBindRow("Hide key", &controls::hideKeyCode, BindTarget::kHide, "Bind##hide");
+			HelpMarker("Press this key to show or hide the minimap immediately. 0 disables it.");
 
 			if (controls::hideKeyCode == 0)
 			{
-				ImGuiMCP::TextDisabled("No hide key set; the game's Local Map key still works.");
+				ImGuiMCP::TextDisabled("No hide key set.");
 			}
 
 			ImGuiMCP::Spacing();
 
 			ImGuiMCP::Checkbox("Rotate with the player", &controls::followPlayerCameraRotation);
 			HelpMarker("On: the minimap turns to face where the player is looking. Off: north is always up, like the local map.");
-
-			ImGuiMCP::SliderFloat("Hold to control (s)", &controls::holdDownToControlSecs, 0.0F, 2.0F, "%.2f");
-			HelpMarker("How long the control key has to be held before it starts panning and zooming the minimap instead of hiding it.");
-
-			ImGuiMCP::SliderFloat("Hide controls after (s)", &controls::delayToHideControlsSecs, 0.0F, 10.0F, "%.2f");
-			HelpMarker("How long the control tips stay on screen once you stop controlling the minimap.");
-		}
-
-		void RenderTipsSection()
-		{
-			using namespace settings;
-
-			ImGuiMCP::SeparatorText("Control tips");
-
-			ImGuiMCP::TextDisabled("The prompts drawn next to the minimap. Handy for translating them.");
-
-			// Assigning a std::string frees its old buffer. The main thread hands these to
-			// Scaleform as .c_str() while drawing the control tips, so writing them from the
-			// render thread can pull the memory out from under an Invoke that is in flight.
-			// Copy the edited text on the main thread instead.
-			const auto setTip = [](std::string* a_target, const char* a_text) {
-				OnMainThread([a_target, text = std::string(a_text)]() { *a_target = text; });
-			};
-
-			if (ImGuiMCP::InputText("Hide tip", hideTipBuffer, kTipBufferSize))
-			{
-				setTip(&display::controlHideTip, hideTipBuffer);
-			}
-
-			if (ImGuiMCP::InputText("Move tip", moveTipBuffer, kTipBufferSize))
-			{
-				setTip(&display::controlMoveTip, moveTipBuffer);
-			}
-
-			if (ImGuiMCP::InputText("Zoom tip", zoomTipBuffer, kTipBufferSize))
-			{
-				setTip(&display::controlZoomTip, zoomTipBuffer);
-			}
 		}
 
 		void RenderDebugSection()
@@ -455,7 +432,6 @@ namespace UI
 				OnMainThread([]() {
 					if (settings::Reload())
 					{
-						RefreshTipBuffers();
 						ApplyLiveSettings();
 
 						statusMessage = "Settings reloaded from the INI.";
@@ -474,7 +450,6 @@ namespace UI
 			{
 				OnMainThread([]() {
 					settings::RestoreDefaults();
-					RefreshTipBuffers();
 					ApplyLiveSettings();
 				});
 
@@ -509,9 +484,7 @@ namespace UI
 			return;
 		}
 
-		RefreshTipBuffers();
-
-		// Only needed for the "Bind" button; without it the key can still be typed in.
+		// Only needed for the "Bind" buttons; without it both keys can still be typed in.
 		if (GetMenuFrameworkFunction<void*>("RegisterInpoutEvent"))
 		{
 			inputHook = SKSEMenuFramework::AddInputEvent(OnInputEvent);
@@ -519,7 +492,7 @@ namespace UI
 		else
 		{
 			logger::info("SKSE Menu Framework does not export \"RegisterInpoutEvent\"; "
-						 "the hide key can still be set by typing its scan code");
+						 "both keys can still be set by typing their scan codes");
 		}
 
 		SKSEMenuFramework::SetSection("Dragon's Eye Minimap");
@@ -555,9 +528,6 @@ namespace UI
 		ImGuiMCP::Spacing();
 
 		RenderControlsSection();
-		ImGuiMCP::Spacing();
-
-		RenderTipsSection();
 		ImGuiMCP::Spacing();
 
 		RenderDebugSection();

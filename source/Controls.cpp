@@ -18,12 +18,6 @@ namespace DEM
 	{
 		if (RE::UI__IsInMenuMode() || !miniMap->IsVisible())
 		{
-			if (isControllingMinimap)
-			{
-				StopControllingMinimap();
-				miniMap->FoldControls();
-			}
-
 			if (registered)
 			{
 				menuControls->RemoveHandler(this);
@@ -35,57 +29,15 @@ namespace DEM
 		return true;
 	}
 
-	bool Minimap::InputHandler::ProcessThumbstick(RE::ThumbstickEvent* a_event)
-	{
-		if (isControllingMinimap)
-		{
-			std::string_view userEventName = controlMap->GetUserEventName(a_event->GetIDCode(), RE::INPUT_DEVICE::kGamepad, RE::ControlMap::InputContextID::kMap);
-
-			if (userEventName == userEvents->look)
-			{
-				float xOffset = 2 * a_event->xValue * std::abs(a_event->xValue) * localMapGamepadPanSpeed;
-				float yOffset = 2 * a_event->yValue * std::abs(a_event->yValue) * localMapGamepadPanSpeed;
-
-				miniMap->ModTranslation(xOffset, yOffset);
-			}
-		}
-
-		return true;
-	}
-
-	bool Minimap::InputHandler::ProcessMouseMove(RE::MouseMoveEvent* a_event)
-	{
-		if (isControllingMinimap)
-		{
-			if (inputDeviceManager->IsGamepadEnabled())
-			{
-				return false;
-			}
-
-			float xOffset = -a_event->mouseInputX * localMapMousePanSpeed;
-			float yOffset = a_event->mouseInputY * localMapMousePanSpeed;
-
-			miniMap->ModTranslation(xOffset, yOffset);
-		}
-
-		return true;
-	}
-	
 	bool Minimap::InputHandler::ProcessButton(RE::ButtonEvent* a_event)
 	{
 		if (RE::ButtonEvent* buttonEvent = a_event->AsButtonEvent())
 		{
-			bool isGamepadEnabled = inputDeviceManager->IsGamepadEnabled();
-
-			switch (buttonEvent->GetDevice())
+			// Only the keyboard hide/zoom keys are handled here now; there is no gamepad or
+			// mouse behaviour left to route to.
+			if (buttonEvent->GetDevice() == RE::INPUT_DEVICE::kKeyboard)
 			{
-			case RE::INPUT_DEVICE::kKeyboard:
-			case RE::INPUT_DEVICE::kMouse:
-				return !isGamepadEnabled ? 
-					ProcessKeyboardOrMouseButton(buttonEvent) : false;
-			case RE::INPUT_DEVICE::kGamepad:
-				return isGamepadEnabled ?
-					ProcessGamepadButton(buttonEvent) : false;
+				return ProcessKeyboardOrMouseButton(buttonEvent);
 			}
 		}
 
@@ -94,18 +46,11 @@ namespace DEM
 
 	bool Minimap::InputHandler::ProcessKeyboardOrMouseButton(RE::ButtonEvent* a_buttonEvent)
 	{
-		float buttonMag = a_buttonEvent->Value();
-
-		std::string_view userEventName = controlMap->GetUserEventName(a_buttonEvent->GetIDCode(), a_buttonEvent->GetDevice(), RE::ControlMap::InputContextID::kMap);
-
-		// Two dedicated keys, pressed rather than held. They are deliberately separate from the
-		// Local Map binding below, which keeps its tap-to-hide and hold-to-control behaviour:
-		// these do one thing each, the moment they go down, the way other minimap mods do it.
-		// Only keyboard codes: this handler also serves the mouse, whose IDCodes are 0-7 and
-		// overlap the low DirectInput scan codes, so without this a key bound as scan code 2
-		// would also fire on a mouse button.
-		if (userEventName != userEvents->localMap && a_buttonEvent->IsDown() &&
-			a_buttonEvent->GetDevice() == RE::INPUT_DEVICE::kKeyboard)
+		// Two dedicated keys, pressed rather than held, each doing one thing the moment they
+		// go down. The device check that used to matter here (mouse IDCodes are 0-7 and
+		// overlap the low DirectInput scan codes) is now redundant with ProcessButton only
+		// ever routing keyboard events here, but is harmless to keep implicit.
+		if (a_buttonEvent->IsDown())
 		{
 			if (settings::controls::hideKeyCode > 0 &&
 				a_buttonEvent->GetIDCode() == static_cast<std::uint32_t>(settings::controls::hideKeyCode))
@@ -124,160 +69,7 @@ namespace DEM
 			}
 		}
 
-		if (userEventName == userEvents->localMap)
-		{
-			bool isPressed = buttonMag ? true : false;
-			bool isReleased = !isPressed;
-			float heldDownSecs = a_buttonEvent->HeldDuration();
-
-			if (!miniMap->IsShown())
-			{
-				if (isReleased || (isPressed && heldDownSecs >= 2 * settings::controls::holdDownToControlSecs))
-				{
-					miniMap->Show();
-				}
-			}
-			else
-			{
-				if (isReleased && heldDownSecs < settings::controls::holdDownToControlSecs)
-				{
-					miniMap->Hide();
-				}
-			}
-
-			if (miniMap->IsShown())
-			{
-				if (isPressed && heldDownSecs >= settings::controls::holdDownToControlSecs)
-				{
-					if (!isControllingMinimap)
-					{
-						StartControllingMinimap();
-						miniMap->UnfoldControls();
-					}
-				}
-				else
-				{
-					if (isControllingMinimap)
-					{
-						StopControllingMinimap();
-						miniMap->FoldControls();
-					}
-
-					miniMap->HideControlsAfter(settings::controls::delayToHideControlsSecs);
-				}
-			}
-		}
-
-		if (isControllingMinimap)
-		{
-			if (userEventName == userEvents->zoomIn)
-			{
-				miniMap->ModZoom(localMapMouseZoomSpeed);
-			}
-			else if (userEventName == userEvents->zoomOut)
-			{
-				miniMap->ModZoom(-localMapMouseZoomSpeed);
-			}
-		}
-
-		return true;
-	}
-
-	bool Minimap::InputHandler::ProcessGamepadButton(RE::ButtonEvent* a_buttonEvent)
-	{
-		float buttonMag = a_buttonEvent->Value();
-
-		std::string_view gameplayUserEventName = controlMap->GetUserEventName(a_buttonEvent->GetIDCode(), RE::INPUT_DEVICE::kGamepad, RE::ControlMap::InputContextID::kGameplay);
-
-		if (gameplayUserEventName == userEvents->wait)
-		{
-			bool isPressed = buttonMag ? true : false;
-			bool isReleased = !isPressed;
-			float heldDownSecs = a_buttonEvent->HeldDuration();
-
-			if (!miniMap->IsShown())
-			{
-				if (isReleased || (isPressed && heldDownSecs >= 2 * settings::controls::holdDownToControlSecs))
-				{
-					miniMap->Show();
-				}
-			}
-			else
-			{
-				if (isReleased && heldDownSecs < settings::controls::holdDownToControlSecs)
-				{
-					miniMap->Hide();
-				}
-			}
-
-			if (miniMap->IsShown())
-			{
-				if (isPressed && heldDownSecs >= settings::controls::holdDownToControlSecs)
-				{
-					if (!isControllingMinimap)
-					{
-						StartControllingMinimap();
-						miniMap->UnfoldControls();
-					}
-				}
-				else
-				{
-					if (isControllingMinimap)
-					{
-						StopControllingMinimap();
-						miniMap->FoldControls();
-					}
-
-					miniMap->HideControlsAfter(settings::controls::delayToHideControlsSecs);
-				}
-			}
-		}
-
-		if (isControllingMinimap)
-		{
-			std::string_view mapUserEventName = controlMap->GetUserEventName(a_buttonEvent->GetIDCode(), RE::INPUT_DEVICE::kGamepad, RE::ControlMap::InputContextID::kMap);
-
-			if (mapUserEventName == userEvents->zoomIn)
-			{
-				miniMap->ModZoom(buttonMag * localMapGamepadZoomSpeed);
-			}
-			else if (mapUserEventName == userEvents->zoomOut)
-			{
-				miniMap->ModZoom(-buttonMag * localMapGamepadZoomSpeed);
-			}
-		}
-
-		return true;
-	}
-
-	void Minimap::InputHandler::StartControllingMinimap()
-	{
-		isControllingMinimap = true;
-
-		miniMap->ShowControls();
-
-		controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, false);
-		controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, false);
-
-		if (inputDeviceManager->IsGamepadEnabled())
-		{
-			controlMap->ToggleControls(RE::ControlMap::UEFlag::kFighting, false);
-		}
-	}
-
-	void Minimap::InputHandler::StopControllingMinimap()
-	{
-		isControllingMinimap = false;
-
-		miniMap->HideControlsAfter(settings::controls::delayToHideControlsSecs);
-
-		controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, true);
-		controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, true);
-
-		if (inputDeviceManager->IsGamepadEnabled())
-		{
-			controlMap->ToggleControls(RE::ControlMap::UEFlag::kFighting, true);
-		}
+		return false;
 	}
 
 	void Minimap::Show()
@@ -293,7 +85,6 @@ namespace DEM
 
 		localMap_->inForeground = localMap_->enabled = true;
 		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ true });
-		ShowControls();
 	}
 
 	void Minimap::Hide()
@@ -309,25 +100,5 @@ namespace DEM
 
 		localMap_->inForeground = localMap_->enabled = false;
 		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ false });
-	}
-
-	void Minimap::ShowControls()
-	{
-		localMap_->root.Invoke("ShowControls");
-	}
-
-	void Minimap::HideControlsAfter(float a_delaySecs)
-	{
-		localMap_->root.Invoke("HideControls", std::array<RE::GFxValue, 1>{ a_delaySecs });
-	}
-
-	void Minimap::FoldControls()
-	{
-		localMap_->root.Invoke("FoldControls", std::array<RE::GFxValue, 1>{ settings::display::controlHideTip.c_str() });
-	}
-
-	void Minimap::UnfoldControls()
-	{
-		localMap_->root.Invoke("UnfoldControls", std::array<RE::GFxValue, 2>{ settings::display::controlMoveTip.c_str(), settings::display::controlZoomTip.c_str() });
 	}
 }

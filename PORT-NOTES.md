@@ -1,6 +1,6 @@
 # Port notes — INI-only settings → SKSE Menu Framework
 
-**Version 1.6.0.** This is a fork of
+**Version 1.6.1.** This is a fork of
 [alexsylex/DragonsEyeMinimap](https://github.com/alexsylex/DragonsEyeMinimap) 1.1.0 that adds an in-game settings page driven by
 [SKSE Menu Framework 3](https://github.com/QTR-Modding/SKSE-Menu-Framework-3), so the minimap
 can be configured while the game is running instead of only through `DragonsEyeMinimap.ini`
@@ -14,13 +14,14 @@ The upstream `README.md` and git history are untouched.
 | --- | --- |
 | `include/SKSEMenuFramework.h` | Vendored, unmodified, from SKSE Menu Framework 3.13. Self-contained: it reaches the framework through `GetProcAddress`, so nothing has to be linked and ImGui is not a build dependency. |
 | `include/UI.h`, `source/UI.cpp` | New. The settings page, the registration, and the live-apply entry point. |
-| `include/Settings.h` | Control tips became `std::string` so the menu can edit them. Added `Save()`, `RestoreDefaults()` and `GetIniPath()`. |
-| `source/Settings.cpp` | Captures the compiled-in values as defaults before reading the INI, and can write every setting back. |
-| `include/MiniMap.h`, `source/MiniMap.cpp` | Added `ApplyDisplaySettings()`, `ApplyShapeSetting()` and `IsReady()`. The constructor now remembers the clip's unscaled size. |
-| `source/Controls.cpp` | `.c_str()` on the control tips, following the `std::string` change. |
+| `include/Settings.h` | Added `Save()`, `RestoreDefaults()`, `Reload()` and `GetIniPath()`. Position is `uAnchor`/`fOffsetX`/`fOffsetY`; the control-tip strings and the `fHoldDownToControlSecs`/`fDelayToHideControlsSecs` timings are gone. |
+| `source/Settings.cpp` | Captures the compiled-in values as defaults before reading the INI, and can write or re-read every setting. Reads go through a null-safe helper rather than dereferencing the collection directly. |
+| `include/MiniMap.h`, `source/MiniMap.cpp` | Added `ApplyDisplaySettings()`, `ApplyShapeSetting()`, `IsReady()`, `GetMapZoom()`/`SetMapZoom()`/`ToggleZoomPreset()`. The tap-to-hide/hold-to-pan control mode, the control-tip Scaleform calls, and the platform-button plumbing that fed them are removed entirely. |
+| `source/Controls.cpp` | Rewritten around two dedicated keys (hide, zoom toggle) instead of the map-control binding's tap/hold behaviour. |
 | `source/MessageListeners.cpp` | Calls `UI::Register()` on `kPostPostLoad`. |
 | `CMakeLists.txt` | Globs are `CONFIGURE_DEPENDS`; the auto-deploy copy only runs if the game folder exists. |
 | `cmake/ports/commonlibsse-ng/portfile.cmake` | Fetches CommonLibVR over git instead of a GitHub tarball. |
+| `include/Hooks.h`, `source/Hooks.cpp` | The `RefreshPlatform` and `MenuOpenHandler::CanProcess` hooks are removed - both existed only to serve the control mode. |
 
 ### Why the port file changed
 
@@ -29,39 +30,54 @@ those archives over time, so the recorded hash eventually stops matching and the
 to download — which is exactly what happened here. Fetching the same pinned commit over git
 keeps the pin while letting git verify the content, so it cannot rot the same way.
 
-### Three things worth knowing about the implementation
+### Things worth knowing about the implementation
 
 **The framework renders on the wrong thread.** SKSE Menu Framework draws from the
 renderer's present hook. Talking to Scaleform from there would race the game, so every
 widget that touches the minimap queues its work through `SKSE::GetTaskInterface()` and runs
-it on the main thread.
+it on the main thread. That includes `Save()`/`Reload()`/`RestoreDefaults()`, since they
+drive the game's own `INISettingCollection`, and the three control-tip strings did too in an
+earlier version - reassigning a `std::string` frees its old buffer, and the main thread was
+handing that buffer to Scaleform as `.c_str()`.
 
-**Positioning became a corner plus an offset.** The mod originally took two screen
-proportions and handed them to the AS2 side. It now takes an anchor corner and a nudge in
-pixels, the way other minimap mods do it, and computes `_x`/`_y` directly. The AS2 function
-is still used, but only twice at startup: the mapping from screen proportion to `_x`/`_y` is
-affine, so two probes define the line, and everything after that is arithmetic. The clip is
-also asked for its own bounds via `getBounds`, so anchoring to the right or bottom edge lines
-up the artwork with the corner rather than the registration point.
+**Positioning is computed in the parent's coordinate space, not the clip's own.** The AS2
+`Minimap` function positions the clip by running a stage coordinate through `globalToLocal`
+called on *itself* - mapping stage space into the clip's own local space - and then assigns
+that into `_x`/`_y`, which are in the *parent's* space. Mixing those two spaces means the
+function's output depends on where the clip already is: calling it twice does not put the
+clip in the same place twice, and worse, its "screen edge" is not actually the screen edge in
+the space `_x`/`_y` live in. An earlier version of this port built anchor arithmetic on top
+of that function's output and got both wrong: the map walked off screen as sliders moved, and
+even freshly measured, a "top right corner" reliably sat half off screen.
 
-**Re-positioning had to become idempotent.** The AS2 `Minimap` function positions the clip
-by running a stage coordinate through `globalToLocal` — which is relative to the clip's own
-transform — and assigning the result to `_x`/`_y`. Its output therefore depends on where the
-clip already is, so calling it twice does not put the clip in the same place twice: each
-call walks it further from where it started. Called once at construction that is invisible,
-but driving it from a slider sent the minimap off screen within a few ticks, and putting the
-slider back did not bring it home, because the position was a running total rather than a
-function of the setting. `ApplyDisplaySettings()` now restores the authored `_x`, `_y`,
-`_width` and `_height` before each call, so the function always sees the state it saw when
-the minimap was built. The constructor calls the same function, so the initial layout and
-every later change cannot drift apart.
+The fix was to stop using that function for anything but the initial layout, and instead:
+convert a stage pixel into the parent's space by calling `globalToLocal` **on the parent**
+(`Minimap::StageToParent`) - the same idiom the mod's own `LocalMap.as` already uses in the
+other direction (`_parent.localToGlobal`) to report the map's extents back to C++; and ask
+`getBounds(parent)` for the artwork's box **in the parent's space** (`GetArtBoundsInParent`),
+re-measured on every apply rather than once at construction, since the map's contents are not
+even attached yet when the clip is first built. `ApplyDisplaySettings()` then moves the clip
+by the difference between where the chosen corner's edge is and where it should be - a
+delta, not an absolute position, so it does not matter where the registration point sits
+inside the artwork. The same screen-corner conversion also drives the on-screen clamp that
+keeps scale from pushing the map off screen, and `SetLocalMapExtents`/`InitMap` is re-invoked
+after every move, because it is normally computed once and would otherwise go stale the first
+time the clip is repositioned or rescaled.
 
-**Scale had to stop compounding.** Upstream applied `fScale` once, in the constructor, by
-multiplying the clip's current width. Re-applying that at runtime would multiply the already
-scaled size. The constructor now records the unscaled `baseWidth`/`baseHeight`, and
-`ApplyDisplaySettings()` resets to those, re-runs the AS2 `Minimap` function, then scales —
-the same order the constructor uses, which matters because that function converts a stage
-coordinate through the clip's own transform.
+**The zoom toggle is deterministic, not distance-based.** The two zoom presets are meant to
+be alternated between, so the toggle flips a remembered on/off flag rather than jumping to
+"whichever preset the camera is currently further from" - the latter can pick the same target
+twice in a row, or flip unpredictably, once the player has manually scrolled the map zoom to
+a third value between the two. The camera's `zoom` units are not documented anywhere in
+CommonLibSSE-NG or in this codebase, which is also why the presets are set from the menu with
+"Set to current" rather than typed as numbers.
+
+**Binding a key accepts any pressed frame, not only the first one.** `RE::ButtonEvent::IsDown()`
+requires `HeldDuration() == 0.0F` exactly - the very first frame of a press. SKSE Menu
+Framework's contract for when it delivers events to a registered `InputEventCallback`, and
+with which frame, is undocumented, so the "Bind" buttons accept `IsPressed()` (any nonzero
+value) instead. Capturing only once is handled by clearing the pending bind target after the
+first accepted press, not by requiring a particular frame.
 
 **The menu refuses to run against an old framework.** The vendored header calls the
 framework's exported cimgui functions (`igSliderFloat`, `igCheckbox`, …) through function
@@ -70,6 +86,17 @@ verified by dumping the exports of the DLL bundled with the old SDK — so every
 would jump through a null pointer. `UI::HasRequiredExports()` probes for each export this
 page uses and declines to register if any is missing, logging why. The minimap itself keeps
 working; you just get no menu.
+
+**The tap-to-hide/hold-to-pan control mode is gone, along with the control-tip prompts and
+platform-button Scaleform plumbing that supported it.** `ProcessThumbstick`/`ProcessMouseMove`
+are no longer overridden - `RE::MenuEventHandler`'s own default (`return false`) is exactly
+what is needed now that nothing pans the camera. `RefreshPlatform()`, the hand-written
+`ControlMap__GetButtonNameFromUserEvent`, and two SKSE hooks (`HUDMenu::RefreshPlatform`,
+`MenuOpenHandler::CanProcess`, the latter existing only to defer the gamepad Wait button
+during control mode) went with it, since nothing else used any of them. The `Controls` clip
+and its artwork still exist inside the shipped `.swf` - this repo has no Flash tooling to
+rebuild it, and none is needed, since nothing calls `ShowControls`/`FoldControls`/
+`UnfoldControls`/`HideControlsAfter` any more, so that clip simply never appears.
 
 ## Building
 
