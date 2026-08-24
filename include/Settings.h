@@ -20,6 +20,11 @@ namespace settings
 	// follow it with Save() to persist, and with UI::ApplyLiveSettings() to show it in game.
 	void RestoreDefaults();
 
+	// Re-reads the INI that Init() read, discarding any unsaved change made since. Returns
+	// false if the file could not be read, leaving the current values alone. Follow it with
+	// UI::ApplyLiveSettings() to show the reloaded values in game.
+	bool Reload();
+
 	// Full path of the INI Init() read, or an empty string before Init() has run.
 	const std::string& GetIniPath();
 
@@ -30,9 +35,12 @@ namespace settings
 
 	namespace display
 	{
-		inline float positionX = 0.65F;
-		inline float positionY = 0.2F;
-		inline float scale = 1.0F;
+		// These are the values a fresh install starts from, and the ones "Restore defaults"
+		// returns to. They are Liam's preferred layout rather than the mod's original
+		// 0.65 / 0.2 / 1.0.
+		inline float positionX = 0.86F;
+		inline float positionY = 0.04F;
+		inline float scale = 0.5F;
 		inline std::uint32_t shape = 0;
 		inline bool showOnGameStart = true;
 		inline std::string controlHideTip = "Hold to control/tap to hide";

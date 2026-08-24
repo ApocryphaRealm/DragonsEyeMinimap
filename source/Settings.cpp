@@ -17,6 +17,7 @@ namespace settings
 		constexpr const char* kControlsSection = "Controls";
 
 		std::string iniPath;
+		std::string iniFileName;
 
 		// The values the plugin compiles in, captured before the INI is read so that
 		// "Restore defaults" means "what you would get with no INI at all".
@@ -110,10 +111,45 @@ namespace settings
 		}
 	}
 
+	namespace
+	{
+		// Copies whatever the collection currently holds into the variables above. Shared by
+		// Init() and Reload() so the two cannot read the INI differently.
+		void ReadFromCollection()
+		{
+			INISettingCollection* iniSettingCollection = INISettingCollection::GetSingleton();
+
+			{
+				using namespace debug;
+				logLevel = static_cast<logger::level>(iniSettingCollection->GetSetting<std::uint32_t>("uLogLevel:Debug"));
+			}
+
+			{
+				using namespace display;
+				positionX = iniSettingCollection->GetSetting<float>("fPositionX:Display");
+				positionY = iniSettingCollection->GetSetting<float>("fPositionY:Display");
+				scale = iniSettingCollection->GetSetting<float>("fScale:Display");
+				shape = iniSettingCollection->GetSetting<std::uint32_t>("uShape:Display");
+				showOnGameStart = iniSettingCollection->GetSetting<bool>("bShowOnGameStart:Display");
+				controlHideTip = iniSettingCollection->GetSetting<const char*>("sControlHideTip:Display");
+				controlMoveTip = iniSettingCollection->GetSetting<const char*>("sControlMoveTip:Display");
+				controlZoomTip = iniSettingCollection->GetSetting<const char*>("sControlZoomTip:Display");
+			}
+
+			{
+				using namespace controls;
+				followPlayerCameraRotation = iniSettingCollection->GetSetting<bool>("bFollowPlayerCameraRotation:Controls");
+				holdDownToControlSecs = iniSettingCollection->GetSetting<float>("fHoldDownToControlSecs:Controls");
+				delayToHideControlsSecs = iniSettingCollection->GetSetting<float>("fDelayToHideControlsSecs:Controls");
+			}
+		}
+	}
+
 	void Init(const std::string& a_iniFileName)
 	{
 		CaptureDefaults();
 
+		iniFileName = a_iniFileName;
 		iniPath = std::filesystem::current_path().append("Data\\SKSE\\Plugins").append(a_iniFileName).string();
 
 		INISettingCollection* iniSettingCollection = INISettingCollection::GetSingleton();
@@ -152,29 +188,30 @@ namespace settings
 			logger::warn("Could not read {}, falling back to default options", a_iniFileName);
 		}
 
+		ReadFromCollection();
+	}
+
+	bool Reload()
+	{
+		if (iniFileName.empty())
 		{
-			using namespace debug;
-			logLevel = static_cast<logger::level>(iniSettingCollection->GetSetting<std::uint32_t>("uLogLevel:Debug"));
+			logger::error("Cannot reload settings before Init() has run");
+
+			return false;
 		}
 
+		if (!INISettingCollection::GetSingleton()->ReadFromFile(iniFileName))
 		{
-			using namespace display;
-			positionX = iniSettingCollection->GetSetting<float>("fPositionX:Display");
-			positionY = iniSettingCollection->GetSetting<float>("fPositionY:Display");
-			scale = iniSettingCollection->GetSetting<float>("fScale:Display");
-			shape = iniSettingCollection->GetSetting<std::uint32_t>("uShape:Display");
-			showOnGameStart = iniSettingCollection->GetSetting<bool>("bShowOnGameStart:Display");
-			controlHideTip = iniSettingCollection->GetSetting<const char*>("sControlHideTip:Display");
-			controlMoveTip = iniSettingCollection->GetSetting<const char*>("sControlMoveTip:Display");
-			controlZoomTip = iniSettingCollection->GetSetting<const char*>("sControlZoomTip:Display");
+			logger::error("Could not re-read {}; keeping the settings already loaded", iniPath);
+
+			return false;
 		}
 
-		{
-			using namespace controls;
-			followPlayerCameraRotation = iniSettingCollection->GetSetting<bool>("bFollowPlayerCameraRotation:Controls");
-			holdDownToControlSecs = iniSettingCollection->GetSetting<float>("fHoldDownToControlSecs:Controls");
-			delayToHideControlsSecs = iniSettingCollection->GetSetting<float>("fDelayToHideControlsSecs:Controls");
-		}
+		ReadFromCollection();
+
+		logger::info("Reloaded settings from {}", iniPath);
+
+		return true;
 	}
 
 	bool Save()
