@@ -1,6 +1,6 @@
 # Port notes — INI-only settings → SKSE Menu Framework
 
-**Version 1.6.3.** This is a fork of
+**Version 1.6.4.** This is a fork of
 [alexsylex/DragonsEyeMinimap](https://github.com/alexsylex/DragonsEyeMinimap) 1.1.0 that adds an in-game settings page driven by
 [SKSE Menu Framework 3](https://github.com/QTR-Modding/SKSE-Menu-Framework-3), so the minimap
 can be configured while the game is running instead of only through `DragonsEyeMinimap.ini`
@@ -111,6 +111,18 @@ layout and the current anchor, never from wherever the fields already are, so re
 cannot drift. It runs at the end of `ApplyDisplaySettings()`, and `InitLocalMap()` calls that
 again once `localMap_` exists, since the first call happens at construction before
 `LocationName`/`ClearedHint`/`LocalMapHolder` can be reached at all.
+
+**The screen-corner offset is per corner, not shared.** `fOffsetX`/`fOffsetY` were a single
+pair applying to whichever corner was selected, so nudging the map while testing one corner
+carried that same nudge into whatever corner was tried next - which reads exactly like "the
+map won't reach the edge" the moment you switch corners with a nonzero offset still set from
+the last one. `display::offsetX`/`offsetY` are now `std::array<float, kAnchorCount>`, indexed
+by `AnchorIndex()`, with the same per-corner-key-in-the-INI pattern (`fOffsetXTopLeft`,
+`fOffsetYBottomRight`, and so on) used for the edge-margin approach tried and reverted in
+1.5.4/1.5.6 - reused here because it is the same actual requirement, now sitting on top of the
+corrected 1.6.1 positioning math rather than the broken pre-1.6.1 arithmetic. The menu's
+Offset X/Y sliders always edit whichever corner is currently selected, with a line underneath
+stating which that is.
 
 **The tap-to-hide/hold-to-pan control mode is gone, along with the control-tip prompts and
 platform-button Scaleform plumbing that supported it.** `ProcessThumbstick`/`ProcessMouseMove`

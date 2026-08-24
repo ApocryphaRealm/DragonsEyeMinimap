@@ -16,6 +16,15 @@ namespace settings
 		constexpr const char* kDisplaySection = "Display";
 		constexpr const char* kControlsSection = "Controls";
 
+		// One offset pair per corner, so the INI names say which corner they belong to rather
+		// than making the reader count indices.
+		constexpr const char* kCornerNames[display::kAnchorCount] = { "TopLeft", "TopRight", "BottomLeft", "BottomRight" };
+
+		std::string OffsetKey(char a_axis, int a_corner)
+		{
+			return std::format("fOffset{}{}", a_axis, kCornerNames[a_corner]);
+		}
+
 		
 
 		std::string iniPath;
@@ -28,8 +37,8 @@ namespace settings
 			logger::level logLevel;
 
 			std::uint32_t anchor;
-			float offsetX;
-			float offsetY;
+			std::array<float, display::kAnchorCount> offsetX;
+			std::array<float, display::kAnchorCount> offsetY;
 			float scale;
 			std::uint32_t shape;
 			bool showOnGameStart;
@@ -191,8 +200,11 @@ namespace settings
 			{
 				using namespace display;
 				anchor = Read<std::uint32_t>(c, "uAnchor:Display", anchor);
-				offsetX = Read<float>(c, "fOffsetX:Display", offsetX);
-				offsetY = Read<float>(c, "fOffsetY:Display", offsetY);
+				for (int corner = 0; corner < kAnchorCount; ++corner)
+				{
+					offsetX[corner] = Read<float>(c, (OffsetKey('X', corner) + ":Display").c_str(), offsetX[corner]);
+					offsetY[corner] = Read<float>(c, (OffsetKey('Y', corner) + ":Display").c_str(), offsetY[corner]);
+				}
 				scale = Read<float>(c, "fScale:Display", scale);
 				shape = Read<std::uint32_t>(c, "uShape:Display", shape);
 				showOnGameStart = Read<bool>(c, "bShowOnGameStart:Display", showOnGameStart);
@@ -232,8 +244,11 @@ namespace settings
 		{
 			using namespace display;
 			add("uAnchor:Display", anchor);
-			add("fOffsetX:Display", offsetX);
-			add("fOffsetY:Display", offsetY);
+			for (int corner = 0; corner < kAnchorCount; ++corner)
+			{
+				add((OffsetKey('X', corner) + ":Display").c_str(), offsetX[corner]);
+				add((OffsetKey('Y', corner) + ":Display").c_str(), offsetY[corner]);
+			}
 			add("fScale:Display", scale);
 			add("uShape:Display", shape);
 			add("bShowOnGameStart:Display", showOnGameStart);
@@ -293,8 +308,11 @@ namespace settings
 		ok &= WriteUInt(kDebugSection, "uLogLevel", static_cast<std::uint32_t>(debug::logLevel));
 
 		ok &= WriteUInt(kDisplaySection, "uAnchor", display::anchor);
-		ok &= WriteFloat(kDisplaySection, "fOffsetX", display::offsetX);
-		ok &= WriteFloat(kDisplaySection, "fOffsetY", display::offsetY);
+		for (int corner = 0; corner < display::kAnchorCount; ++corner)
+		{
+			ok &= WriteFloat(kDisplaySection, OffsetKey('X', corner).c_str(), display::offsetX[corner]);
+			ok &= WriteFloat(kDisplaySection, OffsetKey('Y', corner).c_str(), display::offsetY[corner]);
+		}
 		ok &= WriteFloat(kDisplaySection, "fScale", display::scale);
 		ok &= WriteUInt(kDisplaySection, "uShape", display::shape);
 		ok &= WriteBool(kDisplaySection, "bShowOnGameStart", display::showOnGameStart);
