@@ -50,9 +50,11 @@ namespace settings
 
 		inline std::uint32_t anchor = static_cast<std::uint32_t>(Anchor::kTopRight);
 
-		// How far in from the two edges of that corner the minimap sits, in screen pixels.
-		// Flush with the corner by default; raise it to inset the artwork from the screen edge.
-		inline float edgeMargin = 0.0F;
+		// Nudge from that corner, in screen pixels. Positive x is always rightwards and
+		// positive y always downwards, whichever corner is anchored, so the two read the same
+		// way round no matter which corner is chosen.
+		inline float offsetX = 0.0F;
+		inline float offsetY = 0.0F;
 
 		// Guards against an out-of-range uAnchor in a hand-edited INI.
 		inline int AnchorIndex()
@@ -68,26 +70,27 @@ namespace settings
 		inline constexpr float kScaleSliderMax = 3.0F;
 		inline std::uint32_t shape = 0;
 		inline bool showOnGameStart = true;
-		inline std::string controlHideTip = "Hold to control/tap to hide";
-		inline std::string controlMoveTip = "Move";
-		inline std::string controlZoomTip = "Zoom";
 	}
 
 	namespace controls
 	{
 		// DirectInput scan code of a key that shows or hides the minimap the moment it is
-		// pressed. 0 disables it. Signed, because the INI name starts with "i" and the setting
-		// type is taken from that prefix.
+		// pressed. 0 disables it. This is the only way to hide the minimap - there is no
+		// tap-to-hide on the map-control binding any more. Signed, because the INI name
+		// starts with "i" and the setting type is taken from that prefix.
 		inline std::int32_t hideKeyCode = 0;
 
 		// Tapping this key jumps the map zoom between the two presets below, instead of having
 		// to hold the control key and scroll. 0 disables it.
 		inline std::int32_t zoomToggleKeyCode = 0;
-		inline float zoomPreset1 = 0.25F;
-		inline float zoomPreset2 = 0.75F;
+
+		// The two zoom levels the toggle key alternates between - not "whichever is further
+		// from where the camera happens to be", which behaves oddly once the player has
+		// manually scrolled the map to a third value. Which of the two is currently active is
+		// tracked at runtime by Minimap, not here, since it is not something to save.
+		inline float zoomDefault = 0.25F;
+		inline float zoomZoomedIn = 0.75F;
 
 		inline bool followPlayerCameraRotation = true;
-		inline float holdDownToControlSecs = 0.15F;
-		inline float delayToHideControlsSecs = 1.0F;
 	}
 }

@@ -2,40 +2,6 @@
 
 #include <numbers>
 
-namespace RE
-{
-	bool ControlMap__GetButtonNameFromUserEvent(ControlMap* a_this, const BSFixedString& a_eventID, INPUT_DEVICE a_device, ControlMap::InputContextID a_context, BSFixedString& a_buttonName)
-	{
-		if (auto gamepad = BSInputDeviceManager::GetSingleton()->GetGamepad())
-		{
-			if (const auto& inputContext = a_this->controlMap[a_context])
-			{
-				for (const auto& mapping : inputContext->deviceMappings[a_device])
-				{
-					if (mapping.eventID == a_eventID)
-					{
-						if (mapping.inputKey == 0xFF)
-						{
-							break;
-						}
-
-						for (auto& deviceButton : gamepad->buttonNameIDMap)
-						{
-							if (mapping.inputKey == static_cast<uint16_t>(deviceButton.second))
-							{
-								a_buttonName = deviceButton.first;
-								return true;
-							}
-						}
-					}
-				}
-			}
-		}
-
-		return false;
-	}
-}
-
 namespace DEM
 {
 	bool Minimap::ProcessMessage(RE::UIMessage* a_message)
@@ -95,12 +61,9 @@ namespace DEM
 			localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay);
 			localMap_->iconDisplay.GetMember("MarkerData", &localMap->markerData);
 
-			RefreshPlatform();
-
 			if (settings::display::showOnGameStart)
 			{
 				Show();
-				HideControlsAfter(settings::controls::delayToHideControlsSecs > 3.0F ? settings::controls::delayToHideControlsSecs : 3.0F);
 			}
 			else
 			{
@@ -109,63 +72,8 @@ namespace DEM
 		}
 	}
 
-	void Minimap::MeasurePositionMapping()
+	void Minimap::MeasureStage()
 	{
-		// The AS2 "Minimap" function positions the clip by running a stage coordinate through
-		// globalToLocal, which is relative to the clip's own transform, and assigning the
-		// result to _x/_y. That makes its output depend on where the clip already is, so
-		// calling it repeatedly walks the minimap away from where it started.
-		//
-		// From a fixed starting state the mapping from screen proportion to _x/_y is affine -
-		// the stage coordinate is linear in the proportion, and globalToLocal is affine - so
-		// probe it twice and keep the line. Afterwards the position is computed directly and
-		// the AS2 function is never called again, which is what lets a corner and an offset
-		// mean one place regardless of how the minimap got there.
-		const auto probe = [this](float a_x, float a_y) {
-			displayObj.SetMember("_x", baseX);
-			displayObj.SetMember("_y", baseY);
-			displayObj.SetMember("_xscale", baseXScale);
-			displayObj.SetMember("_yscale", baseYScale);
-
-			displayObj.Invoke("Minimap", a_x, a_y);
-
-			return std::make_pair(static_cast<float>(displayObj.GetMember("_x").GetNumber()),
-								  static_cast<float>(displayObj.GetMember("_y").GetNumber()));
-		};
-
-		const auto [zeroX, zeroY] = probe(0.0F, 0.0F);
-		const auto [oneX, oneY] = probe(1.0F, 1.0F);
-
-		positionOriginX = zeroX;
-		positionOriginY = zeroY;
-		positionSpanX = oneX - zeroX;
-		positionSpanY = oneY - zeroY;
-
-		hasPositionMapping = std::abs(positionSpanX) > 0.001F && std::abs(positionSpanY) > 0.001F;
-
-		// Where the artwork sits relative to the clip's registration point. Asking the clip
-		// for its own bounds beats assuming the registration point is a particular corner.
-		displayObj.SetMember("_xscale", baseXScale);
-		displayObj.SetMember("_yscale", baseYScale);
-
-		RE::GFxValue bounds = displayObj.Invoke("getBounds", displayObj);
-		if (bounds.IsObject())
-		{
-			RE::GFxValue xMin, xMax, yMin, yMax;
-			bounds.GetMember("xMin", &xMin);
-			bounds.GetMember("xMax", &xMax);
-			bounds.GetMember("yMin", &yMin);
-			bounds.GetMember("yMax", &yMax);
-
-			boundsLeft = static_cast<float>(xMin.GetNumber());
-			boundsTop = static_cast<float>(yMin.GetNumber());
-			boundsWidth = static_cast<float>(xMax.GetNumber()) - boundsLeft;
-			boundsHeight = static_cast<float>(yMax.GetNumber()) - boundsTop;
-		}
-
-		// The offsets are in screen pixels, so we need the screen size in the same units the
-		// AS2 side works in. If Stage is not reachable, fall back to treating one offset unit
-		// as one unit of the clip's parent space, which is 1:1 with pixels for this HUD.
 		if (auto* view = displayObj.GetMovieView())
 		{
 			RE::GFxValue width, height;
@@ -179,79 +87,124 @@ namespace DEM
 			}
 		}
 
+		logger::info("Minimap stage: {}x{}", stageWidth, stageHeight);
+
 		if (stageWidth <= 0.0F || stageHeight <= 0.0F)
 		{
-			stageWidth = std::abs(positionSpanX);
-			stageHeight = std::abs(positionSpanY);
-
-			logger::warn("Could not read Stage size; treating offsets as parent-space units");
+			logger::error("Could not read the Stage size; the minimap cannot be positioned");
 		}
+	}
 
-		// The probe returns the clip's own coordinate space while the bounds arithmetic works
-		// in the parent's. The two coincide only while the artwork is authored at the origin
-		// at scale 100, which it is - but say so out loud rather than leaving a silent
-		// assumption for whoever re-authors the SWF.
-		if (baseX != 0.0F || baseY != 0.0F || baseXScale != 100.0F || baseYScale != 100.0F)
+	bool Minimap::StageToParent(float a_stageX, float a_stageY, float& a_outX, float& a_outY)
+	{
+		auto* view = displayObj.GetMovieView();
+		if (!view)
 		{
-			logger::warn("Minimap clip is authored at ({}, {}) scale ({}, {}) rather than the origin at 100%; "
-						 "anchoring and the edge margin assume otherwise and will be off",
-						 baseX, baseY, baseXScale, baseYScale);
+			return false;
 		}
 
-		logger::info("Position mapping: origin ({}, {}), span ({}, {}), bounds ({}, {}) {}x{}, stage {}x{}",
-					 positionOriginX, positionOriginY, positionSpanX, positionSpanY,
-					 boundsLeft, boundsTop, boundsWidth, boundsHeight, stageWidth, stageHeight);
-
-		if (!hasPositionMapping)
+		// IUI::GFxObject::GetMember hides the two-argument RE version, so use the wrapper's
+		// single-argument form.
+		RE::GFxValue parent = displayObj.GetMember("_parent");
+		if (!parent.IsDisplayObject())
 		{
-			logger::error("Could not measure the minimap position mapping; falling back to the "
-						  "stateful Scaleform positioning");
+			return false;
 		}
+
+		// globalToLocal rewrites the point object in place. This mirrors the idiom the mod's
+		// own ActionScript already uses in LocalMap.as InitMap, which converts the other way
+		// with _parent.localToGlobal.
+		IUI::GFxObject point(view);
+		point.SetMember("x", RE::GFxValue{ static_cast<double>(a_stageX) });
+		point.SetMember("y", RE::GFxValue{ static_cast<double>(a_stageY) });
+
+		RE::GFxValue argument = point;
+		if (!parent.Invoke("globalToLocal", nullptr, &argument, 1))
+		{
+			return false;
+		}
+
+		a_outX = static_cast<float>(point.GetMember("x").GetNumber());
+		a_outY = static_cast<float>(point.GetMember("y").GetNumber());
+
+		return true;
+	}
+
+	bool Minimap::GetArtBoundsInParent(float& a_left, float& a_top, float& a_right, float& a_bottom)
+	{
+		// IUI::GFxObject::GetMember hides the two-argument RE version, so use the wrapper's
+		// single-argument form.
+		RE::GFxValue parent = displayObj.GetMember("_parent");
+		if (!parent.IsDisplayObject())
+		{
+			return false;
+		}
+
+		// Asking for the bounds *in the parent's space* folds in the clip's own position and
+		// scale, so the result is directly comparable with _x and _y. Measuring afresh each
+		// time also means it does not matter that the map contents are attached later than
+		// this object is constructed.
+		RE::GFxValue bounds;
+		if (!displayObj.Invoke("getBounds", &bounds, parent) || !bounds.IsObject())
+		{
+			return false;
+		}
+
+		RE::GFxValue xMin, xMax, yMin, yMax;
+		bounds.GetMember("xMin", &xMin);
+		bounds.GetMember("xMax", &xMax);
+		bounds.GetMember("yMin", &yMin);
+		bounds.GetMember("yMax", &yMax);
+
+		a_left = static_cast<float>(xMin.GetNumber());
+		a_top = static_cast<float>(yMin.GetNumber());
+		a_right = static_cast<float>(xMax.GetNumber());
+		a_bottom = static_cast<float>(yMax.GetNumber());
+
+		return a_right > a_left && a_bottom > a_top;
 	}
 
 	float Minimap::GetMaxScale() const
 	{
-		// A quarter of the screen means one quadrant: half its width and half its height. Any
-		// bigger and a corner-anchored minimap stops being a minimap.
-		if (!hasPositionMapping || boundsWidth <= 0.0F || boundsHeight <= 0.0F ||
-			baseXScale <= 0.0F || baseYScale <= 0.0F)
+		// A quarter of the screen means one quadrant: half its width and half its height.
+		if (stageWidth <= 0.0F || stageHeight <= 0.0F || artWidthAtScaleOne <= 0.0F || artHeightAtScaleOne <= 0.0F)
 		{
 			return settings::display::kScaleSliderMax;
 		}
 
-		const float byWidth = (std::abs(positionSpanX) * 0.5F) * 100.0F / (boundsWidth * baseXScale);
-		const float byHeight = (std::abs(positionSpanY) * 0.5F) * 100.0F / (boundsHeight * baseYScale);
+		const float byWidth = stageWidth * 0.5F / artWidthAtScaleOne;
+		const float byHeight = stageHeight * 0.5F / artHeightAtScaleOne;
 
-		// Never below the slider's lower end: std::clamp with lo > hi is undefined, and both
-		// the menu and ApplyDisplaySettings clamp against this value.
 		return std::clamp(std::min({ byWidth, byHeight, settings::display::kScaleSliderMax }),
 						  settings::display::kScaleSliderMin, settings::display::kScaleSliderMax);
 	}
 
 	void Minimap::ApplyDisplaySettings()
 	{
-		if (!displayObj.HasMember("Minimap"))
+		if (!displayObj.HasMember("Minimap") || stageWidth <= 0.0F || stageHeight <= 0.0F)
 		{
 			return;
 		}
 
-		// Clamped here as well as in the menu, so a hand-edited INI cannot produce a minimap
-		// that swallows the screen.
 		const float scale = std::clamp(settings::display::scale, settings::display::kScaleSliderMin, GetMaxScale());
 
-		// _xscale/_yscale rather than _width/_height: the latter are derived from the clip's
-		// bounding box, which changes as children come and go, so the same _width stops
-		// meaning the same scale over time.
 		displayObj.SetMember("_xscale", baseXScale * scale);
 		displayObj.SetMember("_yscale", baseYScale * scale);
 
-		if (!hasPositionMapping)
+		float artLeft = 0.0F, artTop = 0.0F, artRight = 0.0F, artBottom = 0.0F;
+		if (!GetArtBoundsInParent(artLeft, artTop, artRight, artBottom))
 		{
-			displayObj.SetMember("_x", baseX);
-			displayObj.SetMember("_y", baseY);
-			displayObj.Invoke("Minimap", 0.5F, 0.5F);
+			logger::error("Could not measure the minimap artwork; leaving it where it is");
 
 			return;
+		}
+
+		// Remember how big the artwork is at scale 1, so the quarter-screen cap has something
+		// real to work from rather than a value guessed before the map was attached.
+		if (scale > 0.0F)
+		{
+			artWidthAtScaleOne = (artRight - artLeft) / scale;
+			artHeightAtScaleOne = (artBottom - artTop) / scale;
 		}
 
 		using Anchor = settings::display::Anchor;
@@ -260,54 +213,71 @@ namespace DEM
 		const bool atRight = anchor == Anchor::kTopRight || anchor == Anchor::kBottomRight;
 		const bool atBottom = anchor == Anchor::kBottomLeft || anchor == Anchor::kBottomRight;
 
-		// The screen, in the clip's parent space. The span can be negative, so do not assume
-		// origin is the smaller edge.
-		const float screenLeft = std::min(positionOriginX, positionOriginX + positionSpanX);
-		const float screenRight = std::max(positionOriginX, positionOriginX + positionSpanX);
-		const float screenTop = std::min(positionOriginY, positionOriginY + positionSpanY);
-		const float screenBottom = std::max(positionOriginY, positionOriginY + positionSpanY);
+		// Where the artwork's chosen corner should end up, in stage pixels.
+		const float wantStageX = (atRight ? stageWidth : 0.0F) + settings::display::offsetX;
+		const float wantStageY = (atBottom ? stageHeight : 0.0F) + settings::display::offsetY;
 
-		// Where the artwork sits relative to the registration point, at the scale in use.
-		// Anchoring against the artwork rather than the registration point is what makes a
-		// right or bottom corner usable at all.
-		// getBounds reports the clip's own coordinate space, so converting to parent units
-		// needs the whole scale that is actually applied, not just fScale.
-		const float xFactor = baseXScale * scale / 100.0F;
-		const float yFactor = baseYScale * scale / 100.0F;
+		float wantX = 0.0F, wantY = 0.0F;
+		if (!StageToParent(wantStageX, wantStageY, wantX, wantY))
+		{
+			logger::error("Could not reach the minimap's parent clip; leaving it where it is");
 
-		const float visualLeft = boundsLeft * xFactor;
-		const float visualTop = boundsTop * yFactor;
-		const float visualWidth = boundsWidth * xFactor;
-		const float visualHeight = boundsHeight * yFactor;
+			return;
+		}
 
-		// One margin unit is one screen pixel, converted into parent space.
-		const float unitX = std::abs(positionSpanX) / stageWidth;
-		const float unitY = std::abs(positionSpanY) / stageHeight;
-		const float marginX = settings::display::edgeMargin * unitX;
-		const float marginY = settings::display::edgeMargin * unitY;
+		// Move by the difference between where the chosen edge is and where it should be,
+		// rather than computing an absolute _x. The registration point can sit anywhere
+		// inside the artwork and this does not care where.
+		const float currentX = static_cast<float>(displayObj.GetMember("_x").GetNumber());
+		const float currentY = static_cast<float>(displayObj.GetMember("_y").GetNumber());
 
-		float x = atRight ? screenRight - marginX - visualWidth - visualLeft
-						  : screenLeft + marginX - visualLeft;
-		float y = atBottom ? screenBottom - marginY - visualHeight - visualTop
-						   : screenTop + marginY - visualTop;
+		float newX = currentX + (wantX - (atRight ? artRight : artLeft));
+		float newY = currentY + (wantY - (atBottom ? artBottom : artTop));
 
-		// Growing the scale must not push the minimap off the screen. Clamp the artwork's box
-		// inside the screen rather than trusting the corner arithmetic, so a scale large
-		// enough to overrun the margin still leaves the whole map visible. If it is larger
-		// than the screen there is nothing to be done, so keep the top-left corner in view.
-		const float maxX = screenRight - visualWidth - visualLeft;
-		const float minX = screenLeft - visualLeft;
-		x = maxX >= minX ? std::clamp(x, minX, maxX) : minX;
+		// Keep the whole artwork on screen, so raising the scale grows it inwards rather than
+		// over the edge. The screen corners go through the same conversion as the target.
+		float screenMinX = 0.0F, screenMinY = 0.0F, screenMaxX = 0.0F, screenMaxY = 0.0F;
+		if (StageToParent(0.0F, 0.0F, screenMinX, screenMinY) &&
+			StageToParent(stageWidth, stageHeight, screenMaxX, screenMaxY))
+		{
+			if (screenMaxX < screenMinX)
+			{
+				std::swap(screenMinX, screenMaxX);
+			}
+			if (screenMaxY < screenMinY)
+			{
+				std::swap(screenMinY, screenMaxY);
+			}
 
-		const float maxY = screenBottom - visualHeight - visualTop;
-		const float minY = screenTop - visualTop;
-		y = maxY >= minY ? std::clamp(y, minY, maxY) : minY;
+			// artLeft/artTop were measured before the move, so express the limits relative to
+			// the offset between the registration point and the artwork's edge.
+			const float artWidth = artRight - artLeft;
+			const float artHeight = artBottom - artTop;
 
-		displayObj.SetMember("_x", x);
-		displayObj.SetMember("_y", y);
+			const float lowX = screenMinX + (currentX - artLeft);
+			const float highX = screenMaxX - artWidth + (currentX - artLeft);
+			newX = highX >= lowX ? std::clamp(newX, lowX, highX) : lowX;
 
-		logger::debug("Display applied: anchor {}, margin {}, scale {} -> _x {}, _y {} (art {}x{})",
-					  settings::display::anchor, settings::display::edgeMargin, scale, x, y, visualWidth, visualHeight);
+			const float lowY = screenMinY + (currentY - artTop);
+			const float highY = screenMaxY - artHeight + (currentY - artTop);
+			newY = highY >= lowY ? std::clamp(newY, lowY, highY) : lowY;
+		}
+
+		displayObj.SetMember("_x", newX);
+		displayObj.SetMember("_y", newY);
+
+		// The map extents the renderer uses are worked out once, by the ActionScript InitMap,
+		// from the clip's geometry at that moment. Moving or rescaling the clip afterwards
+		// leaves them stale, so ask for them again.
+		if (localMap_)
+		{
+			localMap_->root.Invoke("InitMap");
+		}
+
+		logger::debug("Display applied: anchor {}, offset ({}, {}), scale {} -> _x {}, _y {} "
+					  "(art {},{} to {},{})",
+					  settings::display::anchor, settings::display::offsetX, settings::display::offsetY,
+					  scale, newX, newY, artLeft, artTop, artRight, artBottom);
 	}
 
 	void Minimap::ApplyShapeSetting()
@@ -383,15 +353,17 @@ namespace DEM
 			return;
 		}
 
-		const float current = cameraContext->defaultState->zoom;
-		const float first = settings::controls::zoomPreset1;
-		const float second = settings::controls::zoomPreset2;
+		// Alternates deterministically rather than jumping to "whichever preset the camera is
+		// currently further from": if the player has scrolled the map to a third value between
+		// the two, distance-based picking can toggle back and forth between the same target,
+		// or pick one arbitrarily depending on which side of the midpoint they landed on. A
+		// remembered on/off state means a tap always does what it did last time.
+		zoomedIn = !zoomedIn;
 
-		// Go to whichever preset we are further from, so a tap always visibly changes
-		// something even if the zoom has drifted off both presets.
-		const float target = std::abs(current - first) < std::abs(current - second) ? second : first;
+		const float target = zoomedIn ? settings::controls::zoomZoomedIn : settings::controls::zoomDefault;
 
-		logger::debug("Zoom toggle: {} -> {}", current, target);
+		logger::info("Zoom toggle: camera reports {}, targeting {} ({})",
+					 cameraContext->defaultState->zoom, target, zoomedIn ? "zoomed in" : "default");
 
 		SetMapZoom(target);
 	}
@@ -521,10 +493,10 @@ namespace DEM
 				cameraContext->defaultState->initialPosition.x = playerPos.x;
 				cameraContext->defaultState->initialPosition.y = playerPos.y;
 
-				if (!inputHandler->IsControllingMinimap())
-				{
-					cameraContext->defaultState->translation = RE::NiPoint3::Zero();
-				}
+				// Nothing writes this any more - panning was the only thing that did - but
+				// zeroing it here still matters: it is what recenters the camera on the player
+				// on the frame after a cell change, before Update() runs.
+				cameraContext->defaultState->translation = RE::NiPoint3::Zero();
 
 				cameraContext->Update();
 
@@ -543,57 +515,4 @@ namespace DEM
 		}
 	}
 
-	void Minimap::RefreshPlatform()
-	{
-		if (localMap)
-		{
-			auto controlMap = RE::ControlMap::GetSingleton();
-			auto userEvents = RE::UserEvents::GetSingleton();
-
-			RE::BSFixedString controlButton;
-			RE::BSFixedString moveButton;
-			RE::BSFixedString zoomInButton;
-			RE::BSFixedString zoomOutButton;
-
-			RE::GFxValue pcControlButtons;
-			localMap_->root.GetMember("pcControlButtons", &pcControlButtons);
-			pcControlButtons.ClearElements();
-
-			controlMap->GetButtonNameFromUserEvent(userEvents->localMap, RE::INPUT_DEVICE::kKeyboard, controlButton);
-			pcControlButtons.PushBack(RE::GFxValue{ controlButton.c_str() });
-
-			controlMap->GetButtonNameFromUserEvent(userEvents->look, RE::INPUT_DEVICE::kMouse, moveButton);
-			pcControlButtons.PushBack(RE::GFxValue{ moveButton.c_str() });
-
-			controlMap->GetButtonNameFromUserEvent(userEvents->zoomIn, RE::INPUT_DEVICE::kMouse, zoomInButton);
-			pcControlButtons.PushBack(RE::GFxValue{ zoomInButton.c_str() });
-
-			controlMap->GetButtonNameFromUserEvent(userEvents->zoomOut, RE::INPUT_DEVICE::kMouse, zoomOutButton);
-			pcControlButtons.PushBack(RE::GFxValue{ zoomOutButton.c_str() });
-
-			RE::GFxValue gamepadControlButtons;
-			localMap_->root.GetMember("gamepadControlButtons", &gamepadControlButtons);
-			gamepadControlButtons.ClearElements();
-			
-			ControlMap__GetButtonNameFromUserEvent(controlMap, userEvents->wait, RE::INPUT_DEVICE::kGamepad, RE::ControlMap::InputContextID::kGameplay, controlButton);
-			gamepadControlButtons.PushBack(RE::GFxValue{ controlButton.c_str() });
-
-			controlMap->GetButtonNameFromUserEvent(userEvents->look, RE::INPUT_DEVICE::kGamepad, moveButton);
-			gamepadControlButtons.PushBack(RE::GFxValue{ moveButton.c_str() });
-
-			controlMap->GetButtonNameFromUserEvent(userEvents->zoomIn, RE::INPUT_DEVICE::kGamepad, zoomInButton);
-			gamepadControlButtons.PushBack(RE::GFxValue{ zoomInButton.c_str() });
-
-			controlMap->GetButtonNameFromUserEvent(userEvents->zoomOut, RE::INPUT_DEVICE::kGamepad, zoomOutButton);
-			gamepadControlButtons.PushBack(RE::GFxValue{ zoomOutButton.c_str() });
-
-			bool isGamepadEnabled = RE::BSInputDeviceManager::GetSingleton()->IsGamepadEnabled();
-
-			localMap_->root.Invoke("SetPlatform", std::array<RE::GFxValue, 2>{ isGamepadEnabled, false });
-
-			FoldControls();
-			ShowControls();
-			HideControlsAfter(settings::controls::delayToHideControlsSecs < 1.5F ? 1.5F : settings::controls::delayToHideControlsSecs);
-		}
-	}
 }

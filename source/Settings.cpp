@@ -28,21 +28,17 @@ namespace settings
 			logger::level logLevel;
 
 			std::uint32_t anchor;
-			float edgeMargin;
+			float offsetX;
+			float offsetY;
 			float scale;
 			std::uint32_t shape;
 			bool showOnGameStart;
-			std::string controlHideTip;
-			std::string controlMoveTip;
-			std::string controlZoomTip;
 
 			std::int32_t hideKeyCode;
 			std::int32_t zoomToggleKeyCode;
-			float zoomPreset1;
-			float zoomPreset2;
+			float zoomDefault;
+			float zoomZoomedIn;
 			bool followPlayerCameraRotation;
-			float holdDownToControlSecs;
-			float delayToHideControlsSecs;
 		};
 
 		Defaults defaults;
@@ -52,22 +48,18 @@ namespace settings
 			defaults.logLevel = debug::logLevel;
 
 			defaults.anchor = display::anchor;
-			defaults.edgeMargin = display::edgeMargin;
+			defaults.offsetX = display::offsetX;
+			defaults.offsetY = display::offsetY;
 
 			defaults.scale = display::scale;
 			defaults.shape = display::shape;
 			defaults.showOnGameStart = display::showOnGameStart;
-			defaults.controlHideTip = display::controlHideTip;
-			defaults.controlMoveTip = display::controlMoveTip;
-			defaults.controlZoomTip = display::controlZoomTip;
 
 			defaults.hideKeyCode = controls::hideKeyCode;
 			defaults.zoomToggleKeyCode = controls::zoomToggleKeyCode;
-			defaults.zoomPreset1 = controls::zoomPreset1;
-			defaults.zoomPreset2 = controls::zoomPreset2;
+			defaults.zoomDefault = controls::zoomDefault;
+			defaults.zoomZoomedIn = controls::zoomZoomedIn;
 			defaults.followPlayerCameraRotation = controls::followPlayerCameraRotation;
-			defaults.holdDownToControlSecs = controls::holdDownToControlSecs;
-			defaults.delayToHideControlsSecs = controls::delayToHideControlsSecs;
 		}
 
 		// WritePrivateProfileString rewrites a single key in place, so the comments and any
@@ -199,24 +191,20 @@ namespace settings
 			{
 				using namespace display;
 				anchor = Read<std::uint32_t>(c, "uAnchor:Display", anchor);
-				edgeMargin = Read<float>(c, "fEdgeMargin:Display", edgeMargin);
+				offsetX = Read<float>(c, "fOffsetX:Display", offsetX);
+				offsetY = Read<float>(c, "fOffsetY:Display", offsetY);
 				scale = Read<float>(c, "fScale:Display", scale);
 				shape = Read<std::uint32_t>(c, "uShape:Display", shape);
 				showOnGameStart = Read<bool>(c, "bShowOnGameStart:Display", showOnGameStart);
-				controlHideTip = ReadString(c, "sControlHideTip:Display", controlHideTip);
-				controlMoveTip = ReadString(c, "sControlMoveTip:Display", controlMoveTip);
-				controlZoomTip = ReadString(c, "sControlZoomTip:Display", controlZoomTip);
 			}
 
 			{
 				using namespace controls;
 				hideKeyCode = Read<std::int32_t>(c, "iHideKeyCode:Controls", hideKeyCode);
 				zoomToggleKeyCode = Read<std::int32_t>(c, "iZoomToggleKeyCode:Controls", zoomToggleKeyCode);
-				zoomPreset1 = Read<float>(c, "fZoomPreset1:Controls", zoomPreset1);
-				zoomPreset2 = Read<float>(c, "fZoomPreset2:Controls", zoomPreset2);
+				zoomDefault = Read<float>(c, "fZoomDefault:Controls", zoomDefault);
+				zoomZoomedIn = Read<float>(c, "fZoomZoomedIn:Controls", zoomZoomedIn);
 				followPlayerCameraRotation = Read<bool>(c, "bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation);
-				holdDownToControlSecs = Read<float>(c, "fHoldDownToControlSecs:Controls", holdDownToControlSecs);
-				delayToHideControlsSecs = Read<float>(c, "fDelayToHideControlsSecs:Controls", delayToHideControlsSecs);
 			}
 		}
 	}
@@ -244,24 +232,20 @@ namespace settings
 		{
 			using namespace display;
 			add("uAnchor:Display", anchor);
-			add("fEdgeMargin:Display", edgeMargin);
+			add("fOffsetX:Display", offsetX);
+			add("fOffsetY:Display", offsetY);
 			add("fScale:Display", scale);
 			add("uShape:Display", shape);
 			add("bShowOnGameStart:Display", showOnGameStart);
-			add("sControlHideTip:Display", controlHideTip.c_str());
-			add("sControlMoveTip:Display", controlMoveTip.c_str());
-			add("sControlZoomTip:Display", controlZoomTip.c_str());
 		}
 
 		{
 			using namespace controls;
 			add("iHideKeyCode:Controls", static_cast<int>(hideKeyCode));
 			add("iZoomToggleKeyCode:Controls", static_cast<int>(zoomToggleKeyCode));
-			add("fZoomPreset1:Controls", zoomPreset1);
-			add("fZoomPreset2:Controls", zoomPreset2);
+			add("fZoomDefault:Controls", zoomDefault);
+			add("fZoomZoomedIn:Controls", zoomZoomedIn);
 			add("bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation);
-			add("fHoldDownToControlSecs:Controls", holdDownToControlSecs);
-			add("fDelayToHideControlsSecs:Controls", delayToHideControlsSecs);
 		}
 
 		if (!iniSettingCollection->ReadFromFile(a_iniFileName))
@@ -309,21 +293,17 @@ namespace settings
 		ok &= WriteUInt(kDebugSection, "uLogLevel", static_cast<std::uint32_t>(debug::logLevel));
 
 		ok &= WriteUInt(kDisplaySection, "uAnchor", display::anchor);
-		ok &= WriteFloat(kDisplaySection, "fEdgeMargin", display::edgeMargin);
+		ok &= WriteFloat(kDisplaySection, "fOffsetX", display::offsetX);
+		ok &= WriteFloat(kDisplaySection, "fOffsetY", display::offsetY);
 		ok &= WriteFloat(kDisplaySection, "fScale", display::scale);
 		ok &= WriteUInt(kDisplaySection, "uShape", display::shape);
 		ok &= WriteBool(kDisplaySection, "bShowOnGameStart", display::showOnGameStart);
-		ok &= WriteString(kDisplaySection, "sControlHideTip", display::controlHideTip);
-		ok &= WriteString(kDisplaySection, "sControlMoveTip", display::controlMoveTip);
-		ok &= WriteString(kDisplaySection, "sControlZoomTip", display::controlZoomTip);
 
 		ok &= WriteInt(kControlsSection, "iHideKeyCode", controls::hideKeyCode);
 		ok &= WriteInt(kControlsSection, "iZoomToggleKeyCode", controls::zoomToggleKeyCode);
-		ok &= WriteFloat(kControlsSection, "fZoomPreset1", controls::zoomPreset1);
-		ok &= WriteFloat(kControlsSection, "fZoomPreset2", controls::zoomPreset2);
+		ok &= WriteFloat(kControlsSection, "fZoomDefault", controls::zoomDefault);
+		ok &= WriteFloat(kControlsSection, "fZoomZoomedIn", controls::zoomZoomedIn);
 		ok &= WriteBool(kControlsSection, "bFollowPlayerCameraRotation", controls::followPlayerCameraRotation);
-		ok &= WriteFloat(kControlsSection, "fHoldDownToControlSecs", controls::holdDownToControlSecs);
-		ok &= WriteFloat(kControlsSection, "fDelayToHideControlsSecs", controls::delayToHideControlsSecs);
 
 		// Flush the cached INI writes so the file on disk is up to date even if the game is
 		// closed the hard way straight afterwards.
@@ -342,22 +322,18 @@ namespace settings
 		debug::logLevel = defaults.logLevel;
 
 		display::anchor = defaults.anchor;
-		display::edgeMargin = defaults.edgeMargin;
+		display::offsetX = defaults.offsetX;
+		display::offsetY = defaults.offsetY;
 
 		display::scale = defaults.scale;
 		display::shape = defaults.shape;
 		display::showOnGameStart = defaults.showOnGameStart;
-		display::controlHideTip = defaults.controlHideTip;
-		display::controlMoveTip = defaults.controlMoveTip;
-		display::controlZoomTip = defaults.controlZoomTip;
 
 		controls::hideKeyCode = defaults.hideKeyCode;
 		controls::zoomToggleKeyCode = defaults.zoomToggleKeyCode;
-		controls::zoomPreset1 = defaults.zoomPreset1;
-		controls::zoomPreset2 = defaults.zoomPreset2;
+		controls::zoomDefault = defaults.zoomDefault;
+		controls::zoomZoomedIn = defaults.zoomZoomedIn;
 		controls::followPlayerCameraRotation = defaults.followPlayerCameraRotation;
-		controls::holdDownToControlSecs = defaults.holdDownToControlSecs;
-		controls::delayToHideControlsSecs = defaults.delayToHideControlsSecs;
 	}
 
 	const std::string& GetIniPath() { return iniPath; }
