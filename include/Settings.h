@@ -48,17 +48,12 @@ namespace settings
 
 		inline std::uint32_t anchor = static_cast<std::uint32_t>(Anchor::kTopRight);
 
-		// A nudge per corner, in screen pixels, so switching corners does not throw away the
-		// adjustment made to the one you were on. Indexed by Anchor.
-		//
-		// Positive x is always rightwards and positive y always downwards, whichever corner is
-		// anchored, because a rule that flips direction depending on the anchor is harder to
-		// reason about than one that does not. The defaults therefore differ per corner, each
-		// tucking the minimap eight pixels in from its two edges.
-		inline std::array<float, kAnchorCount> offsetX = { 8.0F, -8.0F, 8.0F, -8.0F };
-		inline std::array<float, kAnchorCount> offsetY = { 8.0F, 8.0F, -8.0F, -8.0F };
+		// How far in from the two edges of that corner the minimap sits, in screen pixels.
+		// The corner does the positioning, so this only exists to keep the artwork off the
+		// very edge of the screen; set it to 0 to sit flush.
+		inline float edgeMargin = 8.0F;
 
-		// The offsets in use, guarded against an out-of-range uAnchor in a hand-edited INI.
+		// Guards against an out-of-range uAnchor in a hand-edited INI.
 		inline int AnchorIndex()
 		{
 			return anchor < static_cast<std::uint32_t>(kAnchorCount) ? static_cast<int>(anchor) : 0;

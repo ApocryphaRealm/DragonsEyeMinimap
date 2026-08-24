@@ -207,17 +207,8 @@ namespace UI
 			}
 			HelpMarker("Which screen corner the minimap sits in. With both offsets at 0 it tucks into that corner.");
 
-			// Each corner keeps its own nudge, so switching corners does not lose the
-			// adjustment made to the one you were on.
-			const int corner = display::AnchorIndex();
-
-			changed |= NudgeableSlider("Offset X", &display::offsetX[corner], -600.0F, 600.0F, "%.0f px", 1.0F);
-			HelpMarker("Nudge from the corner, in screen pixels. Positive is always rightwards, whichever corner is anchored. Each corner remembers its own pair.");
-
-			changed |= NudgeableSlider("Offset Y", &display::offsetY[corner], -600.0F, 600.0F, "%.0f px", 1.0F);
-			HelpMarker("Nudge from the corner, in screen pixels. Positive is always downwards, whichever corner is anchored. Each corner remembers its own pair.");
-
-			ImGuiMCP::TextDisabled("Editing the %s set.", kAnchorNames[corner]);
+			changed |= NudgeableSlider("Edge margin", &display::edgeMargin, 0.0F, 200.0F, "%.0f px", 1.0F);
+			HelpMarker("How far in from the corner's two edges the minimap sits. 0 puts it flush against them.");
 
 			changed |= NudgeableSlider("Scale", &display::scale, 0.1F, 3.0F, "%.2f", 0.01F);
 			HelpMarker("Size of the minimap. 1.00 is the size the artwork was drawn at.");

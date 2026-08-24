@@ -16,14 +16,7 @@ namespace settings
 		constexpr const char* kDisplaySection = "Display";
 		constexpr const char* kControlsSection = "Controls";
 
-		// One offset pair per corner, so the INI names say which corner they belong to rather
-		// than making the reader count indices.
-		constexpr const char* kCornerNames[display::kAnchorCount] = { "TopLeft", "TopRight", "BottomLeft", "BottomRight" };
-
-		std::string OffsetKey(char a_axis, int a_corner)
-		{
-			return std::format("fOffset{}{}", a_axis, kCornerNames[a_corner]);
-		}
+		
 
 		std::string iniPath;
 		std::string iniFileName;
@@ -35,8 +28,7 @@ namespace settings
 			logger::level logLevel;
 
 			std::uint32_t anchor;
-			std::array<float, display::kAnchorCount> offsetX;
-			std::array<float, display::kAnchorCount> offsetY;
+			float edgeMargin;
 			float scale;
 			std::uint32_t shape;
 			bool showOnGameStart;
@@ -60,8 +52,7 @@ namespace settings
 			defaults.logLevel = debug::logLevel;
 
 			defaults.anchor = display::anchor;
-			defaults.offsetX = display::offsetX;
-			defaults.offsetY = display::offsetY;
+			defaults.edgeMargin = display::edgeMargin;
 
 			defaults.scale = display::scale;
 			defaults.shape = display::shape;
@@ -147,12 +138,7 @@ namespace settings
 			{
 				using namespace display;
 				anchor = iniSettingCollection->GetSetting<std::uint32_t>("uAnchor:Display");
-
-				for (int corner = 0; corner < kAnchorCount; ++corner)
-				{
-					offsetX[corner] = iniSettingCollection->GetSetting<float>((OffsetKey('X', corner) + ":Display").c_str());
-					offsetY[corner] = iniSettingCollection->GetSetting<float>((OffsetKey('Y', corner) + ":Display").c_str());
-				}
+				edgeMargin = iniSettingCollection->GetSetting<float>("fEdgeMargin:Display");
 				scale = iniSettingCollection->GetSetting<float>("fScale:Display");
 				shape = iniSettingCollection->GetSetting<std::uint32_t>("uShape:Display");
 				showOnGameStart = iniSettingCollection->GetSetting<bool>("bShowOnGameStart:Display");
@@ -193,6 +179,7 @@ namespace settings
 			using namespace display;
 			iniSettingCollection->AddSettings(
 				MakeSetting("uAnchor:Display", anchor),
+				MakeSetting("fEdgeMargin:Display", edgeMargin),
 				MakeSetting("fScale:Display", scale),
 				MakeSetting("uShape:Display", shape),
 				MakeSetting("bShowOnGameStart:Display", showOnGameStart),
@@ -213,17 +200,6 @@ namespace settings
 				MakeSetting("fHoldDownToControlSecs:Controls", holdDownToControlSecs),
 				MakeSetting("fDelayToHideControlsSecs:Controls", delayToHideControlsSecs)
 			);
-		}
-
-		// Added in a loop rather than the list above, because the setting names are built per
-		// corner. MakeSetting copies the name, so a temporary is fine here.
-		{
-			using namespace display;
-			for (int corner = 0; corner < kAnchorCount; ++corner)
-			{
-				iniSettingCollection->AddSettings(MakeSetting((OffsetKey('X', corner) + ":Display").c_str(), offsetX[corner]));
-				iniSettingCollection->AddSettings(MakeSetting((OffsetKey('Y', corner) + ":Display").c_str(), offsetY[corner]));
-			}
 		}
 
 		if (!iniSettingCollection->ReadFromFile(a_iniFileName))
@@ -271,12 +247,7 @@ namespace settings
 		ok &= WriteUInt(kDebugSection, "uLogLevel", static_cast<std::uint32_t>(debug::logLevel));
 
 		ok &= WriteUInt(kDisplaySection, "uAnchor", display::anchor);
-
-		for (int corner = 0; corner < display::kAnchorCount; ++corner)
-		{
-			ok &= WriteFloat(kDisplaySection, OffsetKey('X', corner).c_str(), display::offsetX[corner]);
-			ok &= WriteFloat(kDisplaySection, OffsetKey('Y', corner).c_str(), display::offsetY[corner]);
-		}
+		ok &= WriteFloat(kDisplaySection, "fEdgeMargin", display::edgeMargin);
 		ok &= WriteFloat(kDisplaySection, "fScale", display::scale);
 		ok &= WriteUInt(kDisplaySection, "uShape", display::shape);
 		ok &= WriteBool(kDisplaySection, "bShowOnGameStart", display::showOnGameStart);
@@ -309,8 +280,7 @@ namespace settings
 		debug::logLevel = defaults.logLevel;
 
 		display::anchor = defaults.anchor;
-		display::offsetX = defaults.offsetX;
-		display::offsetY = defaults.offsetY;
+		display::edgeMargin = defaults.edgeMargin;
 
 		display::scale = defaults.scale;
 		display::shape = defaults.shape;
