@@ -103,16 +103,16 @@ namespace DEM
 		// these do one thing each, the moment they go down, the way other minimap mods do it.
 		if (userEventName != userEvents->localMap && a_buttonEvent->IsDown())
 		{
-			if (settings::controls::hideKeyCode != 0 &&
-				a_buttonEvent->GetIDCode() == settings::controls::hideKeyCode)
+			if (settings::controls::hideKeyCode > 0 &&
+				a_buttonEvent->GetIDCode() == static_cast<std::uint32_t>(settings::controls::hideKeyCode))
 			{
 				miniMap->IsShown() ? miniMap->Hide() : miniMap->Show();
 
 				return true;
 			}
 
-			if (settings::controls::zoomToggleKeyCode != 0 &&
-				a_buttonEvent->GetIDCode() == settings::controls::zoomToggleKeyCode)
+			if (settings::controls::zoomToggleKeyCode > 0 &&
+				a_buttonEvent->GetIDCode() == static_cast<std::uint32_t>(settings::controls::zoomToggleKeyCode))
 			{
 				miniMap->ToggleZoomPreset();
 
