@@ -223,36 +223,54 @@ namespace DEM
 		}
 
 		using Anchor = settings::display::Anchor;
-		const auto anchor = static_cast<Anchor>(settings::display::anchor);
+		const auto anchor = static_cast<Anchor>(settings::display::AnchorIndex());
 
 		const bool atRight = anchor == Anchor::kTopRight || anchor == Anchor::kBottomRight;
 		const bool atBottom = anchor == Anchor::kBottomLeft || anchor == Anchor::kBottomRight;
 
-		// The corner itself, in the clip's parent space.
-		const float cornerX = positionOriginX + positionSpanX * (atRight ? 1.0F : 0.0F);
-		const float cornerY = positionOriginY + positionSpanY * (atBottom ? 1.0F : 0.0F);
+		// The screen, in the clip's parent space. The span can be negative, so do not assume
+		// origin is the smaller edge.
+		const float screenLeft = std::min(positionOriginX, positionOriginX + positionSpanX);
+		const float screenRight = std::max(positionOriginX, positionOriginX + positionSpanX);
+		const float screenTop = std::min(positionOriginY, positionOriginY + positionSpanY);
+		const float screenBottom = std::max(positionOriginY, positionOriginY + positionSpanY);
 
-		// Pull the artwork onto the screen: line its edge up with the corner rather than its
-		// registration point, which is what makes a right or bottom anchor usable.
+		// Where the artwork sits relative to the registration point, at the scale in use.
+		// Anchoring against the artwork rather than the registration point is what makes a
+		// right or bottom corner usable at all.
 		const float visualLeft = boundsLeft * scale;
 		const float visualTop = boundsTop * scale;
 		const float visualWidth = boundsWidth * scale;
 		const float visualHeight = boundsHeight * scale;
 
-		// One offset unit is one screen pixel, converted into parent space.
-		const float unitX = positionSpanX / stageWidth;
-		const float unitY = positionSpanY / stageHeight;
+		// One margin unit is one screen pixel, converted into parent space.
+		const float unitX = std::abs(positionSpanX) / stageWidth;
+		const float unitY = std::abs(positionSpanY) / stageHeight;
+		const float marginX = settings::display::edgeMargin * unitX;
+		const float marginY = settings::display::edgeMargin * unitY;
 
-		const int corner = settings::display::AnchorIndex();
-		const float offsetX = settings::display::offsetX[corner];
-		const float offsetY = settings::display::offsetY[corner];
+		float x = atRight ? screenRight - marginX - visualWidth - visualLeft
+						  : screenLeft + marginX - visualLeft;
+		float y = atBottom ? screenBottom - marginY - visualHeight - visualTop
+						   : screenTop + marginY - visualTop;
 
-		displayObj.SetMember("_x", cornerX - visualLeft - (atRight ? visualWidth : 0.0F) + offsetX * unitX);
-		displayObj.SetMember("_y", cornerY - visualTop - (atBottom ? visualHeight : 0.0F) + offsetY * unitY);
+		// Growing the scale must not push the minimap off the screen. Clamp the artwork's box
+		// inside the screen rather than trusting the corner arithmetic, so a scale large
+		// enough to overrun the margin still leaves the whole map visible. If it is larger
+		// than the screen there is nothing to be done, so keep the top-left corner in view.
+		const float maxX = screenRight - visualWidth - visualLeft;
+		const float minX = screenLeft - visualLeft;
+		x = maxX >= minX ? std::clamp(x, minX, maxX) : minX;
 
-		logger::debug("Display applied: anchor {}, offset ({}, {}), scale {} -> _x {}, _y {}",
-					  settings::display::anchor, offsetX, offsetY,
-					  scale, displayObj.GetMember("_x").GetNumber(), displayObj.GetMember("_y").GetNumber());
+		const float maxY = screenBottom - visualHeight - visualTop;
+		const float minY = screenTop - visualTop;
+		y = maxY >= minY ? std::clamp(y, minY, maxY) : minY;
+
+		displayObj.SetMember("_x", x);
+		displayObj.SetMember("_y", y);
+
+		logger::debug("Display applied: anchor {}, margin {}, scale {} -> _x {}, _y {} (art {}x{})",
+					  settings::display::anchor, settings::display::edgeMargin, scale, x, y, visualWidth, visualHeight);
 	}
 
 	void Minimap::ApplyShapeSetting()
