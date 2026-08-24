@@ -167,12 +167,12 @@ namespace DEM
 			if (displayObj.HasMember("Minimap"))
 			{
 				// Record the clip exactly as authored, before anything has moved or scaled it.
-				// ApplyDisplaySettings() restores this state before every re-positioning,
-				// because the AS2 side derives the new position from where the clip already is.
 				baseX = static_cast<float>(displayObj.GetMember("_x").GetNumber());
 				baseY = static_cast<float>(displayObj.GetMember("_y").GetNumber());
-				baseWidth = static_cast<float>(displayObj.GetMember("_width").GetNumber());
-				baseHeight = static_cast<float>(displayObj.GetMember("_height").GetNumber());
+				baseXScale = static_cast<float>(displayObj.GetMember("_xscale").GetNumber());
+				baseYScale = static_cast<float>(displayObj.GetMember("_yscale").GetNumber());
+
+				MeasurePositionMapping();
 
 				// One code path for the initial layout and every later change, so the two
 				// cannot drift apart.
@@ -181,6 +181,8 @@ namespace DEM
 		}
 
 		void InitLocalMap();
+
+		void MeasurePositionMapping();
 
 		void UpdateFogOfWar();
 		void RenderOffScreen();
@@ -196,8 +198,17 @@ namespace DEM
 		// The clip's transform as authored, before any positioning or scaling was applied.
 		float baseX = 0.0F;
 		float baseY = 0.0F;
-		float baseWidth = 0.0F;
-		float baseHeight = 0.0F;
+		float baseXScale = 100.0F;
+		float baseYScale = 100.0F;
+
+		// Where the clip lands for fPositionX/Y of 0, and how far one whole unit moves it.
+		// Measured once, so position can be computed rather than asked for. See
+		// MeasurePositionMapping().
+		float positionOriginX = 0.0F;
+		float positionOriginY = 0.0F;
+		float positionSpanX = 0.0F;
+		float positionSpanY = 0.0F;
+		bool hasPositionMapping = false;
 
 		Shape shape = static_cast<Shape>(settings::display::shape);
 

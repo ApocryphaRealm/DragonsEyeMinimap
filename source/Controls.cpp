@@ -98,7 +98,14 @@ namespace DEM
 
 		std::string_view userEventName = controlMap->GetUserEventName(a_buttonEvent->GetIDCode(), a_buttonEvent->GetDevice(), RE::ControlMap::InputContextID::kMap);
 
-		if (userEventName == userEvents->localMap)
+		// With iHideKeyCode unset the minimap answers to whatever the game has bound to Local
+		// Map, as it always did. Setting it takes the minimap off that binding and onto a key
+		// of its own, so it can be hidden without disturbing the map controls.
+		const bool isMinimapButton = settings::controls::hideKeyCode != 0
+										 ? a_buttonEvent->GetIDCode() == settings::controls::hideKeyCode
+										 : userEventName == userEvents->localMap;
+
+		if (isMinimapButton)
 		{
 			bool isPressed = buttonMag ? true : false;
 			bool isReleased = !isPressed;

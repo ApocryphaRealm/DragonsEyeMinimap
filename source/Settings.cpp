@@ -34,6 +34,7 @@ namespace settings
 			std::string controlMoveTip;
 			std::string controlZoomTip;
 
+			std::uint32_t hideKeyCode;
 			bool followPlayerCameraRotation;
 			float holdDownToControlSecs;
 			float delayToHideControlsSecs;
@@ -54,6 +55,7 @@ namespace settings
 			defaults.controlMoveTip = display::controlMoveTip;
 			defaults.controlZoomTip = display::controlZoomTip;
 
+			defaults.hideKeyCode = controls::hideKeyCode;
 			defaults.followPlayerCameraRotation = controls::followPlayerCameraRotation;
 			defaults.holdDownToControlSecs = controls::holdDownToControlSecs;
 			defaults.delayToHideControlsSecs = controls::delayToHideControlsSecs;
@@ -138,6 +140,7 @@ namespace settings
 
 			{
 				using namespace controls;
+				hideKeyCode = iniSettingCollection->GetSetting<std::uint32_t>("iHideKeyCode:Controls");
 				followPlayerCameraRotation = iniSettingCollection->GetSetting<bool>("bFollowPlayerCameraRotation:Controls");
 				holdDownToControlSecs = iniSettingCollection->GetSetting<float>("fHoldDownToControlSecs:Controls");
 				delayToHideControlsSecs = iniSettingCollection->GetSetting<float>("fDelayToHideControlsSecs:Controls");
@@ -177,6 +180,7 @@ namespace settings
 		{
 			using namespace controls;
 			iniSettingCollection->AddSettings(
+					MakeSetting("iHideKeyCode:Controls", static_cast<std::uint32_t>(hideKeyCode)),
 				MakeSetting("bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation),
 				MakeSetting("fHoldDownToControlSecs:Controls", holdDownToControlSecs),
 				MakeSetting("fDelayToHideControlsSecs:Controls", delayToHideControlsSecs)
@@ -236,6 +240,7 @@ namespace settings
 		ok &= WriteString(kDisplaySection, "sControlMoveTip", display::controlMoveTip);
 		ok &= WriteString(kDisplaySection, "sControlZoomTip", display::controlZoomTip);
 
+		ok &= WriteUInt(kControlsSection, "iHideKeyCode", controls::hideKeyCode);
 		ok &= WriteBool(kControlsSection, "bFollowPlayerCameraRotation", controls::followPlayerCameraRotation);
 		ok &= WriteFloat(kControlsSection, "fHoldDownToControlSecs", controls::holdDownToControlSecs);
 		ok &= WriteFloat(kControlsSection, "fDelayToHideControlsSecs", controls::delayToHideControlsSecs);
@@ -265,6 +270,7 @@ namespace settings
 		display::controlMoveTip = defaults.controlMoveTip;
 		display::controlZoomTip = defaults.controlZoomTip;
 
+		controls::hideKeyCode = defaults.hideKeyCode;
 		controls::followPlayerCameraRotation = defaults.followPlayerCameraRotation;
 		controls::holdDownToControlSecs = defaults.holdDownToControlSecs;
 		controls::delayToHideControlsSecs = defaults.delayToHideControlsSecs;

@@ -50,6 +50,11 @@ namespace settings
 
 	namespace controls
 	{
+		// DirectInput scan code of the key that hides/shows the minimap and, held down,
+		// controls it. 0 means "whatever the game has bound to Local Map", which is what the
+		// mod did before this setting existed.
+		inline std::uint32_t hideKeyCode = 0;
+
 		inline bool followPlayerCameraRotation = true;
 		inline float holdDownToControlSecs = 0.15F;
 		inline float delayToHideControlsSecs = 1.0F;
