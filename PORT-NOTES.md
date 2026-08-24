@@ -61,7 +61,7 @@ You need two things, and neither has to be installed anywhere in particular:
   `bootstrap-vcpkg.bat` inside it.
 
 ```
-set VCPKG_ROOT=C:\path	ocpkg
+set VCPKG_ROOT=C:\path\to\vcpkg
 configure.bat   # first run builds CommonLibSSE-NG; takes a few minutes
 build.bat
 ```
