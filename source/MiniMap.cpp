@@ -243,13 +243,15 @@ namespace DEM
 		const float unitX = positionSpanX / stageWidth;
 		const float unitY = positionSpanY / stageHeight;
 
-		displayObj.SetMember("_x", cornerX - visualLeft - (atRight ? visualWidth : 0.0F) +
-										settings::display::offsetX * unitX);
-		displayObj.SetMember("_y", cornerY - visualTop - (atBottom ? visualHeight : 0.0F) +
-										settings::display::offsetY * unitY);
+		const int corner = settings::display::AnchorIndex();
+		const float offsetX = settings::display::offsetX[corner];
+		const float offsetY = settings::display::offsetY[corner];
+
+		displayObj.SetMember("_x", cornerX - visualLeft - (atRight ? visualWidth : 0.0F) + offsetX * unitX);
+		displayObj.SetMember("_y", cornerY - visualTop - (atBottom ? visualHeight : 0.0F) + offsetY * unitY);
 
 		logger::debug("Display applied: anchor {}, offset ({}, {}), scale {} -> _x {}, _y {}",
-					  settings::display::anchor, settings::display::offsetX, settings::display::offsetY,
+					  settings::display::anchor, offsetX, offsetY,
 					  scale, displayObj.GetMember("_x").GetNumber(), displayObj.GetMember("_y").GetNumber());
 	}
 
