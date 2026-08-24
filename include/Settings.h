@@ -55,6 +55,12 @@ namespace settings
 		// mod did before this setting existed.
 		inline std::uint32_t hideKeyCode = 0;
 
+		// Tapping this key jumps the map zoom between the two presets below, instead of having
+		// to hold the control key and scroll. 0 disables it.
+		inline std::uint32_t zoomToggleKeyCode = 0;
+		inline float zoomPreset1 = 0.25F;
+		inline float zoomPreset2 = 0.75F;
+
 		inline bool followPlayerCameraRotation = true;
 		inline float holdDownToControlSecs = 0.15F;
 		inline float delayToHideControlsSecs = 1.0F;

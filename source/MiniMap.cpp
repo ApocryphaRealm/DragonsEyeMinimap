@@ -245,6 +245,38 @@ namespace DEM
 		logger::debug("Shape set to {}", shape == Shape::kRound ? "round" : "squared");
 	}
 
+	void Minimap::SetMapZoom(float a_zoom)
+	{
+		if (!cameraContext)
+		{
+			return;
+		}
+
+		// Steer the absolute value through zoomInput, which is the same channel the pan/zoom
+		// controls use, so the camera applies its own limits rather than us guessing at them.
+		cameraContext->zoomInput += a_zoom - cameraContext->defaultState->zoom;
+	}
+
+	void Minimap::ToggleZoomPreset()
+	{
+		if (!cameraContext)
+		{
+			return;
+		}
+
+		const float current = cameraContext->defaultState->zoom;
+		const float first = settings::controls::zoomPreset1;
+		const float second = settings::controls::zoomPreset2;
+
+		// Go to whichever preset we are further from, so a tap always visibly changes
+		// something even if the zoom has drifted off both presets.
+		const float target = std::abs(current - first) < std::abs(current - second) ? second : first;
+
+		logger::debug("Zoom toggle: {} -> {}", current, target);
+
+		SetMapZoom(target);
+	}
+
 	void Minimap::SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs)
 	{
 		float localLeft = a_delegateArgs[0].GetNumber();
