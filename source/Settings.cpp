@@ -36,8 +36,8 @@ namespace settings
 			std::string controlMoveTip;
 			std::string controlZoomTip;
 
-			std::uint32_t hideKeyCode;
-			std::uint32_t zoomToggleKeyCode;
+			std::int32_t hideKeyCode;
+			std::int32_t zoomToggleKeyCode;
 			float zoomPreset1;
 			float zoomPreset2;
 			bool followPlayerCameraRotation;
@@ -96,6 +96,29 @@ namespace settings
 			return WriteRaw(a_section, a_key, std::format("{}", a_value));
 		}
 
+		bool WriteInt(const char* a_section, const char* a_key, std::int32_t a_value)
+		{
+			return WriteRaw(a_section, a_key, std::format("{}", a_value));
+		}
+
+		// MakeSetting takes the setting's type from the first letter of its name - i signed,
+		// u unsigned, f float, b bool, s string - and quietly hands back a setting with a null
+		// name when the value passed does not match. The game's collection dereferences that
+		// name, so inserting one crashes on startup with nothing useful in the log. Refuse it
+		// here instead, where the message can say which setting is at fault.
+		void AddChecked(INISettingCollection* a_collection, RE::Setting* a_setting, const char* a_name)
+		{
+			if (a_setting && a_setting->name)
+			{
+				a_collection->AddSettings(a_setting);
+
+				return;
+			}
+
+			logger::critical("Setting \"{}\" was built with a value that does not match the type its "
+							 "name prefix promises, so it has been skipped", a_name);
+		}
+
 		bool WriteBool(const char* a_section, const char* a_key, bool a_value)
 		{
 			return WriteRaw(a_section, a_key, a_value ? "1" : "0");
@@ -149,8 +172,8 @@ namespace settings
 
 			{
 				using namespace controls;
-				hideKeyCode = iniSettingCollection->GetSetting<std::uint32_t>("iHideKeyCode:Controls");
-				zoomToggleKeyCode = iniSettingCollection->GetSetting<std::uint32_t>("iZoomToggleKeyCode:Controls");
+				hideKeyCode = iniSettingCollection->GetSetting<std::int32_t>("iHideKeyCode:Controls");
+				zoomToggleKeyCode = iniSettingCollection->GetSetting<std::int32_t>("iZoomToggleKeyCode:Controls");
 				zoomPreset1 = iniSettingCollection->GetSetting<float>("fZoomPreset1:Controls");
 				zoomPreset2 = iniSettingCollection->GetSetting<float>("fZoomPreset2:Controls");
 				followPlayerCameraRotation = iniSettingCollection->GetSetting<bool>("bFollowPlayerCameraRotation:Controls");
@@ -169,37 +192,38 @@ namespace settings
 
 		INISettingCollection* iniSettingCollection = INISettingCollection::GetSingleton();
 
+		// Registered one at a time through AddChecked, so a type that does not match its name
+		// prefix is reported rather than crashing the game as it loads.
+		const auto add = [iniSettingCollection](const char* a_name, auto a_value) {
+			AddChecked(iniSettingCollection, MakeSetting(a_name, a_value), a_name);
+		};
+
 		{
 			using namespace debug;
-			iniSettingCollection->AddSettings(
-				MakeSetting("uLogLevel:Debug", static_cast<std::uint32_t>(logLevel)));
+			add("uLogLevel:Debug", static_cast<std::uint32_t>(logLevel));
 		}
 
 		{
 			using namespace display;
-			iniSettingCollection->AddSettings(
-				MakeSetting("uAnchor:Display", anchor),
-				MakeSetting("fEdgeMargin:Display", edgeMargin),
-				MakeSetting("fScale:Display", scale),
-				MakeSetting("uShape:Display", shape),
-				MakeSetting("bShowOnGameStart:Display", showOnGameStart),
-				MakeSetting("sControlHideTip:Display", controlHideTip.c_str()),
-				MakeSetting("sControlMoveTip:Display", controlMoveTip.c_str()),
-				MakeSetting("sControlZoomTip:Display", controlZoomTip.c_str())
-			);
+			add("uAnchor:Display", anchor);
+			add("fEdgeMargin:Display", edgeMargin);
+			add("fScale:Display", scale);
+			add("uShape:Display", shape);
+			add("bShowOnGameStart:Display", showOnGameStart);
+			add("sControlHideTip:Display", controlHideTip.c_str());
+			add("sControlMoveTip:Display", controlMoveTip.c_str());
+			add("sControlZoomTip:Display", controlZoomTip.c_str());
 		}
 
 		{
 			using namespace controls;
-			iniSettingCollection->AddSettings(
-					MakeSetting("iHideKeyCode:Controls", static_cast<std::uint32_t>(hideKeyCode)),
-				MakeSetting("iZoomToggleKeyCode:Controls", static_cast<std::uint32_t>(zoomToggleKeyCode)),
-				MakeSetting("fZoomPreset1:Controls", zoomPreset1),
-				MakeSetting("fZoomPreset2:Controls", zoomPreset2),
-				MakeSetting("bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation),
-				MakeSetting("fHoldDownToControlSecs:Controls", holdDownToControlSecs),
-				MakeSetting("fDelayToHideControlsSecs:Controls", delayToHideControlsSecs)
-			);
+			add("iHideKeyCode:Controls", static_cast<int>(hideKeyCode));
+			add("iZoomToggleKeyCode:Controls", static_cast<int>(zoomToggleKeyCode));
+			add("fZoomPreset1:Controls", zoomPreset1);
+			add("fZoomPreset2:Controls", zoomPreset2);
+			add("bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation);
+			add("fHoldDownToControlSecs:Controls", holdDownToControlSecs);
+			add("fDelayToHideControlsSecs:Controls", delayToHideControlsSecs);
 		}
 
 		if (!iniSettingCollection->ReadFromFile(a_iniFileName))
@@ -255,8 +279,8 @@ namespace settings
 		ok &= WriteString(kDisplaySection, "sControlMoveTip", display::controlMoveTip);
 		ok &= WriteString(kDisplaySection, "sControlZoomTip", display::controlZoomTip);
 
-		ok &= WriteUInt(kControlsSection, "iHideKeyCode", controls::hideKeyCode);
-		ok &= WriteUInt(kControlsSection, "iZoomToggleKeyCode", controls::zoomToggleKeyCode);
+		ok &= WriteInt(kControlsSection, "iHideKeyCode", controls::hideKeyCode);
+		ok &= WriteInt(kControlsSection, "iZoomToggleKeyCode", controls::zoomToggleKeyCode);
 		ok &= WriteFloat(kControlsSection, "fZoomPreset1", controls::zoomPreset1);
 		ok &= WriteFloat(kControlsSection, "fZoomPreset2", controls::zoomPreset2);
 		ok &= WriteBool(kControlsSection, "bFollowPlayerCameraRotation", controls::followPlayerCameraRotation);

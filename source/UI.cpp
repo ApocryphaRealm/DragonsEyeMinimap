@@ -133,7 +133,7 @@ namespace UI
 				return false;
 			}
 
-			settings::controls::hideKeyCode = buttonEvent->GetIDCode();
+			settings::controls::hideKeyCode = static_cast<std::int32_t>(buttonEvent->GetIDCode());
 			awaitingKeyBind.store(false);
 
 			// Swallow it, so binding a key does not also trigger whatever it is bound to.
@@ -309,10 +309,10 @@ namespace UI
 			}
 			HelpMarker("Zoom the map where you want it, then press \"Set to current\" to store that level as a preset.");
 
-			int zoomKey = static_cast<int>(controls::zoomToggleKeyCode);
+			int zoomKey = controls::zoomToggleKeyCode;
 			if (ImGuiMCP::InputInt("Zoom toggle key", &zoomKey))
 			{
-				controls::zoomToggleKeyCode = static_cast<std::uint32_t>(zoomKey < 0 ? 0 : zoomKey);
+				controls::zoomToggleKeyCode = zoomKey < 0 ? 0 : zoomKey;
 			}
 			HelpMarker("Tapping this key jumps between the two presets, instead of holding the control key and scrolling. 0 disables it.");
 
@@ -328,10 +328,10 @@ namespace UI
 
 			ImGuiMCP::SeparatorText("Controls");
 
-			int keyCode = static_cast<int>(controls::hideKeyCode);
+			int keyCode = controls::hideKeyCode;
 			if (ImGuiMCP::InputInt("Hide key", &keyCode))
 			{
-				controls::hideKeyCode = static_cast<std::uint32_t>(keyCode < 0 ? 0 : keyCode);
+				controls::hideKeyCode = keyCode < 0 ? 0 : keyCode;
 			}
 			HelpMarker("DirectInput scan code of a key that shows or hides the minimap the moment it is pressed. "
 					   "0 disables it. This is separate from the game's Local Map key, which keeps its own "

@@ -73,14 +73,14 @@ namespace settings
 
 	namespace controls
 	{
-		// DirectInput scan code of the key that hides/shows the minimap and, held down,
-		// controls it. 0 means "whatever the game has bound to Local Map", which is what the
-		// mod did before this setting existed.
-		inline std::uint32_t hideKeyCode = 0;
+		// DirectInput scan code of a key that shows or hides the minimap the moment it is
+		// pressed. 0 disables it. Signed, because the INI name starts with "i" and the setting
+		// type is taken from that prefix.
+		inline std::int32_t hideKeyCode = 0;
 
 		// Tapping this key jumps the map zoom between the two presets below, instead of having
 		// to hold the control key and scroll. 0 disables it.
-		inline std::uint32_t zoomToggleKeyCode = 0;
+		inline std::int32_t zoomToggleKeyCode = 0;
 		inline float zoomPreset1 = 0.25F;
 		inline float zoomPreset2 = 0.75F;
 
