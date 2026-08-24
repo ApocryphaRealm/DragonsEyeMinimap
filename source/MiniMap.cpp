@@ -163,12 +163,41 @@ namespace DEM
 			return false;
 		}
 
-		// Asking for the bounds *in the parent's space* folds in the clip's own position and
-		// scale, so the result is directly comparable with _x and _y. Measuring afresh each
-		// time also means it does not matter that the map contents are attached later than
-		// this object is constructed.
+		// getBounds() measures a clip's full render extent regardless of _visible - Flash does
+		// not exclude hidden children from it. The Controls clip (the old hide-tip/buttons UI,
+		// permanently hidden since 1.6.2 - see InitLocalMap()) is still a child of this tree,
+		// so measuring the WHOLE clip's bounds folds in whatever space Controls was authored
+		// to occupy, even though nothing of it is drawn. If Controls sits below and to the
+		// left of the map artwork, as its old "hold to control" layout suggests, that alone
+		// would explain corner-dependent offsets needed to compensate: a left anchor reading
+		// artLeft from a box that extends further left than the visible map places the map
+		// inset from the true edge, needing a negative correction to pull it back - and
+		// likewise a positive one on the bottom, for the same reason in the other direction.
+		//
+		// Once localMap_ exists, BackgroundArtSquare/BackgroundArtCircle - whichever matches
+		// the current shape - is measured instead. That clip is exactly the visible map frame,
+		// with no Controls artwork anywhere inside it, so its bounds are not inflated the same
+		// way. Before localMap_ exists (the constructor's very first call, before LocalMap has
+		// even been constructed) there is nothing more precise to measure yet, so the whole
+		// clip's bounds are used as an approximation for that one early call; the later re-apply
+		// once localMap_ exists (see InitLocalMap() and pendingInitialReapply) replaces it with
+		// the precise measurement.
 		RE::GFxValue bounds;
-		if (!displayObj.Invoke("getBounds", &bounds, parent) || !bounds.IsObject())
+		bool measured = false;
+
+		if (localMap_)
+		{
+			using Shape = LMU::PixelShaderProperty::Shape;
+			const char* artName = shape == Shape::kRound ? "BackgroundArtCircle" : "BackgroundArtSquare";
+
+			RE::GFxValue art;
+			if (localMap_->root.GetMember(artName, &art) && art.IsDisplayObject())
+			{
+				measured = art.Invoke("getBounds", &bounds, std::array<RE::GFxValue, 1>{ parent }) && bounds.IsObject();
+			}
+		}
+
+		if (!measured && !(displayObj.Invoke("getBounds", &bounds, parent) && bounds.IsObject()))
 		{
 			return false;
 		}
