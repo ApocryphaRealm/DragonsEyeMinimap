@@ -235,6 +235,24 @@ namespace UI
 
 			ImGuiMCP::SameLine();
 
+			if (ImGuiMCP::Button("Reload from INI"))
+			{
+				if (settings::Reload())
+				{
+					RefreshTipBuffers();
+					ApplyLiveSettings();
+
+					statusMessage = "Settings reloaded from the INI.";
+				}
+				else
+				{
+					statusMessage = "Could not read the INI. See the log for why.";
+				}
+			}
+			HelpMarker("Throws away any change made here since the last save and re-reads the INI from disk. Also picks up edits made to the file by hand.");
+
+			ImGuiMCP::SameLine();
+
 			if (ImGuiMCP::Button("Restore defaults"))
 			{
 				settings::RestoreDefaults();
