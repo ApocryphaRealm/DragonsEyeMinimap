@@ -21,8 +21,10 @@ configure_file(
 	@ONLY
 )
 
-file(GLOB_RECURSE headers "include/*.h")
-file(GLOB_RECURSE sources "source/*.cpp")
+# CONFIGURE_DEPENDS so that adding a source file re-runs the glob on the next build
+# instead of silently leaving the new file out of the link.
+file(GLOB_RECURSE headers CONFIGURE_DEPENDS "include/*.h")
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS "source/*.cpp")
 
 source_group(
 	TREE
@@ -111,13 +113,15 @@ elseif ("$ENV{RUNTIME_DISABLE_FLAGS}" STREQUAL "-UENABLE_SKYRIM_SE -UENABLE_SKYR
 	set(COPY_VR YES)
 endif()
 
-if (COPY_SE)
+# Only auto-deploy when the game folder actually exists on this machine. Otherwise the
+# build output is collected by package.bat instead.
+if (COPY_SE AND EXISTS "${SKYRIM_SE_DIR}/Data/SKSE/Plugins")
 	add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}>
 		"${SKYRIM_SE_DIR}/Data/SKSE/Plugins/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
 	)
 endif()
-if (COPY_VR)
+if (COPY_VR AND EXISTS "${SKYRIM_VR_DIR}/Data/SKSE/Plugins")
 	add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}>
 		"${SKYRIM_VR_DIR}/Data/SKSE/Plugins/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
