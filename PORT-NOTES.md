@@ -36,6 +36,14 @@ renderer's present hook. Talking to Scaleform from there would race the game, so
 widget that touches the minimap queues its work through `SKSE::GetTaskInterface()` and runs
 it on the main thread.
 
+**Positioning became a corner plus an offset.** The mod originally took two screen
+proportions and handed them to the AS2 side. It now takes an anchor corner and a nudge in
+pixels, the way other minimap mods do it, and computes `_x`/`_y` directly. The AS2 function
+is still used, but only twice at startup: the mapping from screen proportion to `_x`/`_y` is
+affine, so two probes define the line, and everything after that is arithmetic. The clip is
+also asked for its own bounds via `getBounds`, so anchoring to the right or bottom edge lines
+up the artwork with the corner rather than the registration point.
+
 **Re-positioning had to become idempotent.** The AS2 `Minimap` function positions the clip
 by running a stage coordinate through `globalToLocal` — which is relative to the clip's own
 transform — and assigning the result to `_x`/`_y`. Its output therefore depends on where the

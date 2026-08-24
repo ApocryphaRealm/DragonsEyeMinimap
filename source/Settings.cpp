@@ -25,8 +25,9 @@ namespace settings
 		{
 			logger::level logLevel;
 
-			float positionX;
-			float positionY;
+			std::uint32_t anchor;
+			float offsetX;
+			float offsetY;
 			float scale;
 			std::uint32_t shape;
 			bool showOnGameStart;
@@ -49,8 +50,9 @@ namespace settings
 		{
 			defaults.logLevel = debug::logLevel;
 
-			defaults.positionX = display::positionX;
-			defaults.positionY = display::positionY;
+			defaults.anchor = display::anchor;
+			defaults.offsetX = display::offsetX;
+			defaults.offsetY = display::offsetY;
 			defaults.scale = display::scale;
 			defaults.shape = display::shape;
 			defaults.showOnGameStart = display::showOnGameStart;
@@ -134,8 +136,9 @@ namespace settings
 
 			{
 				using namespace display;
-				positionX = iniSettingCollection->GetSetting<float>("fPositionX:Display");
-				positionY = iniSettingCollection->GetSetting<float>("fPositionY:Display");
+				anchor = iniSettingCollection->GetSetting<std::uint32_t>("uAnchor:Display");
+				offsetX = iniSettingCollection->GetSetting<float>("fOffsetX:Display");
+				offsetY = iniSettingCollection->GetSetting<float>("fOffsetY:Display");
 				scale = iniSettingCollection->GetSetting<float>("fScale:Display");
 				shape = iniSettingCollection->GetSetting<std::uint32_t>("uShape:Display");
 				showOnGameStart = iniSettingCollection->GetSetting<bool>("bShowOnGameStart:Display");
@@ -175,8 +178,9 @@ namespace settings
 		{
 			using namespace display;
 			iniSettingCollection->AddSettings(
-				MakeSetting("fPositionX:Display", positionX),
-				MakeSetting("fPositionY:Display", positionY),
+				MakeSetting("uAnchor:Display", anchor),
+				MakeSetting("fOffsetX:Display", offsetX),
+				MakeSetting("fOffsetY:Display", offsetY),
 				MakeSetting("fScale:Display", scale),
 				MakeSetting("uShape:Display", shape),
 				MakeSetting("bShowOnGameStart:Display", showOnGameStart),
@@ -243,8 +247,9 @@ namespace settings
 
 		ok &= WriteUInt(kDebugSection, "uLogLevel", static_cast<std::uint32_t>(debug::logLevel));
 
-		ok &= WriteFloat(kDisplaySection, "fPositionX", display::positionX);
-		ok &= WriteFloat(kDisplaySection, "fPositionY", display::positionY);
+		ok &= WriteUInt(kDisplaySection, "uAnchor", display::anchor);
+		ok &= WriteFloat(kDisplaySection, "fOffsetX", display::offsetX);
+		ok &= WriteFloat(kDisplaySection, "fOffsetY", display::offsetY);
 		ok &= WriteFloat(kDisplaySection, "fScale", display::scale);
 		ok &= WriteUInt(kDisplaySection, "uShape", display::shape);
 		ok &= WriteBool(kDisplaySection, "bShowOnGameStart", display::showOnGameStart);
@@ -276,8 +281,9 @@ namespace settings
 	{
 		debug::logLevel = defaults.logLevel;
 
-		display::positionX = defaults.positionX;
-		display::positionY = defaults.positionY;
+		display::anchor = defaults.anchor;
+		display::offsetX = defaults.offsetX;
+		display::offsetY = defaults.offsetY;
 		display::scale = defaults.scale;
 		display::shape = defaults.shape;
 		display::showOnGameStart = defaults.showOnGameStart;

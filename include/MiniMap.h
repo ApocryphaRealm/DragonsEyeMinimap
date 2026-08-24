@@ -210,14 +210,26 @@ namespace DEM
 		float baseXScale = 100.0F;
 		float baseYScale = 100.0F;
 
-		// Where the clip lands for fPositionX/Y of 0, and how far one whole unit moves it.
-		// Measured once, so position can be computed rather than asked for. See
+		// Where the clip lands for a screen proportion of 0, and how far a whole screen moves
+		// it. Measured once, so position can be computed rather than asked for. See
 		// MeasurePositionMapping().
 		float positionOriginX = 0.0F;
 		float positionOriginY = 0.0F;
 		float positionSpanX = 0.0F;
 		float positionSpanY = 0.0F;
 		bool hasPositionMapping = false;
+
+		// The clip's visual box relative to its own registration point, at scale 1. Without
+		// this, anchoring to the right or bottom edge would put the registration point there
+		// and leave most of the minimap off screen.
+		float boundsLeft = 0.0F;
+		float boundsTop = 0.0F;
+		float boundsWidth = 0.0F;
+		float boundsHeight = 0.0F;
+
+		// Screen size in the units the offsets are expressed in.
+		float stageWidth = 0.0F;
+		float stageHeight = 0.0F;
 
 		Shape shape = static_cast<Shape>(settings::display::shape);
 
