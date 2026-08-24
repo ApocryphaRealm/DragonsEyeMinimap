@@ -101,7 +101,11 @@ namespace DEM
 		// Two dedicated keys, pressed rather than held. They are deliberately separate from the
 		// Local Map binding below, which keeps its tap-to-hide and hold-to-control behaviour:
 		// these do one thing each, the moment they go down, the way other minimap mods do it.
-		if (userEventName != userEvents->localMap && a_buttonEvent->IsDown())
+		// Only keyboard codes: this handler also serves the mouse, whose IDCodes are 0-7 and
+		// overlap the low DirectInput scan codes, so without this a key bound as scan code 2
+		// would also fire on a mouse button.
+		if (userEventName != userEvents->localMap && a_buttonEvent->IsDown() &&
+			a_buttonEvent->GetDevice() == RE::INPUT_DEVICE::kKeyboard)
 		{
 			if (settings::controls::hideKeyCode > 0 &&
 				a_buttonEvent->GetIDCode() == static_cast<std::uint32_t>(settings::controls::hideKeyCode))

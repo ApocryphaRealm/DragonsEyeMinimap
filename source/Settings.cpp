@@ -101,6 +101,38 @@ namespace settings
 			return WriteRaw(a_section, a_key, std::format("{}", a_value));
 		}
 
+		// RE::INISettingCollection::GetSetting returns null for a name that is not in the
+		// collection, and the templated GetSetting<T> helpers dereference that without
+		// checking. AddChecked below deliberately skips a malformed setting, so a skipped one
+		// would then be read back as null and crash during SKSEPluginLoad - trading one fatal
+		// bug for another. Read through here instead: the value keeps whatever default it
+		// already had, and the log says which setting went missing.
+		template <typename T>
+		T Read(INISettingCollection* a_collection, const char* a_name, T a_fallback)
+		{
+			if (!a_collection->GetSetting(a_name))
+			{
+				logger::error("Setting \"{}\" is missing from the collection; keeping the current value", a_name);
+
+				return a_fallback;
+			}
+
+			return a_collection->GetSetting<T>(a_name);
+		}
+
+		std::string ReadString(INISettingCollection* a_collection, const char* a_name, const std::string& a_fallback)
+		{
+			auto* setting = a_collection->GetSetting(a_name);
+			if (!setting || !setting->GetString())
+			{
+				logger::error("Setting \"{}\" is missing or empty; keeping the current value", a_name);
+
+				return a_fallback;
+			}
+
+			return setting->GetString();
+		}
+
 		// MakeSetting takes the setting's type from the first letter of its name - i signed,
 		// u unsigned, f float, b bool, s string - and quietly hands back a setting with a null
 		// name when the value passed does not match. The game's collection dereferences that
@@ -151,34 +183,40 @@ namespace settings
 		// Init() and Reload() so the two cannot read the INI differently.
 		void ReadFromCollection()
 		{
-			INISettingCollection* iniSettingCollection = INISettingCollection::GetSingleton();
+			INISettingCollection* c = INISettingCollection::GetSingleton();
 
 			{
 				using namespace debug;
-				logLevel = static_cast<logger::level>(iniSettingCollection->GetSetting<std::uint32_t>("uLogLevel:Debug"));
+				const auto raw = Read<std::uint32_t>(c, "uLogLevel:Debug", static_cast<std::uint32_t>(logLevel));
+
+				// spdlog indexes its level table by this value, so a hand-edited uLogLevel=99
+				// would read off the end of it the next time anything logged.
+				logLevel = raw <= static_cast<std::uint32_t>(logger::level::off)
+							   ? static_cast<logger::level>(raw)
+							   : logger::level::info;
 			}
 
 			{
 				using namespace display;
-				anchor = iniSettingCollection->GetSetting<std::uint32_t>("uAnchor:Display");
-				edgeMargin = iniSettingCollection->GetSetting<float>("fEdgeMargin:Display");
-				scale = iniSettingCollection->GetSetting<float>("fScale:Display");
-				shape = iniSettingCollection->GetSetting<std::uint32_t>("uShape:Display");
-				showOnGameStart = iniSettingCollection->GetSetting<bool>("bShowOnGameStart:Display");
-				controlHideTip = iniSettingCollection->GetSetting<const char*>("sControlHideTip:Display");
-				controlMoveTip = iniSettingCollection->GetSetting<const char*>("sControlMoveTip:Display");
-				controlZoomTip = iniSettingCollection->GetSetting<const char*>("sControlZoomTip:Display");
+				anchor = Read<std::uint32_t>(c, "uAnchor:Display", anchor);
+				edgeMargin = Read<float>(c, "fEdgeMargin:Display", edgeMargin);
+				scale = Read<float>(c, "fScale:Display", scale);
+				shape = Read<std::uint32_t>(c, "uShape:Display", shape);
+				showOnGameStart = Read<bool>(c, "bShowOnGameStart:Display", showOnGameStart);
+				controlHideTip = ReadString(c, "sControlHideTip:Display", controlHideTip);
+				controlMoveTip = ReadString(c, "sControlMoveTip:Display", controlMoveTip);
+				controlZoomTip = ReadString(c, "sControlZoomTip:Display", controlZoomTip);
 			}
 
 			{
 				using namespace controls;
-				hideKeyCode = iniSettingCollection->GetSetting<std::int32_t>("iHideKeyCode:Controls");
-				zoomToggleKeyCode = iniSettingCollection->GetSetting<std::int32_t>("iZoomToggleKeyCode:Controls");
-				zoomPreset1 = iniSettingCollection->GetSetting<float>("fZoomPreset1:Controls");
-				zoomPreset2 = iniSettingCollection->GetSetting<float>("fZoomPreset2:Controls");
-				followPlayerCameraRotation = iniSettingCollection->GetSetting<bool>("bFollowPlayerCameraRotation:Controls");
-				holdDownToControlSecs = iniSettingCollection->GetSetting<float>("fHoldDownToControlSecs:Controls");
-				delayToHideControlsSecs = iniSettingCollection->GetSetting<float>("fDelayToHideControlsSecs:Controls");
+				hideKeyCode = Read<std::int32_t>(c, "iHideKeyCode:Controls", hideKeyCode);
+				zoomToggleKeyCode = Read<std::int32_t>(c, "iZoomToggleKeyCode:Controls", zoomToggleKeyCode);
+				zoomPreset1 = Read<float>(c, "fZoomPreset1:Controls", zoomPreset1);
+				zoomPreset2 = Read<float>(c, "fZoomPreset2:Controls", zoomPreset2);
+				followPlayerCameraRotation = Read<bool>(c, "bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation);
+				holdDownToControlSecs = Read<float>(c, "fHoldDownToControlSecs:Controls", holdDownToControlSecs);
+				delayToHideControlsSecs = Read<float>(c, "fDelayToHideControlsSecs:Controls", delayToHideControlsSecs);
 			}
 		}
 	}
