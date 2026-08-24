@@ -75,6 +75,12 @@ namespace DEM
 				controlsClip.SetMember("_visible", RE::GFxValue{ false });
 			}
 
+			// ApplyDisplaySettings() ran once already, from the constructor, before localMap_
+			// existed - it bailed out of the title-positioning part of the work back then, so
+			// do it again now that LocationName/ClearedHint/LocalMapHolder can actually be
+			// reached. Everything else it does is safe to repeat.
+			ApplyDisplaySettings();
+
 			if (settings::display::showOnGameStart)
 			{
 				Show();
@@ -292,6 +298,71 @@ namespace DEM
 					  "(art {},{} to {},{})",
 					  settings::display::anchor, settings::display::offsetX, settings::display::offsetY,
 					  scale, newX, newY, artLeft, artTop, artRight, artBottom);
+
+		ApplyTitlePosition();
+	}
+
+	void Minimap::ApplyTitlePosition()
+	{
+		if (!localMap_)
+		{
+			return;
+		}
+
+		RE::GFxValue locationName, clearedHint, mapHolder;
+		if (!localMap_->root.GetMember("LocationName", &locationName) || !locationName.IsDisplayObject() ||
+			!localMap_->root.GetMember("ClearedHint", &clearedHint) || !clearedHint.IsDisplayObject() ||
+			!localMap_->root.GetMember("LocalMapHolder", &mapHolder) || !mapHolder.IsDisplayObject())
+		{
+			logger::error("Could not reach LocationName/ClearedHint/LocalMapHolder; leaving the title where it is");
+
+			return;
+		}
+
+		const auto getNum = [](RE::GFxValue& a_obj, const char* a_member) {
+			RE::GFxValue value;
+			a_obj.GetMember(a_member, &value);
+			return static_cast<float>(value.GetNumber());
+		};
+
+		const float mapTop = getNum(mapHolder, "_y");
+		const float mapBottom = mapTop + getNum(mapHolder, "_height");
+
+		const float nameY = getNum(locationName, "_y");
+		const float hintY = getNum(clearedHint, "_y");
+
+		if (!hasTitleGeometry)
+		{
+			const float nameBottom = nameY + getNum(locationName, "_height");
+			const float hintBottom = hintY + getNum(clearedHint, "_height");
+
+			const float groupTop = std::min(nameY, hintY);
+			const float groupBottom = std::max(nameBottom, hintBottom);
+
+			titleGroupHeight = groupBottom - groupTop;
+			titleNameOffset = nameY - groupTop;
+			titleHintOffset = hintY - groupTop;
+
+			// Whichever edge the title started nearer to is the gap it was authored with; the
+			// same magnitude is used on the other edge when the group is later moved there.
+			titleGap = std::min(std::abs(groupTop - mapBottom), std::abs(mapTop - groupBottom));
+
+			hasTitleGeometry = true;
+
+			logger::info("Title layout: gap {}, group height {}, name offset {}, hint offset {}",
+						 titleGap, titleGroupHeight, titleNameOffset, titleHintOffset);
+		}
+
+		using Anchor = settings::display::Anchor;
+		const auto anchor = static_cast<Anchor>(settings::display::AnchorIndex());
+		const bool atBottom = anchor == Anchor::kBottomLeft || anchor == Anchor::kBottomRight;
+
+		// Anchored to the top of the screen, the title goes below the map, out of the way of
+		// the screen edge the map itself is pushed against; anchored to the bottom, above it.
+		const float groupTop = atBottom ? mapTop - titleGap - titleGroupHeight : mapBottom + titleGap;
+
+		locationName.SetMember("_y", groupTop + titleNameOffset);
+		clearedHint.SetMember("_y", groupTop + titleHintOffset);
 	}
 
 	void Minimap::ApplyShapeSetting()

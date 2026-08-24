@@ -180,6 +180,13 @@ namespace DEM
 		// The artwork's box in the parent's space, at whatever transform is applied right now.
 		bool GetArtBoundsInParent(float& a_left, float& a_top, float& a_right, float& a_bottom);
 
+		// Puts LocationName/ClearedHint below the map when it is anchored to the top of the
+		// screen, and above it when anchored to the bottom - so the title is never the part
+		// pushed against the screen edge. Safe to call repeatedly: it always computes an
+		// absolute target from the authored layout, never a delta from wherever it currently
+		// is, for the same reason the minimap's own position had to stop doing that.
+		void ApplyTitlePosition();
+
 		void UpdateFogOfWar();
 		void RenderOffScreen();
 		void ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object);
@@ -205,6 +212,17 @@ namespace DEM
 		// Screen size in stage pixels.
 		float stageWidth = 0.0F;
 		float stageHeight = 0.0F;
+
+		// The title's layout as authored, measured once by ApplyTitlePosition() the first time
+		// it can reach LocalMapHolder/LocationName/ClearedHint. titleGap is the space between
+		// the title and whichever map edge it started closest to; titleGroupHeight spans both
+		// fields; the two offsets are each field's _y relative to the top of that combined
+		// group, so their spacing to each other is preserved when the group moves.
+		bool hasTitleGeometry = false;
+		float titleGap = 0.0F;
+		float titleGroupHeight = 0.0F;
+		float titleNameOffset = 0.0F;
+		float titleHintOffset = 0.0F;
 
 		Shape shape = static_cast<Shape>(settings::display::shape);
 
