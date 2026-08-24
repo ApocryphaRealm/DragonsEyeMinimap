@@ -1,6 +1,6 @@
 # Port notes — INI-only settings → SKSE Menu Framework
 
-**Version 1.6.1.** This is a fork of
+**Version 1.6.2.** This is a fork of
 [alexsylex/DragonsEyeMinimap](https://github.com/alexsylex/DragonsEyeMinimap) 1.1.0 that adds an in-game settings page driven by
 [SKSE Menu Framework 3](https://github.com/QTR-Modding/SKSE-Menu-Framework-3), so the minimap
 can be configured while the game is running instead of only through `DragonsEyeMinimap.ini`
@@ -86,6 +86,15 @@ verified by dumping the exports of the DLL bundled with the old SDK — so every
 would jump through a null pointer. `UI::HasRequiredExports()` probes for each export this
 page uses and declines to register if any is missing, logging why. The minimap itself keeps
 working; you just get no menu.
+
+**The Controls clip starts visible by default, and had to be told to stay hidden.**
+Removing every call into it (1.6.1) was not enough on its own: frame 1 of its timeline is the
+label the AS2 side calls "show", and a MovieClip always begins on frame 1 with no script
+needed to put it there. Upstream relied on `FoldControls()`/`ShowControls()` running before
+the player ever saw it, and `HideControlsAfter()` fading it back out - with neither running
+any more, the clip sat on screen showing whatever text was authored into it, for as long as
+the minimap existed. `InitLocalMap()` now sets `Controls._visible = false` directly, once,
+rather than going through the `"show"`/`"fadeOut"` frame labels or their animation.
 
 **The tap-to-hide/hold-to-pan control mode is gone, along with the control-tip prompts and
 platform-button Scaleform plumbing that supported it.** `ProcessThumbstick`/`ProcessMouseMove`
