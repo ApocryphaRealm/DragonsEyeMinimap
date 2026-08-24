@@ -1,6 +1,6 @@
 # Port notes — INI-only settings → SKSE Menu Framework
 
-**Version 1.6.2.** This is a fork of
+**Version 1.6.3.** This is a fork of
 [alexsylex/DragonsEyeMinimap](https://github.com/alexsylex/DragonsEyeMinimap) 1.1.0 that adds an in-game settings page driven by
 [SKSE Menu Framework 3](https://github.com/QTR-Modding/SKSE-Menu-Framework-3), so the minimap
 can be configured while the game is running instead of only through `DragonsEyeMinimap.ini`
@@ -95,6 +95,22 @@ the player ever saw it, and `HideControlsAfter()` fading it back out - with neit
 any more, the clip sat on screen showing whatever text was authored into it, for as long as
 the minimap existed. `InitLocalMap()` now sets `Controls._visible = false` directly, once,
 rather than going through the `"show"`/`"fadeOut"` frame labels or their animation.
+
+**The location title repositions itself with the corner.** `LocationName` and
+`ClearedHint` are ordinary TextField children of the same `MapClip` the minimap art lives in,
+positioned wherever the FLA happened to author them - which was fine while the minimap only
+ever sat in one place, but not once it can anchor to any corner: a title authored above the
+map is the first thing clipped by the screen edge when the map is pinned to the bottom of the
+screen. `Minimap::ApplyTitlePosition()` measures the authored layout once - the gap between
+the title and whichever map edge it started nearer to, the combined height of both fields, and
+each field's offset within that group, all read from `_y`/`_height` rather than assumed - and
+from then on always computes an absolute target for the group: below the map when the anchor
+is a top corner, above it when the anchor is a bottom corner. Like the minimap's own position,
+it is idempotent by construction - every call derives its answer from the fixed authored
+layout and the current anchor, never from wherever the fields already are, so repeated calls
+cannot drift. It runs at the end of `ApplyDisplaySettings()`, and `InitLocalMap()` calls that
+again once `localMap_` exists, since the first call happens at construction before
+`LocationName`/`ClearedHint`/`LocalMapHolder` can be reached at all.
 
 **The tap-to-hide/hold-to-pan control mode is gone, along with the control-tip prompts and
 platform-button Scaleform plumbing that supported it.** `ProcessThumbstick`/`ProcessMouseMove`
