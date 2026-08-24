@@ -131,6 +131,14 @@ namespace DEM
 		void Show();
 		void Hide();
 
+		// True once InitLocalMap() has run and the Scaleform side is there to talk to.
+		bool IsReady() const { return localMap_ != nullptr; }
+
+		// Re-applies fPositionX / fPositionY / fScale to the Scaleform clip, and uShape to the
+		// local map. Both must run on the main thread; the settings menu queues them there.
+		void ApplyDisplaySettings();
+		void ApplyShapeSetting();
+
 		void ShowControls();
 		void HideControlsAfter(float a_delaySecs);
 		void FoldControls();
@@ -160,11 +168,13 @@ namespace DEM
 			{
 				displayObj.Invoke("Minimap", settings::display::positionX, settings::display::positionY);
 
-				float width = displayObj.GetMember("_width").GetNumber();
-				displayObj.SetMember("_width", width * settings::display::scale);
+				// Remember the unscaled size, so that changing fScale later can be applied
+				// against it instead of compounding on whatever scale is in effect.
+				baseWidth = static_cast<float>(displayObj.GetMember("_width").GetNumber());
+				baseHeight = static_cast<float>(displayObj.GetMember("_height").GetNumber());
 
-				float height = displayObj.GetMember("_height").GetNumber();
-				displayObj.SetMember("_height", height * settings::display::scale);
+				displayObj.SetMember("_width", baseWidth * settings::display::scale);
+				displayObj.SetMember("_height", baseHeight * settings::display::scale);
 			}
 		}
 
@@ -180,6 +190,10 @@ namespace DEM
 
 		// members
 		IUI::GFxDisplayObject displayObj;
+
+		// Size of the minimap clip before fScale is applied to it.
+		float baseWidth = 0.0F;
+		float baseHeight = 0.0F;
 
 		Shape shape = static_cast<Shape>(settings::display::shape);
 

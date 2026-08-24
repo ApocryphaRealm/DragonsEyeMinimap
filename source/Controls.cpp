@@ -297,11 +297,11 @@ namespace DEM
 
 	void Minimap::FoldControls()
 	{
-		localMap_->root.Invoke("FoldControls", std::array<RE::GFxValue, 1>{ settings::display::controlHideTip });
+		localMap_->root.Invoke("FoldControls", std::array<RE::GFxValue, 1>{ settings::display::controlHideTip.c_str() });
 	}
 
 	void Minimap::UnfoldControls()
 	{
-		localMap_->root.Invoke("UnfoldControls", std::array<RE::GFxValue, 2>{ settings::display::controlMoveTip, settings::display::controlZoomTip });
+		localMap_->root.Invoke("UnfoldControls", std::array<RE::GFxValue, 2>{ settings::display::controlMoveTip.c_str(), settings::display::controlZoomTip.c_str() });
 	}
 }
