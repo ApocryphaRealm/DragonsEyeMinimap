@@ -228,14 +228,20 @@ namespace DEM
 		}
 
 		using Anchor = settings::display::Anchor;
-		const auto anchor = static_cast<Anchor>(settings::display::AnchorIndex());
+		const int corner = settings::display::AnchorIndex();
+		const auto anchor = static_cast<Anchor>(corner);
 
 		const bool atRight = anchor == Anchor::kTopRight || anchor == Anchor::kBottomRight;
 		const bool atBottom = anchor == Anchor::kBottomLeft || anchor == Anchor::kBottomRight;
 
+		// Each corner keeps its own nudge, so switching corners does not carry over the
+		// adjustment made to a different one.
+		const float offsetX = settings::display::offsetX[corner];
+		const float offsetY = settings::display::offsetY[corner];
+
 		// Where the artwork's chosen corner should end up, in stage pixels.
-		const float wantStageX = (atRight ? stageWidth : 0.0F) + settings::display::offsetX;
-		const float wantStageY = (atBottom ? stageHeight : 0.0F) + settings::display::offsetY;
+		const float wantStageX = (atRight ? stageWidth : 0.0F) + offsetX;
+		const float wantStageY = (atBottom ? stageHeight : 0.0F) + offsetY;
 
 		float wantX = 0.0F, wantY = 0.0F;
 		if (!StageToParent(wantStageX, wantStageY, wantX, wantY))
@@ -294,10 +300,11 @@ namespace DEM
 			localMap_->root.Invoke("InitMap");
 		}
 
-		logger::debug("Display applied: anchor {}, offset ({}, {}), scale {} -> _x {}, _y {} "
-					  "(art {},{} to {},{})",
-					  settings::display::anchor, settings::display::offsetX, settings::display::offsetY,
-					  scale, newX, newY, artLeft, artTop, artRight, artBottom);
+		logger::info("Display applied: anchor {}, offset ({}, {}), scale {} -> _x {}, _y {} "
+					 "(art {},{} to {},{}, screen {},{} to {},{})",
+					 settings::display::anchor, offsetX, offsetY,
+					 scale, newX, newY, artLeft, artTop, artRight, artBottom,
+					 screenMinX, screenMinY, screenMaxX, screenMaxY);
 
 		ApplyTitlePosition();
 	}

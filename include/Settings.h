@@ -50,11 +50,13 @@ namespace settings
 
 		inline std::uint32_t anchor = static_cast<std::uint32_t>(Anchor::kTopRight);
 
-		// Nudge from that corner, in screen pixels. Positive x is always rightwards and
-		// positive y always downwards, whichever corner is anchored, so the two read the same
-		// way round no matter which corner is chosen.
-		inline float offsetX = 0.0F;
-		inline float offsetY = 0.0F;
+		// A nudge per corner, in screen pixels, so switching corners does not carry over the
+		// adjustment made to a different one - indexed by Anchor, defaulting to flush (0, 0)
+		// on every corner. Positive x is always rightwards and positive y always downwards,
+		// whichever corner is anchored, so the two read the same way round no matter which
+		// corner is chosen.
+		inline std::array<float, kAnchorCount> offsetX = { 0.0F, 0.0F, 0.0F, 0.0F };
+		inline std::array<float, kAnchorCount> offsetY = { 0.0F, 0.0F, 0.0F, 0.0F };
 
 		// Guards against an out-of-range uAnchor in a hand-edited INI.
 		inline int AnchorIndex()
