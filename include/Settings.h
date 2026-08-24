@@ -49,9 +49,8 @@ namespace settings
 		inline std::uint32_t anchor = static_cast<std::uint32_t>(Anchor::kTopRight);
 
 		// How far in from the two edges of that corner the minimap sits, in screen pixels.
-		// The corner does the positioning, so this only exists to keep the artwork off the
-		// very edge of the screen; set it to 0 to sit flush.
-		inline float edgeMargin = 8.0F;
+		// Flush with the corner by default; raise it to inset the artwork from the screen edge.
+		inline float edgeMargin = 0.0F;
 
 		// Guards against an out-of-range uAnchor in a hand-edited INI.
 		inline int AnchorIndex()
