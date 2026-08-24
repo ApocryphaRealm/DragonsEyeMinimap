@@ -1,6 +1,6 @@
 # Port notes — INI-only settings → SKSE Menu Framework
 
-**Version 1.6.6.** This is a fork of
+**Version 1.6.7.** This is a fork of
 [alexsylex/DragonsEyeMinimap](https://github.com/alexsylex/DragonsEyeMinimap) 1.1.0 that adds an in-game settings page driven by
 [SKSE Menu Framework 3](https://github.com/QTR-Modding/SKSE-Menu-Framework-3), so the minimap
 can be configured while the game is running instead of only through `DragonsEyeMinimap.ini`
@@ -175,6 +175,24 @@ wrong measurement would double-correct once the measurement itself is fixed. The
 system was already resolution-independent by construction - it reads Stage.width/Stage.height
 live on every apply - so a (0, 0) offset landing flush at any resolution, once the actual
 measurement bug is fixed, was the more durable answer than tuning to one player's screen.
+
+**The single extra re-apply from 1.6.5 was not always enough - the map could still load
+slightly off its flush position, not just badly off it.** A real user reported this happening
+on some loads after 1.6.6, with every offset still at 0. `pendingInitialReapply` asked for
+exactly one more `ApplyDisplaySettings()` call, on the next `Advance()` after a frame had
+actually rendered, on the theory that one rendered frame was enough for the artwork's
+`getBounds()` measurement to be trustworthy. Apparently it was not reliably enough - the
+measurement could still be settling a few frames further than that.
+
+Fixed in 1.6.7 by turning the one-shot flag into `pendingReapplyFrames`, a small countdown
+(`kPendingReapplyFrames = 6`) started in `InitLocalMap()` and decremented once per `Advance()`
+call, re-applying on each of those frames rather than only the first. Every one of those calls
+is the same idempotent computation already in place - if the position was already correct,
+each extra call moves the clip by a zero delta and is a silent no-op; if the measurement was
+still settling, this gives it several more chances to converge before the player ever sees a
+frame. Considered and rejected: toggling the anchor corner on load as a workaround, since that
+would visibly flash the map in the wrong corner for a frame - strictly worse than the small
+chance of a one-frame-late correction the countdown already closes off.
 
 **The tap-to-hide/hold-to-pan control mode is gone, along with the control-tip prompts and
 platform-button Scaleform plumbing that supported it.** `ProcessThumbstick`/`ProcessMouseMove`

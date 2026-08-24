@@ -244,11 +244,15 @@ namespace DEM
 
 		// ApplyDisplaySettings() runs twice during setup - once from the constructor, before
 		// the map's children exist at all, and once from InitLocalMap(), in the same frame as
-		// InitMap()/SetShape(). Neither has let Scaleform actually render a frame in between,
-		// and in practice that has been enough to occasionally leave the very first position
-		// wrong until something re-applies it later. This flag asks for one more application
-		// on the next real Advance(), after a frame has actually happened.
-		bool pendingInitialReapply = false;
+		// InitMap()/SetShape(). Neither has let Scaleform actually render a frame in between.
+		// A single extra re-apply on the next real Advance() (added in 1.6.5) was not always
+		// enough - the artwork's measured getBounds() can still be settling for a few frames
+		// after that, which showed up as the map loading slightly off its flush position on
+		// some loads rather than every one. This counts down kPendingReapplyFrames after
+		// InitLocalMap(), re-applying once per frame until it reaches zero, so a late-settling
+		// measurement gets caught instead of possibly needing a settings change to self-correct.
+		static constexpr int kPendingReapplyFrames = 6;
+		int pendingReapplyFrames = 0;
 
 		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
 		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;
