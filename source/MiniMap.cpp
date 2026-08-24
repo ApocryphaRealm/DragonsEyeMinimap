@@ -61,6 +61,20 @@ namespace DEM
 			localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay);
 			localMap_->iconDisplay.GetMember("MarkerData", &localMap->markerData);
 
+			// The Controls clip - the "hold to control/tap to hide" prompt and its buttons -
+			// starts visible by default: frame 1 of its own timeline is the label the AS2 side
+			// calls "show", and a MovieClip always begins on frame 1 with no script needed to
+			// put it there. Upstream relied on FoldControls()/ShowControls() running before the
+			// player ever saw it and HideControlsAfter() to fade it out again; neither runs any
+			// more, so without this it would sit on screen, showing whatever text was authored
+			// into it, for as long as the minimap exists. Setting _visible directly does not
+			// depend on the "show"/"fadeOut" frame labels or their animation, unlike gotoAndPlay.
+			RE::GFxValue controlsClip;
+			if (localMap_->root.GetMember("Controls", &controlsClip) && controlsClip.IsDisplayObject())
+			{
+				controlsClip.SetMember("_visible", RE::GFxValue{ false });
+			}
+
 			if (settings::display::showOnGameStart)
 			{
 				Show();
