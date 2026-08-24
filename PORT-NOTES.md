@@ -53,14 +53,22 @@ working; you just get no menu.
 
 ## Building
 
-Needs Visual Studio with the C++ toolset, and a vcpkg checkout.
+You need two things, and neither has to be installed anywhere in particular:
+
+- **Visual Studio** with the *Desktop development with C++* workload. The Community
+  edition is fine. CMake and Ninja come with it, so they do not need installing separately.
+- **vcpkg** — `git clone https://github.com/microsoft/vcpkg` anywhere, then run
+  `bootstrap-vcpkg.bat` inside it.
 
 ```
+set VCPKG_ROOT=C:\path	ocpkg
 configure.bat   # first run builds CommonLibSSE-NG; takes a few minutes
 build.bat
 ```
 
-Set `VCPKG_ROOT` to your vcpkg checkout first. Visual Studio is located with `vswhere`
+`VCPKG_ROOT` is the only thing you have to tell the build about, and setting it
+permanently (System Properties → Environment Variables, or `setx VCPKG_ROOT ...`) means
+you never have to again. Visual Studio is located with `vswhere`
 by `find-msvc.bat`, which also puts the CMake and Ninja that ship with it on `PATH`, so
 nothing has a machine-specific path baked into it. Output lands in
 `build/relwithdebinfo-se-only/DragonsEyeMinimap.dll`.
