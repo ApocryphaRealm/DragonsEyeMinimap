@@ -1,7 +1,7 @@
 # Port notes — INI-only settings → SKSE Menu Framework
 
-This is a fork of [alexsylex/DragonsEyeMinimap](https://github.com/alexsylex/DragonsEyeMinimap)
-1.1.0 that adds an in-game settings page driven by
+**Version 1.5.0.** This is a fork of
+[alexsylex/DragonsEyeMinimap](https://github.com/alexsylex/DragonsEyeMinimap) 1.1.0 that adds an in-game settings page driven by
 [SKSE Menu Framework 3](https://github.com/QTR-Modding/SKSE-Menu-Framework-3), so the minimap
 can be configured while the game is running instead of only through `DragonsEyeMinimap.ini`
 at startup.
