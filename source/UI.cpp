@@ -329,12 +329,13 @@ namespace UI
 			ImGuiMCP::SeparatorText("Controls");
 
 			int keyCode = static_cast<int>(controls::hideKeyCode);
-			if (ImGuiMCP::InputInt("Hide/control key", &keyCode))
+			if (ImGuiMCP::InputInt("Hide key", &keyCode))
 			{
 				controls::hideKeyCode = static_cast<std::uint32_t>(keyCode < 0 ? 0 : keyCode);
 			}
-			HelpMarker("DirectInput scan code of the key that hides the minimap when tapped and controls it when held. "
-					   "0 means whatever the game has bound to Local Map, which is what the mod did before this setting existed.");
+			HelpMarker("DirectInput scan code of a key that shows or hides the minimap the moment it is pressed. "
+					   "0 disables it. This is separate from the game's Local Map key, which keeps its own "
+					   "tap-to-hide and hold-to-control behaviour either way.");
 
 			ImGuiMCP::SameLine();
 
@@ -352,7 +353,7 @@ namespace UI
 
 			if (controls::hideKeyCode == 0)
 			{
-				ImGuiMCP::TextDisabled("Using the game's Local Map binding.");
+				ImGuiMCP::TextDisabled("No hide key set; the game's Local Map key still works.");
 			}
 
 			ImGuiMCP::Spacing();
