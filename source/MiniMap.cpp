@@ -81,8 +81,9 @@ namespace DEM
 			// reached. Everything else it does is safe to repeat.
 			ApplyDisplaySettings();
 
-			// One more time, on the next Advance() - see the comment on pendingInitialReapply.
-			pendingInitialReapply = true;
+			// A few more times, on the next real Advance() calls - see the comment on
+			// pendingReapplyFrames.
+			pendingReapplyFrames = kPendingReapplyFrames;
 
 			if (settings::display::showOnGameStart)
 			{
@@ -180,7 +181,7 @@ namespace DEM
 		// way. Before localMap_ exists (the constructor's very first call, before LocalMap has
 		// even been constructed) there is nothing more precise to measure yet, so the whole
 		// clip's bounds are used as an approximation for that one early call; the later re-apply
-		// once localMap_ exists (see InitLocalMap() and pendingInitialReapply) replaces it with
+		// once localMap_ exists (see InitLocalMap() and pendingReapplyFrames) replaces it with
 		// the precise measurement.
 		RE::GFxValue bounds;
 		bool measured = false;
@@ -503,9 +504,9 @@ namespace DEM
 
 	void Minimap::Advance()
 	{
-		if (pendingInitialReapply)
+		if (pendingReapplyFrames > 0)
 		{
-			pendingInitialReapply = false;
+			--pendingReapplyFrames;
 			ApplyDisplaySettings();
 		}
 
