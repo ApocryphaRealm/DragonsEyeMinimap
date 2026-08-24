@@ -98,28 +98,29 @@ namespace DEM
 
 		std::string_view userEventName = controlMap->GetUserEventName(a_buttonEvent->GetIDCode(), a_buttonEvent->GetDevice(), RE::ControlMap::InputContextID::kMap);
 
-		// A tap of the zoom key jumps between the two presets. Handled before the minimap
-		// button so that binding both to the same key still gives the hide behaviour priority.
-		if (settings::controls::zoomToggleKeyCode != 0 &&
-			a_buttonEvent->GetIDCode() == settings::controls::zoomToggleKeyCode &&
-			userEventName != userEvents->localMap)
+		// Two dedicated keys, pressed rather than held. They are deliberately separate from the
+		// Local Map binding below, which keeps its tap-to-hide and hold-to-control behaviour:
+		// these do one thing each, the moment they go down, the way other minimap mods do it.
+		if (userEventName != userEvents->localMap && a_buttonEvent->IsDown())
 		{
-			if (buttonMag == 0.0F && a_buttonEvent->HeldDuration() < settings::controls::holdDownToControlSecs)
+			if (settings::controls::hideKeyCode != 0 &&
+				a_buttonEvent->GetIDCode() == settings::controls::hideKeyCode)
 			{
-				miniMap->ToggleZoomPreset();
+				miniMap->IsShown() ? miniMap->Hide() : miniMap->Show();
+
+				return true;
 			}
 
-			return true;
+			if (settings::controls::zoomToggleKeyCode != 0 &&
+				a_buttonEvent->GetIDCode() == settings::controls::zoomToggleKeyCode)
+			{
+				miniMap->ToggleZoomPreset();
+
+				return true;
+			}
 		}
 
-		// With iHideKeyCode unset the minimap answers to whatever the game has bound to Local
-		// Map, as it always did. Setting it takes the minimap off that binding and onto a key
-		// of its own, so it can be hidden without disturbing the map controls.
-		const bool isMinimapButton = settings::controls::hideKeyCode != 0
-										 ? a_buttonEvent->GetIDCode() == settings::controls::hideKeyCode
-										 : userEventName == userEvents->localMap;
-
-		if (isMinimapButton)
+		if (userEventName == userEvents->localMap)
 		{
 			bool isPressed = buttonMag ? true : false;
 			bool isReleased = !isPressed;
