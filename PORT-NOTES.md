@@ -36,6 +36,18 @@ renderer's present hook. Talking to Scaleform from there would race the game, so
 widget that touches the minimap queues its work through `SKSE::GetTaskInterface()` and runs
 it on the main thread.
 
+**Re-positioning had to become idempotent.** The AS2 `Minimap` function positions the clip
+by running a stage coordinate through `globalToLocal` — which is relative to the clip's own
+transform — and assigning the result to `_x`/`_y`. Its output therefore depends on where the
+clip already is, so calling it twice does not put the clip in the same place twice: each
+call walks it further from where it started. Called once at construction that is invisible,
+but driving it from a slider sent the minimap off screen within a few ticks, and putting the
+slider back did not bring it home, because the position was a running total rather than a
+function of the setting. `ApplyDisplaySettings()` now restores the authored `_x`, `_y`,
+`_width` and `_height` before each call, so the function always sees the state it saw when
+the minimap was built. The constructor calls the same function, so the initial layout and
+every later change cannot drift apart.
+
 **Scale had to stop compounding.** Upstream applied `fScale` once, in the constructor, by
 multiplying the clip's current width. Re-applying that at runtime would multiply the already
 scaled size. The constructor now records the unscaled `baseWidth`/`baseHeight`, and

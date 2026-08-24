@@ -166,15 +166,17 @@ namespace DEM
 		{
 			if (displayObj.HasMember("Minimap"))
 			{
-				displayObj.Invoke("Minimap", settings::display::positionX, settings::display::positionY);
-
-				// Remember the unscaled size, so that changing fScale later can be applied
-				// against it instead of compounding on whatever scale is in effect.
+				// Record the clip exactly as authored, before anything has moved or scaled it.
+				// ApplyDisplaySettings() restores this state before every re-positioning,
+				// because the AS2 side derives the new position from where the clip already is.
+				baseX = static_cast<float>(displayObj.GetMember("_x").GetNumber());
+				baseY = static_cast<float>(displayObj.GetMember("_y").GetNumber());
 				baseWidth = static_cast<float>(displayObj.GetMember("_width").GetNumber());
 				baseHeight = static_cast<float>(displayObj.GetMember("_height").GetNumber());
 
-				displayObj.SetMember("_width", baseWidth * settings::display::scale);
-				displayObj.SetMember("_height", baseHeight * settings::display::scale);
+				// One code path for the initial layout and every later change, so the two
+				// cannot drift apart.
+				ApplyDisplaySettings();
 			}
 		}
 
@@ -191,7 +193,9 @@ namespace DEM
 		// members
 		IUI::GFxDisplayObject displayObj;
 
-		// Size of the minimap clip before fScale is applied to it.
+		// The clip's transform as authored, before any positioning or scaling was applied.
+		float baseX = 0.0F;
+		float baseY = 0.0F;
 		float baseWidth = 0.0F;
 		float baseHeight = 0.0F;
 

@@ -116,9 +116,15 @@ namespace DEM
 			return;
 		}
 
-		// Reproduce the order the constructor uses. "Minimap" works out where to sit by
-		// running a stage coordinate through this clip's own transform, so the clip has to be
-		// back at its natural size while that happens or the position drifts with the scale.
+		// The AS2 "Minimap" function positions the clip by running a stage coordinate through
+		// globalToLocal, which is relative to the clip's own transform, and then assigns the
+		// result to _x/_y. That makes it depend on where the clip already is, so calling it
+		// twice does not put the clip in the same place twice - each call walks it further
+		// from where it started. Restoring the authored transform first gives the function
+		// the same starting state it saw when the minimap was built, which makes the result a
+		// function of the settings alone rather than of how many times a slider has moved.
+		displayObj.SetMember("_x", baseX);
+		displayObj.SetMember("_y", baseY);
 		displayObj.SetMember("_width", baseWidth);
 		displayObj.SetMember("_height", baseHeight);
 
@@ -126,6 +132,11 @@ namespace DEM
 
 		displayObj.SetMember("_width", baseWidth * settings::display::scale);
 		displayObj.SetMember("_height", baseHeight * settings::display::scale);
+
+		logger::debug("Display settings applied: position ({}, {}), scale {} -> _x {}, _y {}, _width {}",
+					  settings::display::positionX, settings::display::positionY, settings::display::scale,
+					  displayObj.GetMember("_x").GetNumber(), displayObj.GetMember("_y").GetNumber(),
+					  displayObj.GetMember("_width").GetNumber());
 	}
 
 	void Minimap::ApplyShapeSetting()
