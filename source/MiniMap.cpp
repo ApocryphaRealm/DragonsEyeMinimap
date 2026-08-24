@@ -109,6 +109,42 @@ namespace DEM
 		}
 	}
 
+	void Minimap::ApplyDisplaySettings()
+	{
+		if (baseWidth <= 0.0F || !displayObj.HasMember("Minimap"))
+		{
+			return;
+		}
+
+		// Reproduce the order the constructor uses. "Minimap" works out where to sit by
+		// running a stage coordinate through this clip's own transform, so the clip has to be
+		// back at its natural size while that happens or the position drifts with the scale.
+		displayObj.SetMember("_width", baseWidth);
+		displayObj.SetMember("_height", baseHeight);
+
+		displayObj.Invoke("Minimap", settings::display::positionX, settings::display::positionY);
+
+		displayObj.SetMember("_width", baseWidth * settings::display::scale);
+		displayObj.SetMember("_height", baseHeight * settings::display::scale);
+	}
+
+	void Minimap::ApplyShapeSetting()
+	{
+		const Shape newShape = static_cast<Shape>(settings::display::shape);
+
+		if (newShape == shape)
+		{
+			return;
+		}
+
+		shape = newShape;
+
+		if (localMap_)
+		{
+			localMap_->root.Invoke("SetShape", std::array<RE::GFxValue, 1>{ static_cast<std::uint32_t>(shape) });
+		}
+	}
+
 	void Minimap::SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs)
 	{
 		float localLeft = a_delegateArgs[0].GetNumber();
