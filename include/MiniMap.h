@@ -131,6 +131,11 @@ namespace DEM
 		void Show();
 		void Hide();
 
+		// The largest fScale that still keeps the minimap within a quarter of the screen, i.e.
+		// within one screen quadrant. Returns the plain slider maximum until the clip has been
+		// measured.
+		float GetMaxScale() const;
+
 		// True once InitLocalMap() has run and the Scaleform side is there to talk to.
 		bool IsReady() const { return localMap_ != nullptr; }
 
