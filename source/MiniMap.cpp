@@ -887,6 +887,42 @@ namespace DEM
 			}
 		}
 
+		// ---- AE diagnostic ------------------------------------------------------------------
+		// A reporter on Anniversary Edition 1.6.1170 sees no minimap at all while its settings
+		// menu works normally. Their log showed this block never executing once in a session -
+		// zero background-opacity applications, zero scaleform refreshes - which explains the
+		// symptom exactly, since nothing below here runs and nothing above it checks visibility.
+		//
+		// Which half of the condition is false is not known, so report them separately rather
+		// than guessing. Transition-gated (rule 14): this runs every frame, so it logs only when
+		// the picture actually changes.
+		{
+			const bool visible = IsVisible();
+			const bool shown = IsShown();
+			const bool haveLocalMap = localMap_ != nullptr;
+			const bool enabled = haveLocalMap && localMap_->enabled;
+			const bool displayIsObject = displayObj.IsDisplayObject();
+
+			RE::GFxValue::DisplayInfo info;
+			const bool gotInfo = displayObj.GetDisplayInfo(&info);
+
+			const auto state = std::make_tuple(visible, shown, haveLocalMap, enabled, displayIsObject, gotInfo);
+			static std::optional<std::remove_const_t<decltype(state)>> lastLogged;
+
+			if (!lastLogged || *lastLogged != state)
+			{
+				lastLogged = state;
+				logger::info("Visibility gate: IsVisible={} IsShown={} | localMap_={} enabled={} displayObj.IsDisplayObject={} GetDisplayInfo={}",
+							 visible, shown, haveLocalMap, enabled, displayIsObject, gotInfo);
+
+				if (!visible || !shown)
+				{
+					logger::warn("Visibility gate CLOSED - the minimap will not be drawn this frame. IsVisible() reads displayObj's own _visible; IsShown() reads localMap_->enabled, which Show() sets on root, a different object.");
+				}
+			}
+		}
+		// ---- end AE diagnostic --------------------------------------------------------------
+
 		if (IsVisible() && IsShown())
 		{
 			ApplyBackgroundOpacity();
