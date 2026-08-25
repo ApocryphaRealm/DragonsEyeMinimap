@@ -146,6 +146,27 @@ namespace DEM
 		LMU::PixelShaderProperty::Shape prevShaderShape;
 		LMU::PixelShaderProperty::Style shaderStyle;
 
+		// Local Map Upgrade hands these over in its kPixelShaderPropertiesHook message, which it
+		// dispatches from its own kDataLoaded handler. SKSE delivers kDataLoaded in load order, so
+		// whether they have arrived at any given earlier moment depends on which plugin loaded
+		// first - it is not something to assert on. They are reliably present by the time anything
+		// is actually rendered, which is here. Checked rather than assumed all the same, per
+		// CLAUDE.md rule 14 (debug logging and null checks together) and rule 17 (retry a lookup
+		// that can fail because something is not ready yet - a not-ready pointer is not an error,
+		// it just means not yet).
+		if (!GetPixelShaderProperties || !SetPixelShaderProperties)
+		{
+			// Per-frame path, so this logs once rather than every frame.
+			static bool warnedMissingShaderHooks = false;
+			if (!warnedMissingShaderHooks)
+			{
+				logger::warn("RenderOffScreen: Local Map Upgrade's pixel-shader hooks are not available yet; drawing without the shape swap this frame");
+				warnedMissingShaderHooks = true;
+			}
+
+			return;
+		}
+
 		GetPixelShaderProperties(prevShaderShape, shaderStyle);
 		SetPixelShaderProperties(shape, shaderStyle);
 
