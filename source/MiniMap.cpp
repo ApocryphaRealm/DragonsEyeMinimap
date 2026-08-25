@@ -887,32 +887,42 @@ namespace DEM
 			}
 		}
 
-		// Re-assert our own visibility if something else has cleared it.
+		// Re-assert our own visibility, but only until it has stuck once.
 		//
-		// IsShown() is this mod's own intent - set by Show()/Hide() and by bShowOnGameStart. On
-		// Anniversary Edition something outside the mod clears displayObj's _visible after Show()
-		// sets it: on Liam's AE setup the minimap is invisible at startup despite being enabled,
-		// appears if toggled off and on again, then disappears again while running. Setting it
-		// once in Show() is therefore not enough - whatever resets it does so repeatedly.
+		// Something clears displayObj's _visible a few times while the HUD settles - on both SE
+		// and AE, as it turns out. AE lost that race consistently and the minimap was never drawn;
+		// SE happened to win it, which is why it only ever showed up as an AE bug.
 		//
-		// Scoped deliberately: this only ever forces the clip back to visible when the mod itself
-		// says it should be shown. It never forces it visible when the player has hidden it, so a
-		// deliberate hide still works and stays working.
-		if (IsShown() && !IsVisible())
+		// 1.3.2 re-asserted unconditionally whenever the mod thought it should be shown, and that
+		// was wrong: opening the world map or local map hides the HUD, and the minimap sat on top
+		// of them refusing to go away. Anything else that hides the HUD would have been overridden
+		// the same way. The mod has no business fighting that.
+		//
+		// So this is bounded to the startup race and nothing else. The moment the gate is observed
+		// open, re-asserting stops permanently and visibility belongs to the game and to whatever
+		// else manages the HUD - which is the behaviour Skyrim SE had all along.
+		if (!visibilitySettled)
 		{
-			static int reassertCount = 0;
-			++reassertCount;
-
-			SetDisplayObjectVisible(true);
-
-			// Runs per frame in the failing case, so log the first few and then a milestone every
-			// 600 - enough to show it is still happening without filling the file (rule 14).
-			if (reassertCount <= 3 || reassertCount % 600 == 0)
+			if (IsVisible() && IsShown())
 			{
-				logger::info("Visibility re-asserted: something cleared displayObj's _visible while the minimap was meant to be shown (occurrence {})", reassertCount);
+				visibilitySettled = true;
+				logger::info("Visibility settled after {} re-assertion(s); leaving it to the game from here", visibilityReassertCount);
+			}
+			else if (IsShown() && !IsVisible())
+			{
+				++visibilityReassertCount;
+				SetDisplayObjectVisible(true);
+
+				if (visibilityReassertCount <= 3)
+				{
+					logger::info("Visibility re-asserted during startup (occurrence {})", visibilityReassertCount);
+				}
+				else if (visibilityReassertCount == 600)
+				{
+					logger::warn("Visibility has been re-asserted 600 times without settling; something is clearing it continuously and this is no longer just a startup race");
+				}
 			}
 		}
-
 		// ---- AE diagnostic ------------------------------------------------------------------
 		// A reporter on Anniversary Edition 1.6.1170 sees no minimap at all while its settings
 		// menu works normally. Their log showed this block never executing once in a session -
