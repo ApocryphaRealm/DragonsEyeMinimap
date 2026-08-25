@@ -13,17 +13,9 @@ extern const SKSE::LoadInterface* skse;
 
 void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg);
 void LocalMapUpgradeMessageListener(SKSE::MessagingInterface::Message* a_msg);
-void VerifyLocalMapUpgradeCapabilities();
 
 void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 {
-
-	// By kDataLoaded every plugin has had its chance to send its post-load messages, so if
-	// Local Map Upgrade's pixel-shader pointers have not arrived by now they are not coming.
-	if (a_msg->type == SKSE::MessagingInterface::kDataLoaded)
-	{
-		VerifyLocalMapUpgradeCapabilities();
-	}
 
 	// Once every plugin has finished its own post-load work, SKSE Menu Framework is
 	// certain to be in the process, so its module can be looked up and the settings
@@ -60,18 +52,22 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 
 		if (SKSE::GetMessagingInterface()->RegisterListener("LocalMapUpgrade", LocalMapUpgradeMessageListener))
 		{
-			// Deliberately NOT gated on Local Map Upgrade's reported version number. What this
-			// plugin actually needs is the pixel-shader function pointers Local Map Upgrade sends,
-			// so that is what gets checked - at kDataLoaded, once it has had its chance to send
-			// them (see VerifyLocalMapUpgradeCapabilities below). A version gate was only ever a
-			// proxy for the same question, and it broke whenever the number moved: it hard-failed
-			// the game against a fork numbered from 1.0.0 even when that fork's API was a strict
-			// superset. A capability check is version-agnostic, so it survives renumbering, forks,
-			// and anything else that provides the same API.
+			// Deliberately NOT gated on Local Map Upgrade's reported version number. A version gate
+			// was only ever a proxy for "does this build provide the API I need", and it broke
+			// whenever the number moved: it hard-failed the game against a fork numbered from 1.0.0
+			// even when that fork's API was a strict superset.
 			//
-			// GetPluginInfo can hand back null even directly after a successful RegisterListener,
-			// so the version is read only when there is something to read - CLAUDE.md rule 14,
-			// debug logging and null checks together.
+			// What this plugin actually needs is the pixel-shader function pointers Local Map Upgrade
+			// sends in its kPixelShaderPropertiesHook message - and those are checked where they are
+			// used, in RenderOffScreen(), not at any fixed moment during startup. 1.2.3 briefly did
+			// verify them at kDataLoaded and hard-failed the game when they were absent. That was
+			// wrong: Local Map Upgrade dispatches that message from its own kDataLoaded handler, and
+			// SKSE delivers kDataLoaded in load order, so whether it has arrived when this plugin's
+			// handler runs depends purely on which of the two loaded first. Here it never had.
+			//
+			// GetPluginInfo can hand back null even directly after a successful RegisterListener, so
+			// the version is read only when there is something to read - CLAUDE.md rule 14, debug
+			// logging and null checks together.
 			if (auto lmuInfo = skse->GetPluginInfo("LocalMapUpgrade"))
 			{
 				logger::debug("Local Map Upgrade found: version {:#010x} (informational only - not gated on)", lmuInfo->version);
@@ -237,42 +233,4 @@ void LocalMapUpgradeMessageListener(SKSE::MessagingInterface::Message* a_msg)
 			break;
 		}
 	}
-}
-
-
-// Replaces the old "Local Map Upgrade >= 3.1.0" version gate. The thing this plugin depends
-// on is the pair of pixel-shader function pointers Local Map Upgrade hands over in its
-// kPixelShaderPropertiesHook message - they drive the minimap's shape and style, so without
-// them the minimap cannot work correctly. Checking for the pointers directly means any build
-// that actually provides the API is accepted, whatever version number it reports.
-//
-// This stays a hard failure rather than a silent degrade: Local Map Upgrade is a hard
-// requirement (a missing registration already fails above), and a minimap that quietly could
-// not change shape would be a worse experience than a message saying what to install.
-void VerifyLocalMapUpgradeCapabilities()
-{
-	const bool hasSetter = DEM::Minimap::SetPixelShaderProperties != nullptr;
-	const bool hasGetter = DEM::Minimap::GetPixelShaderProperties != nullptr;
-
-	logger::debug("Local Map Upgrade capability check: SetPixelShaderProperties={} GetPixelShaderProperties={}", hasSetter, hasGetter);
-
-	if (hasSetter && hasGetter)
-	{
-		logger::info("Local Map Upgrade pixel-shader hooks available");
-
-		return;
-	}
-
-	logger::error("Local Map Upgrade did not provide its pixel-shader hooks (setter={} getter={}); it is present but not compatible", hasSetter, hasGetter);
-	SKSE::stl::report_and_fail
-	(
-		std::format
-		(
-			"\n\n"
-			"\"Local Map Upgrade\" is installed but did not provide the interface\n"
-			"this mod needs, so it is an incompatible build.\n\n"
-			"Please install a current version from:\n"
-			"www.nexusmods.com/skyrimspecialedition/mods/129756"
-		)
-	);
 }
