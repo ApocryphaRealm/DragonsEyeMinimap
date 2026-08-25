@@ -78,6 +78,42 @@ namespace DEM
 		return false;
 	}
 
+	void Minimap::SetDisplayObjectVisible(bool a_visible)
+	{
+		if (!displayObj.IsDisplayObject())
+		{
+			static bool warnedNotDisplayObject = false;
+
+			if (!warnedNotDisplayObject)
+			{
+				logger::warn("SetDisplayObjectVisible: displayObj is not a display object; visibility not set");
+				warnedNotDisplayObject = true;
+			}
+
+			return;
+		}
+
+		RE::GFxValue::DisplayInfo displayInfo;
+
+		if (!displayObj.GetDisplayInfo(&displayInfo))
+		{
+			static bool warnedNoInfo = false;
+
+			if (!warnedNoInfo)
+			{
+				logger::warn("SetDisplayObjectVisible: could not read displayObj's display info; visibility not set");
+				warnedNoInfo = true;
+			}
+
+			return;
+		}
+
+		displayInfo.SetVisible(a_visible);
+		displayObj.SetDisplayInfo(displayInfo);
+
+		logger::debug("SetDisplayObjectVisible: displayObj _visible set to {}", a_visible);
+	}
+
 	void Minimap::Show()
 	{
 		logger::debug("Showing minimap; persisting bShowOnGameStart:Display = true");
@@ -103,6 +139,18 @@ namespace DEM
 
 		localMap_->inForeground = localMap_->enabled = true;
 		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ true });
+
+		// Show the clip this mod actually tests for visibility, not only the one it invokes
+		// "Show" on. root and displayObj are different objects: Advance() gates all its per-frame
+		// work on IsVisible(), which reads displayObj's own _visible, while this only ever told
+		// root to show itself.
+		//
+		// On Skyrim SE that happened to work, because displayObj was already visible. On
+		// Anniversary Edition 1.6.1170 it is not, so the minimap was never drawn at all while
+		// every other path reported success - settings applied, positions computed, no errors.
+		// Confirmed by the AE diagnostic build: IsShown=true, IsVisible=false, with displayObj
+		// resolving fine and GetDisplayInfo succeeding.
+		SetDisplayObjectVisible(true);
 	}
 
 	void Minimap::Hide()
@@ -130,5 +178,8 @@ namespace DEM
 
 		localMap_->inForeground = localMap_->enabled = false;
 		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ false });
+
+		// Mirror of Show() - hide the clip visibility is actually tested on.
+		SetDisplayObjectVisible(false);
 	}
 }

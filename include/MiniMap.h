@@ -112,6 +112,10 @@ namespace DEM
 			return localMap_ && localMap_->enabled;
 		}
 
+		// Sets displayObj's own _visible. Show()/Hide() drive root, but IsVisible() - which gates
+		// every per-frame update in Advance() - reads displayObj, so both have to be kept in step.
+		void SetDisplayObjectVisible(bool a_visible);
+
 		void Show();
 		void Hide();
 
