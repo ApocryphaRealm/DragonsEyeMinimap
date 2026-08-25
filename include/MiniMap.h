@@ -300,6 +300,12 @@ namespace DEM
 		float lastAppliedX = 0.0F;
 		float lastAppliedY = 0.0F;
 		int   displayStableFrames = 0;
+
+		// True once the minimap has been successfully visible at least once. After that the mod
+		// stops re-asserting visibility entirely, so the world map, the local map and any other
+		// mod that hides the HUD can do so without being overridden.
+		bool visibilitySettled = false;
+		int  visibilityReassertCount = 0;
 		int pendingReapplyFrames = 0;
 
 		// Vanilla's "Cleared" location-name suffix (sCleared). Kept as a nullable pointer
