@@ -21,12 +21,25 @@ had access to). Instead, this is a direct binary edit of the shipped `MinimapArt
 4. To get real translucency, both shapes were hand-upgraded from `DefineShape` to
    `DefineShape3` (RGBA) by round-tripping through FFDec's `-swf2xml`/`-xml2swf` and editing
    the two shapes' `<item type="DefineShapeTag">` → `DefineShape3Tag`, with their `RGB` color
-   elements changed to `RGBA` (fill `#0A0A0B` at 55% opacity, outline `#F5F2E9` fully opaque).
+   elements changed to `RGBA` (fill `#0A0A0B`, outline `#F5F2E9` fully opaque).
 
 The two SVGs here are that intermediate, human-editable step - not the final binary. The
 compiled result is `Interface/InfinityUI/HUDMenu/HUDMovieBaseInstance/!assets/MinimapArt.swf`
 in the packaged mod, not checked into this repo (binary Scaleform output, same as the rest of
 `Interface/` never being tracked here either - see the main `PORT-NOTES.md`).
 
-Version 1.0.0, tagged `frame-reskin-v1.0.0` - versioned independently of this repo's main
+## Fill opacity and HUD Opacity (1.0.1)
+
+The fill's own baked alpha is now `1.0` (fully solid `#0A0A0B`), not the `0.55` it shipped
+with in 1.0.0. This shape (`LocalMapBackgroundSquared`/`Round`, addressed at runtime as
+`BackgroundArtSquare`/`BackgroundArtCircle`) is the same clip `Minimap::ApplyBackgroundOpacity()`
+now drives every frame from SkyrimPrefs.ini's HUD Opacity slider (`fHUDOpacity:Display`,
+0.0-1.0, mapped straight to the clip's `_alpha`, 0-100) - see `PORT-NOTES.md`. With the fill
+baked fully opaque, that clip alpha is the *only* thing scaling it, so the background (and,
+since fill and outline are one shape, the frame ring with it) is solid black at max HUD
+opacity and fully invisible at minimum, with every value in between tracking the slider
+linearly - rather than a fixed, baked-in translucency the slider had no effect on at all in
+1.0.0.
+
+Version 1.0.1, tagged `frame-reskin-v1.0.1` - versioned independently of this repo's main
 `vX.Y.Z` tags, since it's a separate deliverable from the SMF settings port itself.
