@@ -851,11 +851,19 @@ namespace DEM
 
 			if (updateScaleform.GetBool())
 			{
-				updateScaleform.SetBoolean(false);
+				// SetBoolean() on the value returned by GetMember() writes to the local copy and
+				// never reaches the ActionScript object - the flag has to be written back through
+				// the owning object. Until this was fixed the flag was never cleared at all: it is
+				// set true once in Minimap.as and stayed true forever, so everything below ran on
+				// every single frame rather than on the rare events it is meant for. the author's log
+				// showed this block executing 18,989 times in one session.
+				displayObj.SetMember("updateScaleform", RE::GFxValue{ false });
 
-				// updateScaleform only goes true on the AS side rarely (initial frame, or
-				// this clip having dropped out of HudElements and been re-added), so this
-				// whole block is a meaningful, infrequent event rather than per-frame noise.
+				// Now genuinely infrequent - updateScaleform only goes true on the AS side on the
+				// initial frame, or when this clip drops out of HudElements and is re-added. The
+				// logging below is deliberately left ungated so that the log itself proves the
+				// write-back works: if these lines ever appear per-frame again, the flag has
+				// stopped being cleared.
 				logger::debug("Advance: updateScaleform triggered, refreshing title/markers/vision cone");
 
 				std::array<RE::GFxValue, 2> title;
