@@ -2,16 +2,17 @@
 // is drawn with hasOwnProperty(mode) - the property only has to EXIST, its value is irrelevant,
 // and only `delete` removes it. An element with no property for the active mode is hidden.
 //
-// Favor and SleepWaitMode were missing, so the minimap disappeared while commanding a follower
-// and while waiting. The rest of the seventeen modes are deliberately absent: they are menus and
-// screens the minimap should not be drawn over.
+// Favor was missing, so the minimap disappeared while commanding a follower - that is ordinary
+// gameplay and the map should stay up. SleepWaitMode is deliberately NOT declared: sleeping and
+// waiting are not gameplay, and Liam's call is that the minimap should go away for them. The
+// rest of the seventeen modes are absent for the same reason - they are menus and screens the
+// minimap has no business being drawn over.
 var All:Boolean;
 var StealthMode:Boolean;
 var Swimming:Boolean;
 var HorseMode:Boolean;
 var WarHorseMode:Boolean;
 var Favor:Boolean;
-var SleepWaitMode:Boolean;
 
 var updateScaleform:Boolean = true;
 
@@ -31,7 +32,6 @@ function Minimap(a_positionX:Number, a_positionY:Number):Void
 	HorseMode = true;
 	WarHorseMode = true;
 	Favor = true;
-	SleepWaitMode = true;
 }
 
 // Set our own visibility from the current HUD mode, instead of registering and waiting to be
