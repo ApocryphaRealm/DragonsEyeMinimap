@@ -41,5 +41,20 @@ opacity and fully invisible at minimum, with every value in between tracking the
 linearly - rather than a fixed, baked-in translucency the slider had no effect on at all in
 1.0.0.
 
-Version 1.0.1, tagged `frame-reskin-v1.0.1` - versioned independently of this repo's main
+## Solid black, not near-black (1.0.2)
+
+Liam's design note: the fill should be genuinely solid black at maximum opacity, not the
+`#0A0A0B` 1.0.0/1.0.1 shipped with (a near-black that read as very dark grey up close, not
+true black - upstream's own original fill was already `#000000`, so this brings the reskin
+back in line with that). The live-rendered minimap content (the actual 3D scene texture)
+renders on top of this fill/background, so changing it carries no risk of hiding or being
+hidden by the map itself. Changed the fill color in both `335-squared-frame.svg`/
+`337-round-frame.svg` and the compiled `DefineShape3` fill color (`red=10 green=10 blue=11`
+→ `red=0 green=0 blue=0`) via the same FFDec `-swf2xml`/`-xml2swf` round-trip this file
+already documents, starting from the already-solid-opaque 1.0.1 asset rather than
+re-deriving from the SVGs (only the fill color changed, not geometry or outline). Verified
+by round-tripping the edited SWF back through `-swf2xml` and confirming the new color stuck.
+The outline (`#F5F2E9`) and the fully-opaque baked alpha from 1.0.1 are unchanged.
+
+Version 1.0.2, tagged `frame-reskin-v1.0.2` - versioned independently of this repo's main
 `vX.Y.Z` tags, since it's a separate deliverable from the SMF settings port itself.
