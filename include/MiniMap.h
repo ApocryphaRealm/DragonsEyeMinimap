@@ -126,6 +126,12 @@ namespace DEM
 		// Re-applies fPositionX / fPositionY / fScale to the Scaleform clip, and uShape to the
 		// local map. Both must run on the main thread; the settings menu queues them there.
 		void ApplyDisplaySettings();
+
+		// One positioning pass. Returns false if it bailed out (nothing measurable to work with),
+		// true otherwise, reporting through the out-params how far it actually moved the clip.
+		// Not called directly - ApplyDisplaySettings() repeats it until the delta settles, because
+		// the InitMap call at the end of each pass changes the artwork bounds the next pass reads.
+		bool ApplyDisplaySettingsOnce(float& a_outDeltaX, float& a_outDeltaY);
 		void ApplyShapeSetting();
 
 		// The map's current zoom, as the camera holds it.
