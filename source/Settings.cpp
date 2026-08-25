@@ -69,6 +69,9 @@ namespace settings
 			defaults.zoomDefault = controls::zoomDefault;
 			defaults.zoomZoomedIn = controls::zoomZoomedIn;
 			defaults.followPlayerCameraRotation = controls::followPlayerCameraRotation;
+
+			logger::debug("Captured built-in defaults: anchor={}, scale={:.2f}, shape={}, hideKey={}, zoomToggleKey={}",
+				defaults.anchor, defaults.scale, defaults.shape, defaults.hideKeyCode, defaults.zoomToggleKeyCode);
 		}
 
 		// WritePrivateProfileString rewrites a single key in place, so the comments and any
@@ -195,6 +198,8 @@ namespace settings
 				logLevel = raw <= static_cast<std::uint32_t>(logger::level::off)
 							   ? static_cast<logger::level>(raw)
 							   : logger::level::info;
+
+				logger::debug("Log level resolved to {}", static_cast<std::uint32_t>(logLevel));
 			}
 
 			{
@@ -208,6 +213,12 @@ namespace settings
 				scale = Read<float>(c, "fScale:Display", scale);
 				shape = Read<std::uint32_t>(c, "uShape:Display", shape);
 				showOnGameStart = Read<bool>(c, "bShowOnGameStart:Display", showOnGameStart);
+
+				const std::uint32_t safeAnchor = anchor < kAnchorCount ? anchor : 0;
+				logger::debug("Display settings resolved: anchor={} ({}), scale={:.2f}, shape={}, showOnGameStart={}",
+					anchor, kCornerNames[safeAnchor], scale, shape, showOnGameStart);
+				logger::debug("Corner offsets resolved: TopLeft=({:.1f},{:.1f}) TopRight=({:.1f},{:.1f}) BottomLeft=({:.1f},{:.1f}) BottomRight=({:.1f},{:.1f})",
+					offsetX[0], offsetY[0], offsetX[1], offsetY[1], offsetX[2], offsetY[2], offsetX[3], offsetY[3]);
 			}
 
 			{
@@ -217,6 +228,10 @@ namespace settings
 				zoomDefault = Read<float>(c, "fZoomDefault:Controls", zoomDefault);
 				zoomZoomedIn = Read<float>(c, "fZoomZoomedIn:Controls", zoomZoomedIn);
 				followPlayerCameraRotation = Read<bool>(c, "bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation);
+
+				logger::debug("Key bindings resolved: hideKey={}, zoomToggleKey={}", hideKeyCode, zoomToggleKeyCode);
+				logger::debug("Zoom presets resolved: default={:.2f}, zoomedIn={:.2f}, followPlayerCameraRotation={}",
+					zoomDefault, zoomZoomedIn, followPlayerCameraRotation);
 			}
 		}
 	}
@@ -227,6 +242,8 @@ namespace settings
 
 		iniFileName = a_iniFileName;
 		iniPath = std::filesystem::current_path().append("Data\\SKSE\\Plugins").append(a_iniFileName).string();
+
+		logger::debug("Resolved INI path to {}", iniPath);
 
 		INISettingCollection* iniSettingCollection = INISettingCollection::GetSingleton();
 
@@ -267,8 +284,14 @@ namespace settings
 		{
 			logger::warn("Could not read {}, falling back to default options", a_iniFileName);
 		}
+		else
+		{
+			logger::debug("Read {} into the settings collection", a_iniFileName);
+		}
 
 		ReadFromCollection();
+
+		logger::debug("Settings initialization complete");
 	}
 
 	bool Reload()
@@ -279,6 +302,8 @@ namespace settings
 
 			return false;
 		}
+
+		logger::debug("Reload requested for {}", iniPath);
 
 		if (!INISettingCollection::GetSingleton()->ReadFromFile(iniFileName))
 		{
@@ -301,6 +326,20 @@ namespace settings
 			logger::error("Cannot save settings before Init() has run");
 
 			return false;
+		}
+
+		logger::debug("Saving settings to {}", iniPath);
+
+		{
+			const std::uint32_t safeAnchor = display::anchor < display::kAnchorCount ? display::anchor : 0;
+			logger::debug("Display settings being saved: anchor={} ({}), scale={:.2f}, shape={}, showOnGameStart={}",
+				display::anchor, kCornerNames[safeAnchor], display::scale, display::shape, display::showOnGameStart);
+			logger::debug("Corner offsets being saved: TopLeft=({:.1f},{:.1f}) TopRight=({:.1f},{:.1f}) BottomLeft=({:.1f},{:.1f}) BottomRight=({:.1f},{:.1f})",
+				display::offsetX[0], display::offsetY[0], display::offsetX[1], display::offsetY[1],
+				display::offsetX[2], display::offsetY[2], display::offsetX[3], display::offsetY[3]);
+			logger::debug("Key bindings being saved: hideKey={}, zoomToggleKey={}", controls::hideKeyCode, controls::zoomToggleKeyCode);
+			logger::debug("Zoom presets being saved: default={:.2f}, zoomedIn={:.2f}, followPlayerCameraRotation={}",
+				controls::zoomDefault, controls::zoomZoomedIn, controls::followPlayerCameraRotation);
 		}
 
 		bool ok = true;
@@ -337,6 +376,20 @@ namespace settings
 
 	void RestoreDefaults()
 	{
+		// Logged from `defaults` before debug::logLevel itself is overwritten below, so the
+		// confirmation is not silently dropped when the built-in default log level is below
+		// Debug (which would otherwise suppress it the moment logLevel is restored).
+		{
+			const std::uint32_t safeAnchor = defaults.anchor < display::kAnchorCount ? defaults.anchor : 0;
+			logger::debug("Restoring settings to built-in defaults: anchor={} ({}), scale={:.2f}, shape={}, showOnGameStart={}",
+				defaults.anchor, kCornerNames[safeAnchor], defaults.scale, defaults.shape, defaults.showOnGameStart);
+			logger::debug("Default corner offsets: TopLeft=({:.1f},{:.1f}) TopRight=({:.1f},{:.1f}) BottomLeft=({:.1f},{:.1f}) BottomRight=({:.1f},{:.1f})",
+				defaults.offsetX[0], defaults.offsetY[0], defaults.offsetX[1], defaults.offsetY[1],
+				defaults.offsetX[2], defaults.offsetY[2], defaults.offsetX[3], defaults.offsetY[3]);
+			logger::debug("Default key bindings: hideKey={}, zoomToggleKey={}, zoomDefault={:.2f}, zoomZoomedIn={:.2f}, followPlayerCameraRotation={}",
+				defaults.hideKeyCode, defaults.zoomToggleKeyCode, defaults.zoomDefault, defaults.zoomZoomedIn, defaults.followPlayerCameraRotation);
+		}
+
 		debug::logLevel = defaults.logLevel;
 
 		display::anchor = defaults.anchor;

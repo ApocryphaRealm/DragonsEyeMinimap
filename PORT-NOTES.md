@@ -1,6 +1,6 @@
 # Port notes — INI-only settings → SKSE Menu Framework
 
-**Version 1.6.7.** This is a fork of
+**Version 1.6.9.** This is a fork of
 [alexsylex/DragonsEyeMinimap](https://github.com/alexsylex/DragonsEyeMinimap) 1.1.0 that adds an in-game settings page driven by
 [SKSE Menu Framework 3](https://github.com/QTR-Modding/SKSE-Menu-Framework-3), so the minimap
 can be configured while the game is running instead of only through `DragonsEyeMinimap.ini`
@@ -204,6 +204,46 @@ during control mode) went with it, since nothing else used any of them. The `Con
 and its artwork still exist inside the shipped `.swf` - this repo has no Flash tooling to
 rebuild it, and none is needed, since nothing calls `ShowControls`/`FoldControls`/
 `UnfoldControls`/`HideControlsAfter` any more, so that clip simply never appears.
+
+## 1.6.8-1.6.9: HUD Opacity, a real crash it caused, and comprehensive debug logging
+
+**1.6.8** added `Minimap::ApplyBackgroundOpacity()`, called every `Advance()` while visible:
+reads SkyrimPrefs.ini's `fHUDOpacity:Display` (the game's own Settings -> Display -> HUD
+Opacity slider) and applies it directly to whichever of `BackgroundArtSquare`/
+`BackgroundArtCircle` matches the current shape. No new setting was added to this mod's own
+menu - it purely follows the existing game setting, the same as every vanilla HUD element.
+This is entirely DLL-side, so it affects the separately packaged Frame Reskin Preview too.
+
+**1.6.9 fixes a real crash 1.6.8 caused**, confirmed from an actual SKSE crash log (the author hit
+it in game): `EXCEPTION_ACCESS_VIOLATION` reading address `0x8` inside
+`ApplyBackgroundOpacity()`. `include/MiniMap.h` had bound `hudOpacity` as an unchecked
+`const float&` straight off `RE::INIPrefSettingCollection::GetSingleton()->GetSetting(...)->data.f`
+- matching the *existing*, already-unchecked pattern this file uses for `RE::INISettingCollection`
+Skyrim.ini settings (`localMapHeight`, `clearedStr`), which is a different collection that
+apparently never returns null for those keys. `RE::INIPrefSettingCollection` (Prefs.ini) did
+return null for `fHUDOpacity:Display` on the author's system. Forming a reference off a null
+pointer's member is pure pointer arithmetic in practice, so nothing crashed until the
+reference was actually read later - address `0x8` is exactly `nullptr` plus that field's
+offset. Fixed by storing the `RE::Setting*` itself (nullable) instead of an unchecked
+reference, and checking it in `ApplyBackgroundOpacity()` before every read, falling back to
+`1.0F` (fully opaque - matches the pre-1.6.8 behavior) if it's null, with a one-time
+`logger::warn` rather than silence. **Lesson for any future settings lookup on this file's
+"bound reference at construction" pattern**: that pattern is only safe for a setting already
+proven to always exist; anything new needs the null check, even if it's a common-sounding
+vanilla engine setting.
+
+**1.6.9 also adds debug-level logging throughout every source file** - `Controls.cpp`,
+`Hooks.h`/`Hooks.cpp`, `main.cpp`, `MessageListeners.cpp`, `MiniMap.cpp`, `Settings.cpp`,
+`UI.cpp`, `WorldRendering.cpp` - per the new standing rule (`CLAUDE.md` rule 14,
+`SMF-CONVERSION-PLAYBOOK.md` Part 1 step 6). Done as seven parallel sub-agents, one per file
+(one covering both `Hooks.cpp`/`main.cpp`), each handed the same style guide, followed by a
+full combined build to confirm everything still compiles together. Every function with real
+logic gets a `logger::debug` line; every materially different branch outcome is logged
+separately; nothing that runs every frame logs unconditionally (transition-gated behind a
+function-local `static` instead); hook installation (`hooks::Install()` in `Hooks.h`) logs
+each hook's resolved address. The philosophy, confirmed directly by the author: more diagnostic
+detail in the log is better for troubleshooting a bug report than less - which is exactly
+how the 1.6.9 crash above got root-caused in minutes once a real crash log existed to read.
 
 ## Building
 

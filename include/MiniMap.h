@@ -267,10 +267,15 @@ namespace DEM
 		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
 		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;
 
-		// SkyrimPrefs.ini's [Display] HUD Opacity slider. This is a reference into the live
-		// engine Setting, the same as the others on this page, so it always reads whatever the
-		// player has it set to right now - no need to re-query it.
-		const float& hudOpacity = RE::INIPrefSettingCollection::GetSingleton()->GetSetting("fHUDOpacity:Display")->data.f;
+		// SkyrimPrefs.ini's [Display] HUD Opacity slider. Kept as a pointer rather than an
+		// unchecked bound reference like the settings above - RE::INIPrefSettingCollection
+		// (Prefs.ini) returned null for this setting on at least one real system, where
+		// RE::INISettingCollection (Skyrim.ini) never has for fMapLocalHeight above. Taking
+		// ->data.f off that null pointer didn't crash here (forming the reference is pure
+		// pointer arithmetic), but reading through it later, in ApplyBackgroundOpacity(), did -
+		// EXCEPTION_ACCESS_VIOLATION reading address 0x8, which is exactly nullptr plus that
+		// field's offset. ApplyBackgroundOpacity() null-checks this before every read.
+		RE::Setting* hudOpacitySetting = RE::INIPrefSettingCollection::GetSingleton()->GetSetting("fHUDOpacity:Display");
 
 		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 189820) }.get();
 		const bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ REL::VariantID{ 501260, 359696, 0x1E70DFC } }.get();
