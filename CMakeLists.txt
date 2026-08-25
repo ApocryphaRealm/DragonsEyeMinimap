@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.21)
 
 project(
 	DragonsEyeMinimap
-	VERSION 1.3.3
+	VERSION 1.3.4
 	LANGUAGES CXX
 )
 
