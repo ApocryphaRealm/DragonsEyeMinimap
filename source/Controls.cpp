@@ -84,16 +84,22 @@ namespace DEM
 
 		settings::display::showOnGameStart = true;
 
+		// Keep the in-memory collection in step for anything that reads back through it, then
+		// persist through settings::, not the collection's own WriteSetting. WriteSetting resolves
+		// to the engine's implementation, which goes through the Win32 profile API - Mod Organizer
+		// 2's usvfs does not reliably redirect those, so the write reported success and silently
+		// never reached disk. See CLAUDE.md rule 16.
 		auto iniSettingCollection = utils::INISettingCollection::GetSingleton();
 		if (auto showOnGameStart = iniSettingCollection->GetSetting("bShowOnGameStart:Display"))
 		{
 			showOnGameStart->data.b = settings::display::showOnGameStart;
-			iniSettingCollection->WriteSetting(showOnGameStart);
 		}
 		else
 		{
-			logger::error("Setting \"bShowOnGameStart:Display\" is missing from the collection; show-on-start preference not persisted to the INI");
+			logger::warn("Setting \"bShowOnGameStart:Display\" is missing from the collection; the in-memory copy was not updated");
 		}
+
+		settings::SaveShowOnGameStart();
 
 		localMap_->inForeground = localMap_->enabled = true;
 		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ true });
@@ -105,16 +111,22 @@ namespace DEM
 
 		settings::display::showOnGameStart = false;
 
+		// Keep the in-memory collection in step for anything that reads back through it, then
+		// persist through settings::, not the collection's own WriteSetting. WriteSetting resolves
+		// to the engine's implementation, which goes through the Win32 profile API - Mod Organizer
+		// 2's usvfs does not reliably redirect those, so the write reported success and silently
+		// never reached disk. See CLAUDE.md rule 16.
 		auto iniSettingCollection = utils::INISettingCollection::GetSingleton();
 		if (auto showOnGameStart = iniSettingCollection->GetSetting("bShowOnGameStart:Display"))
 		{
 			showOnGameStart->data.b = settings::display::showOnGameStart;
-			iniSettingCollection->WriteSetting(showOnGameStart);
 		}
 		else
 		{
-			logger::error("Setting \"bShowOnGameStart:Display\" is missing from the collection; show-on-start preference not persisted to the INI");
+			logger::warn("Setting \"bShowOnGameStart:Display\" is missing from the collection; the in-memory copy was not updated");
 		}
+
+		settings::SaveShowOnGameStart();
 
 		localMap_->inForeground = localMap_->enabled = false;
 		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ false });

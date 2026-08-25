@@ -16,6 +16,10 @@ namespace settings
 	// any unrelated keys in that file alone. Returns false if the file could not be written.
 	bool Save();
 
+	// Persists just bShowOnGameStart. Minimap::Show()/Hide() change that one setting from
+	// outside the settings menu, so they must not drag an unsaved menu edit to disk with it.
+	bool SaveShowOnGameStart();
+
 	// Puts every setting back to its built-in default. This only touches the variables;
 	// follow it with Save() to persist, and with UI::ApplyLiveSettings() to show it in game.
 	void RestoreDefaults();
