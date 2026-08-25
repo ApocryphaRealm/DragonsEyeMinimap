@@ -264,8 +264,18 @@ namespace DEM
 		static constexpr int kPendingReapplyFrames = 6;
 		int pendingReapplyFrames = 0;
 
-		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
-		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;
+		// Vanilla's "Cleared" location-name suffix (sCleared). Kept as a nullable pointer
+		// rather than an unchecked bound reference like the two settings below used to be -
+		// "this pattern is used elsewhere in this file without incident" is exactly the
+		// reasoning that let hudOpacitySetting's crash through, so it does not excuse these.
+		// Checked wherever it is actually read (Advance()).
+		RE::Setting* clearedStrSetting = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared");
+
+		// Skyrim.ini's [MapMenu] local map height offset (fMapLocalHeight:MapMenu). Not
+		// currently read anywhere in this file, but stored as a nullable pointer for the same
+		// reason as clearedStrSetting above rather than left as an unchecked bound reference,
+		// so a future read of it cannot reintroduce the pattern that crashed in 1.6.9.
+		RE::Setting* localMapHeightSetting = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu");
 
 		// SkyrimPrefs.ini's [Display] HUD Opacity slider. Kept as a pointer rather than an
 		// unchecked bound reference like the settings above - RE::INIPrefSettingCollection

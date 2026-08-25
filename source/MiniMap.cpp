@@ -64,8 +64,14 @@ namespace DEM
 			localMap_->root.Invoke("InitMap");
 			localMap_->root.Invoke("SetShape", std::array<RE::GFxValue, 1>{ static_cast<std::uint32_t>(shape) });
 
-			localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay);
-			localMap_->iconDisplay.GetMember("MarkerData", &localMap->markerData);
+			if (!localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay) || !localMap_->iconDisplay.IsDisplayObject())
+			{
+				logger::error("InitLocalMap: could not reach IconDisplay; markers will not be available");
+			}
+			else if (!localMap_->iconDisplay.GetMember("MarkerData", &localMap->markerData))
+			{
+				logger::error("InitLocalMap: could not reach IconDisplay.MarkerData; markers will not be available");
+			}
 
 			// The Controls clip - the "hold to control/tap to hide" prompt and its buttons -
 			// starts visible by default: frame 1 of its own timeline is the label the AS2 side
@@ -669,7 +675,23 @@ namespace DEM
 
 						if (location->everCleared)
 						{
-							title[1] = clearedStr;
+							// Falls back to leaving title[1] unset (same as the interior-cell and
+							// worldspace branches above, which never set it at all) if the game
+							// setting couldn't be found, rather than crashing on a null read - see
+							// the comment on clearedStrSetting in MiniMap.h.
+							if (clearedStrSetting)
+							{
+								title[1] = clearedStrSetting->data.s;
+							}
+							else
+							{
+								static bool warnedMissingClearedStr = false;
+								if (!warnedMissingClearedStr)
+								{
+									logger::warn("Game setting \"sCleared\" was not found; the cleared-location suffix will be omitted from the title");
+									warnedMissingClearedStr = true;
+								}
+							}
 						}
 
 						logger::debug("Advance: title from location \"{}\", everCleared {}",
@@ -691,34 +713,69 @@ namespace DEM
 				localMap_->root.Invoke("SetTitle", nullptr, title);
 				
 				localMap->PopulateData();
-				localMap_->iconDisplay.Invoke("CreateMarkers");
+
+				if (localMap_->iconDisplay.IsDisplayObject())
+				{
+					localMap_->iconDisplay.Invoke("CreateMarkers");
+				}
+				else
+				{
+					static bool warnedMissingIconDisplay = false;
+					if (!warnedMissingIconDisplay)
+					{
+						logger::warn("Advance: iconDisplay is not available; skipping CreateMarkers");
+						warnedMissingIconDisplay = true;
+					}
+				}
+
 				localMap->RefreshMarkers();
-				
+
 				if (settings::controls::followPlayerCameraRotation)
 				{
 					RE::GFxValue youAreHereMarker;
-					localMap_->iconDisplay.GetMember("YouAreHereMarker", &youAreHereMarker);
-				
-					float playerToCamAngle = player->GetAngleZ() - playerCameraRotation;
-					float playerToCamAngleDeg = playerToCamAngle * 180 * std::numbers::inv_pi;
-				
-					RE::GFxValue::DisplayInfo youAreHereMarkerDisplayInfo;
-					youAreHereMarker.GetDisplayInfo(&youAreHereMarkerDisplayInfo);
-					youAreHereMarkerDisplayInfo.SetRotation(playerToCamAngleDeg);
-					youAreHereMarker.SetDisplayInfo(youAreHereMarkerDisplayInfo);
+					if (localMap_->iconDisplay.IsDisplayObject() &&
+						localMap_->iconDisplay.GetMember("YouAreHereMarker", &youAreHereMarker) && youAreHereMarker.IsDisplayObject())
+					{
+						float playerToCamAngle = player->GetAngleZ() - playerCameraRotation;
+						float playerToCamAngleDeg = playerToCamAngle * 180 * std::numbers::inv_pi;
+
+						RE::GFxValue::DisplayInfo youAreHereMarkerDisplayInfo;
+						youAreHereMarker.GetDisplayInfo(&youAreHereMarkerDisplayInfo);
+						youAreHereMarkerDisplayInfo.SetRotation(playerToCamAngleDeg);
+						youAreHereMarker.SetDisplayInfo(youAreHereMarkerDisplayInfo);
+					}
+					else
+					{
+						static bool warnedMissingYouAreHereMarker = false;
+						if (!warnedMissingYouAreHereMarker)
+						{
+							logger::warn("Advance: could not reach YouAreHereMarker; player rotation marker will not be updated");
+							warnedMissingYouAreHereMarker = true;
+						}
+					}
 				}
 				else
 				{
 					RE::GFxValue visionCone;
-					localMap_->root.GetMember("VisionCone", &visionCone);
-				
-					float playerCameraToNorthAngle = playerCameraRotation - cellNorthRotation;
-					float playerCameraToNorthAngleDeg = playerCameraToNorthAngle * 180 * std::numbers::inv_pi;
-				
-					RE::GFxValue::DisplayInfo visionConeDisplayInfo;
-					visionCone.GetDisplayInfo(&visionConeDisplayInfo);
-					visionConeDisplayInfo.SetRotation(playerCameraToNorthAngleDeg);
-					visionCone.SetDisplayInfo(visionConeDisplayInfo);
+					if (localMap_->root.GetMember("VisionCone", &visionCone) && visionCone.IsDisplayObject())
+					{
+						float playerCameraToNorthAngle = playerCameraRotation - cellNorthRotation;
+						float playerCameraToNorthAngleDeg = playerCameraToNorthAngle * 180 * std::numbers::inv_pi;
+
+						RE::GFxValue::DisplayInfo visionConeDisplayInfo;
+						visionCone.GetDisplayInfo(&visionConeDisplayInfo);
+						visionConeDisplayInfo.SetRotation(playerCameraToNorthAngleDeg);
+						visionCone.SetDisplayInfo(visionConeDisplayInfo);
+					}
+					else
+					{
+						static bool warnedMissingVisionCone = false;
+						if (!warnedMissingVisionCone)
+						{
+							logger::warn("Advance: could not reach VisionCone; vision cone rotation will not be updated");
+							warnedMissingVisionCone = true;
+						}
+					}
 				}
 
 			}
