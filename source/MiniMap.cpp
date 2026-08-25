@@ -609,6 +609,95 @@ namespace DEM
 		logger::debug("Shape set to {}", shape == Shape::kRound ? "round" : "squared");
 	}
 
+	RE::Setting* Minimap::GetHUDOpacitySetting()
+	{
+		// Resolved once. A null result is cached too - if it is not there on the first look it
+		// will not appear later, and re-scanning every frame would be wasteful.
+		static bool resolved = false;
+		static RE::Setting* setting = nullptr;
+
+		if (resolved)
+		{
+			return setting;
+		}
+
+		resolved = true;
+
+		auto* prefs = RE::INIPrefSettingCollection::GetSingleton();
+		auto* ini = RE::INISettingCollection::GetSingleton();
+
+		// SkyrimPrefs.ini keeps fHUDOpacity under [MAIN] on this machine, but the engine's own
+		// registered name for it is what GetSetting matches, and that has not proven to be the
+		// same thing. Try what it plausibly is, in both collections.
+		constexpr const char* kCandidates[] = {
+			"fHUDOpacity:MAIN",
+			"fHUDOpacity:Interface",
+			"fHUDOpacity:Display",
+			"fHUDOpacity",
+		};
+
+		for (const char* name : kCandidates)
+		{
+			if (prefs)
+			{
+				if (RE::Setting* found = prefs->GetSetting(name))
+				{
+					logger::info("HUD Opacity setting resolved as \"{}\" in SkyrimPrefs.ini", name);
+					setting = found;
+
+					return setting;
+				}
+			}
+
+			if (ini)
+			{
+				if (RE::Setting* found = ini->GetSetting(name))
+				{
+					logger::info("HUD Opacity setting resolved as \"{}\" in Skyrim.ini", name);
+					setting = found;
+
+					return setting;
+				}
+			}
+		}
+
+		// Nothing matched. Rather than guess a fifth name next time, report what the engine
+		// actually has, so the real name is in the log.
+		int reported = 0;
+
+		auto dump = [&](RE::INISettingCollection* a_collection, const char* a_which) {
+			if (!a_collection)
+			{
+				return;
+			}
+
+			for (RE::Setting* candidate : a_collection->settings)
+			{
+				if (!candidate || !candidate->name)
+				{
+					continue;
+				}
+
+				if (std::string_view(candidate->name).find("HUDOpacity") != std::string_view::npos)
+				{
+					logger::warn("HUD Opacity: {} has a setting named \"{}\" - none of the names tried matched it",
+								 a_which, candidate->name);
+					++reported;
+				}
+			}
+		};
+
+		dump(prefs, "SkyrimPrefs.ini");
+		dump(ini, "Skyrim.ini");
+
+		if (reported == 0)
+		{
+			logger::warn("HUD Opacity: no setting containing \"HUDOpacity\" exists in either collection; the minimap background will stay fully opaque");
+		}
+
+		return nullptr;
+	}
+
 	void Minimap::ApplyBackgroundOpacity()
 	{
 		// Called every Advance() while visible - only log when the resolved alpha actually
@@ -633,6 +722,7 @@ namespace DEM
 		// setting couldn't be found, rather than crashing on a null read - see the comment on
 		// hudOpacitySetting in MiniMap.h for why this check exists at all.
 		float hudOpacity = 1.0F;
+		RE::Setting* hudOpacitySetting = GetHUDOpacitySetting();
 		if (hudOpacitySetting)
 		{
 			hudOpacity = hudOpacitySetting->data.f;
@@ -642,7 +732,7 @@ namespace DEM
 			static bool warnedMissingSetting = false;
 			if (!warnedMissingSetting)
 			{
-				logger::warn("SkyrimPrefs.ini's fHUDOpacity:MAIN setting was not found; "
+				logger::warn("HUD Opacity setting could not be resolved; "
 							 "the minimap background will stay fully opaque regardless of the HUD Opacity slider");
 				warnedMissingSetting = true;
 			}
