@@ -327,14 +327,14 @@ namespace DEM
 						  settings::display::kScaleSliderMin, settings::display::kScaleSliderMax);
 	}
 
-	void Minimap::ApplyDisplaySettings()
+	bool Minimap::ApplyDisplaySettingsOnce(float& a_outDeltaX, float& a_outDeltaY)
 	{
 		if (!displayObj.HasMember("Minimap") || stageWidth <= 0.0F || stageHeight <= 0.0F)
 		{
 			logger::debug("ApplyDisplaySettings: skipped, displayObj has Minimap member {}, stage {}x{}",
 						  displayObj.HasMember("Minimap"), stageWidth, stageHeight);
 
-			return;
+			return true;
 		}
 
 		const float scale = std::clamp(settings::display::scale, settings::display::kScaleSliderMin, GetMaxScale());
@@ -347,7 +347,7 @@ namespace DEM
 		{
 			logger::error("Could not measure the minimap artwork; leaving it where it is");
 
-			return;
+			return true;
 		}
 
 		// Remember how big the artwork is at scale 1, so the quarter-screen cap has something
@@ -379,7 +379,7 @@ namespace DEM
 		{
 			logger::error("Could not reach the minimap's parent clip; leaving it where it is");
 
-			return;
+			return true;
 		}
 
 		// Move by the difference between where the chosen edge is and where it should be,
@@ -402,6 +402,13 @@ namespace DEM
 		displayObj.SetMember("_x", newX);
 		displayObj.SetMember("_y", newY);
 
+		// How far this pass actually had to move the clip. Invoking InitMap below re-derives the
+		// map extents and changes the artwork's measured bounds, so a single pass positions
+		// against a measurement that is stale the moment it is used. The caller repeats until
+		// this delta is negligible.
+		a_outDeltaX = newX - currentX;
+		a_outDeltaY = newY - currentY;
+
 		// For the log line below only - StageToParent is not otherwise needed once the
 		// clamp is gone, but knowing where the screen edges landed is still useful for
 		// diagnosing anything that still looks wrong.
@@ -422,6 +429,62 @@ namespace DEM
 					 settings::display::anchor, offsetX, offsetY,
 					 scale, newX, newY, artLeft, artTop, artRight, artBottom,
 					 screenMinX, screenMinY, screenMaxX, screenMaxY);
+
+		return true;
+
+	}
+
+	// Runs ApplyDisplaySettingsOnce() until the position stops moving.
+	//
+	// One pass is not enough and never was. Each pass measures the artwork, positions the clip
+	// from that measurement, then invokes InitMap to refresh the map extents - and InitMap
+	// changes the artwork's geometry, so the measurement the position was derived from is
+	// already stale. The next pass corrects by a smaller amount, and so on.
+	//
+	// Liam and a second user on another machine both logged the same signature: the measured
+	// art width climbing 102.7 -> 136.3 -> 153.1 -> 169.9 -> 186.7 before settling, with _x
+	// walking ~9.2px each time. Because the passes were spread across separate frames and
+	// events, that showed up in game as the minimap visibly growing and sliding after a load
+	// rather than simply appearing where it belongs. Converging here, inside one call, makes
+	// it a single invisible step.
+	//
+	// Bounded rather than looping until stable: if some future change makes this oscillate
+	// instead of converge, a capped loop degrades to the old visible drift rather than hanging
+	// the render thread.
+	void Minimap::ApplyDisplaySettings()
+	{
+		constexpr int kMaxPasses = 8;
+		constexpr float kSettledPixels = 0.5F;
+
+		int pass = 0;
+		float deltaX = 0.0F, deltaY = 0.0F;
+
+		for (; pass < kMaxPasses; ++pass)
+		{
+			deltaX = 0.0F;
+			deltaY = 0.0F;
+
+			if (!ApplyDisplaySettingsOnce(deltaX, deltaY))
+			{
+				// The pass bailed out - it has already logged why. Nothing to converge on.
+				return;
+			}
+
+			if (std::abs(deltaX) < kSettledPixels && std::abs(deltaY) < kSettledPixels)
+			{
+				break;
+			}
+		}
+
+		if (pass >= kMaxPasses)
+		{
+			logger::warn("ApplyDisplaySettings: position still moving after {} passes (last delta {}, {}); "
+						 "leaving it here", kMaxPasses, deltaX, deltaY);
+		}
+		else
+		{
+			logger::debug("ApplyDisplaySettings: settled after {} pass(es)", pass + 1);
+		}
 
 		ApplyTitlePosition();
 	}
