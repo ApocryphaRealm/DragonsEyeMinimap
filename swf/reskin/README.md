@@ -56,5 +56,31 @@ re-deriving from the SVGs (only the fill color changed, not geometry or outline)
 by round-tripping the edited SWF back through `-swf2xml` and confirming the new color stuck.
 The outline (`#F5F2E9`) and the fully-opaque baked alpha from 1.0.1 are unchanged.
 
-Version 1.0.2, tagged `frame-reskin-v1.0.2` - versioned independently of this repo's main
+## The squared frame had no interior at all (1.0.3)
+
+the author reported that the round minimap shape was properly dark but the squared one was not.
+The cause was in this file's own step 2 above, and it had been there since 1.0.0: replacing
+the Nordic corner engravings with "a plain rectangular ring" produced *literally* a ring.
+`335-squared-frame.svg`'s black path was an outer rectangle plus an inner rectangle at
+`4,4`-`548.35,548.35` under `fill-rule="evenodd"`, which fills only the 4px band between
+them and leaves the interior empty - so the squared minimap had no dark background behind
+it. In the compiled SWF the same thing appeared as a second `StyleChangeRecord` moving to
+`80,80` followed by four `10887`-twip edges wound opposite to the outer square, cancelling
+it out.
+
+The round shape never had this problem (a ray from its centre crosses its paths an odd
+number of times, so the disc fills), which is exactly why only the square looked wrong.
+
+This also explains why the 1.0.1 opacity work and the 1.0.2 solid-black change appeared to
+do nothing on the squared shape: both were correct, but they were only ever recolouring a
+4-pixel band.
+
+Fixed by dropping the inner subpath entirely, in both `335-squared-frame.svg` (now a single
+closed rectangle, filled, with the white outline left as its own separate stroked path -
+the same construction the round shape uses) and the compiled `MinimapArt.swf` via the
+`-swf2xml`/`-xml2swf` round-trip this file already documents. Only shape 335 was touched;
+337 was verified byte-identical afterwards, and 335 keeps its `DefineShape3` tag, its solid
+black `RGBA` fill and its `#F5F2E9` outline. Edge-record count for 335 went from 13 to 9.
+
+Version 1.0.3, tagged `frame-reskin-v1.0.3` - versioned independently of this repo's main
 `vX.Y.Z` tags, since it's a separate deliverable from the SMF settings port itself.

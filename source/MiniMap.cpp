@@ -66,11 +66,11 @@ namespace DEM
 
 			if (!localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay) || !localMap_->iconDisplay.IsDisplayObject())
 			{
-				logger::error("InitLocalMap: could not reach IconDisplay; markers will not be available");
+				logger::debug("InitLocalMap: IconDisplay not reachable yet; Advance will keep retrying (see EnsureIconDisplay)");
 			}
 			else if (!localMap_->iconDisplay.GetMember("MarkerData", &localMap->markerData))
 			{
-				logger::error("InitLocalMap: could not reach IconDisplay.MarkerData; markers will not be available");
+				logger::debug("InitLocalMap: IconDisplay.MarkerData not reachable yet; Advance will keep retrying (see EnsureIconDisplay)");
 			}
 
 			// The Controls clip - the "hold to control/tap to hide" prompt and its buttons -
@@ -113,6 +113,61 @@ namespace DEM
 		{
 			logger::debug("InitLocalMap: allocation of LocalMapMenu failed; minimap will not be functional");
 		}
+	}
+
+	bool Minimap::EnsureIconDisplay()
+	{
+		if (localMap_ == nullptr)
+		{
+			return false;
+		}
+
+		if (localMap_->iconDisplay.IsDisplayObject())
+		{
+			return true;
+		}
+
+		// Runs from Advance(), so it must not log on every frame it fails - only on the
+		// transitions (CLAUDE.md rule 14: never log unconditionally in per-frame code).
+		static bool resolvedOnce = false;
+		static bool loggedRetrying = false;
+
+		if (!localMap_->root.IsDisplayObject())
+		{
+			return false;
+		}
+
+		if (!localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay) || !localMap_->iconDisplay.IsDisplayObject())
+		{
+			if (!loggedRetrying)
+			{
+				logger::debug("EnsureIconDisplay: IconDisplay not present yet; will keep retrying each frame");
+				loggedRetrying = true;
+			}
+
+			return false;
+		}
+
+		// MarkerData is what PopulateData()/RefreshMarkers() write through, so a resolved
+		// IconDisplay without it is not actually usable.
+		if (!localMap_->iconDisplay.GetMember("MarkerData", &localMap->markerData))
+		{
+			if (!loggedRetrying)
+			{
+				logger::debug("EnsureIconDisplay: IconDisplay resolved but MarkerData is not there yet; will keep retrying");
+				loggedRetrying = true;
+			}
+
+			return false;
+		}
+
+		if (!resolvedOnce)
+		{
+			logger::info("IconDisplay resolved; minimap markers are available");
+			resolvedOnce = true;
+		}
+
+		return true;
 	}
 
 	void Minimap::MeasureStage()
@@ -516,7 +571,7 @@ namespace DEM
 			static bool warnedMissingSetting = false;
 			if (!warnedMissingSetting)
 			{
-				logger::warn("SkyrimPrefs.ini's fHUDOpacity:Display setting was not found; "
+				logger::warn("SkyrimPrefs.ini's fHUDOpacity:MAIN setting was not found; "
 							 "the minimap background will stay fully opaque regardless of the HUD Opacity slider");
 				warnedMissingSetting = true;
 			}
@@ -714,18 +769,10 @@ namespace DEM
 				
 				localMap->PopulateData();
 
-				if (localMap_->iconDisplay.IsDisplayObject())
+				// Re-resolves IconDisplay if the one-shot lookup in InitLocalMap() was too early.
+				if (EnsureIconDisplay())
 				{
 					localMap_->iconDisplay.Invoke("CreateMarkers");
-				}
-				else
-				{
-					static bool warnedMissingIconDisplay = false;
-					if (!warnedMissingIconDisplay)
-					{
-						logger::warn("Advance: iconDisplay is not available; skipping CreateMarkers");
-						warnedMissingIconDisplay = true;
-					}
 				}
 
 				localMap->RefreshMarkers();
@@ -733,7 +780,7 @@ namespace DEM
 				if (settings::controls::followPlayerCameraRotation)
 				{
 					RE::GFxValue youAreHereMarker;
-					if (localMap_->iconDisplay.IsDisplayObject() &&
+					if (EnsureIconDisplay() &&
 						localMap_->iconDisplay.GetMember("YouAreHereMarker", &youAreHereMarker) && youAreHereMarker.IsDisplayObject())
 					{
 						float playerToCamAngle = player->GetAngleZ() - playerCameraRotation;

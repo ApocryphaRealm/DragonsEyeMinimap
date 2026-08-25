@@ -170,6 +170,17 @@ namespace DEM
 
 		void InitLocalMap();
 
+		// Resolves localMap_->iconDisplay (and its MarkerData) if it is not resolved yet, and
+		// reports whether it is usable now.
+		//
+		// InitLocalMap() used to look this up exactly once, immediately after root.Invoke("InitMap").
+		// When that single attempt missed - which it does, because the Scaleform children are not
+		// all built by then, the same late-settling behaviour pendingReapplyFrames exists to work
+		// around - Advance() only ever re-tested the cached GFxValue, never re-queried. One early
+		// miss therefore disabled every minimap marker for the whole session, no matter what any
+		// visibility setting said. Retrying until it resolves is the fix.
+		bool EnsureIconDisplay();
+
 		void MeasureStage();
 
 		// Converts a point in stage (screen) pixels into the minimap clip's parent space,
@@ -285,7 +296,13 @@ namespace DEM
 		// pointer arithmetic), but reading through it later, in ApplyBackgroundOpacity(), did -
 		// EXCEPTION_ACCESS_VIOLATION reading address 0x8, which is exactly nullptr plus that
 		// field's offset. ApplyBackgroundOpacity() null-checks this before every read.
-		RE::Setting* hudOpacitySetting = RE::INIPrefSettingCollection::GetSingleton()->GetSetting("fHUDOpacity:Display");
+				//
+		// The section is MAIN, not Display. SkyrimPrefs.ini keeps fHUDOpacity under [MAIN];
+		// asking for it as "fHUDOpacity:Display" simply missed, so the null-safe fallback added
+		// after the 1.1.8 crash engaged on every single launch and the background stayed fully
+		// opaque no matter where the HUD Opacity slider was. Confirmed against a real
+		// SkyrimPrefs.ini: fHUDOpacity=1.0000 sits in [MAIN].
+		RE::Setting* hudOpacitySetting = RE::INIPrefSettingCollection::GetSingleton()->GetSetting("fHUDOpacity:MAIN");
 
 		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 189820) }.get();
 		const bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ REL::VariantID{ 501260, 359696, 0x1E70DFC } }.get();
