@@ -14,6 +14,8 @@ namespace DEM
 		if (localMap && !inputHandler->registered)
 		{
 			RE::MenuControls::GetSingleton()->AddHandler(inputHandler.get());
+
+			logger::debug("Minimap input handler registered with MenuControls");
 		}
 
 		return false;
@@ -23,6 +25,8 @@ namespace DEM
 	{
 		RE::HUDObject::RegisterHUDComponent(a_params);
 		displayObj.Invoke("AddToHudElements");
+
+		logger::debug("Minimap HUD component registered and added to HudElements");
 	}
 
 	void Minimap::InitLocalMap()
@@ -30,6 +34,8 @@ namespace DEM
 		localMap = static_cast<RE::LocalMapMenu*>(std::malloc(sizeof(RE::LocalMapMenu)));
 		if (localMap)
 		{
+			logger::debug("InitLocalMap: allocated LocalMapMenu instance");
+
 			localMap->Ctor();
 
 			// Cache references ///////////////////////////////////////////////////////////////////////
@@ -85,6 +91,9 @@ namespace DEM
 			// pendingReapplyFrames.
 			pendingReapplyFrames = kPendingReapplyFrames;
 
+			logger::debug("InitLocalMap: scaleform wired up, queued {} reapply frame(s), showOnGameStart {}",
+						  pendingReapplyFrames, settings::display::showOnGameStart);
+
 			if (settings::display::showOnGameStart)
 			{
 				Show();
@@ -93,6 +102,10 @@ namespace DEM
 			{
 				Hide();
 			}
+		}
+		else
+		{
+			logger::debug("InitLocalMap: allocation of LocalMapMenu failed; minimap will not be functional");
 		}
 	}
 
@@ -124,6 +137,8 @@ namespace DEM
 		auto* view = displayObj.GetMovieView();
 		if (!view)
 		{
+			logger::debug("StageToParent: displayObj has no movie view");
+
 			return false;
 		}
 
@@ -132,6 +147,8 @@ namespace DEM
 		RE::GFxValue parent = displayObj.GetMember("_parent");
 		if (!parent.IsDisplayObject())
 		{
+			logger::debug("StageToParent: displayObj's _parent is not a display object");
+
 			return false;
 		}
 
@@ -145,6 +162,8 @@ namespace DEM
 		RE::GFxValue argument = point;
 		if (!parent.Invoke("globalToLocal", nullptr, &argument, 1))
 		{
+			logger::debug("StageToParent: globalToLocal invocation failed");
+
 			return false;
 		}
 
@@ -161,6 +180,8 @@ namespace DEM
 		RE::GFxValue parent = displayObj.GetMember("_parent");
 		if (!parent.IsDisplayObject())
 		{
+			logger::debug("GetArtBoundsInParent: displayObj's _parent is not a display object");
+
 			return false;
 		}
 
@@ -196,11 +217,24 @@ namespace DEM
 			{
 				measured = art.Invoke("getBounds", &bounds, std::array<RE::GFxValue, 1>{ parent }) && bounds.IsObject();
 			}
+
+			if (!measured)
+			{
+				logger::debug("GetArtBoundsInParent: could not measure {} directly; falling back to whole-clip bounds", artName);
+			}
 		}
 
 		if (!measured && !(displayObj.Invoke("getBounds", &bounds, parent) && bounds.IsObject()))
 		{
+			logger::debug("GetArtBoundsInParent: whole-clip getBounds also failed");
+
 			return false;
+		}
+
+		if (!measured)
+		{
+			logger::debug("GetArtBoundsInParent: measured via whole-clip bounds fallback (localMap_ {})",
+						  localMap_ ? "present" : "not yet available");
 		}
 
 		RE::GFxValue xMin, xMax, yMin, yMax;
@@ -236,6 +270,9 @@ namespace DEM
 	{
 		if (!displayObj.HasMember("Minimap") || stageWidth <= 0.0F || stageHeight <= 0.0F)
 		{
+			logger::debug("ApplyDisplaySettings: skipped, displayObj has Minimap member {}, stage {}x{}",
+						  displayObj.HasMember("Minimap"), stageWidth, stageHeight);
+
 			return;
 		}
 
@@ -442,6 +479,11 @@ namespace DEM
 
 	void Minimap::ApplyBackgroundOpacity()
 	{
+		// Called every Advance() while visible - only log when the resolved alpha actually
+		// changes since last frame, not on every call, or Debug mode would fill the log with
+		// nothing but this line.
+		static float lastLoggedAlpha = -1.0F;
+
 		if (!localMap_)
 		{
 			return;
@@ -455,33 +497,71 @@ namespace DEM
 			return;
 		}
 
+		// Falls back to fully opaque (matches this clip's pre-1.6.8 behavior) if the engine
+		// setting couldn't be found, rather than crashing on a null read - see the comment on
+		// hudOpacitySetting in MiniMap.h for why this check exists at all.
+		float hudOpacity = 1.0F;
+		if (hudOpacitySetting)
+		{
+			hudOpacity = hudOpacitySetting->data.f;
+		}
+		else
+		{
+			static bool warnedMissingSetting = false;
+			if (!warnedMissingSetting)
+			{
+				logger::warn("SkyrimPrefs.ini's fHUDOpacity:Display setting was not found; "
+							 "the minimap background will stay fully opaque regardless of the HUD Opacity slider");
+				warnedMissingSetting = true;
+			}
+		}
+
+		const double alpha = std::clamp(hudOpacity, 0.0F, 1.0F) * 100.0;
+
 		RE::GFxValue::DisplayInfo displayInfo;
 		art.GetDisplayInfo(&displayInfo);
-		displayInfo.SetAlpha(std::clamp(hudOpacity, 0.0F, 1.0F) * 100.0);
+		displayInfo.SetAlpha(alpha);
 		art.SetDisplayInfo(displayInfo);
+
+		if (static_cast<float>(alpha) != lastLoggedAlpha)
+		{
+			logger::debug("Background opacity applied: fHUDOpacity {} -> alpha {} on {}", hudOpacity, alpha, artName);
+
+			lastLoggedAlpha = static_cast<float>(alpha);
+		}
 	}
 
 	void Minimap::SetMapZoom(float a_zoom)
 	{
 		if (!cameraContext || !cameraContext->defaultState)
 		{
+			logger::debug("SetMapZoom({}): ignored, camera context {} available", a_zoom, cameraContext ? "has no default state" : "not");
+
 			return;
 		}
 
+		const float delta = a_zoom - cameraContext->defaultState->zoom;
+
 		// Steer the absolute value through zoomInput, which is the same channel the pan/zoom
 		// controls use, so the camera applies its own limits rather than us guessing at them.
-		cameraContext->zoomInput += a_zoom - cameraContext->defaultState->zoom;
+		cameraContext->zoomInput += delta;
+
+		logger::debug("SetMapZoom: requested {}, current {}, zoomInput += {}", a_zoom, cameraContext->defaultState->zoom, delta);
 	}
 
 	void Minimap::ToggleZoomPreset()
 	{
 		if (!cameraContext)
 		{
+			logger::debug("ToggleZoomPreset: ignored, no camera context yet");
+
 			return;
 		}
 
 		if (!cameraContext->defaultState)
 		{
+			logger::debug("ToggleZoomPreset: ignored, camera context has no default state yet");
+
 			return;
 		}
 
@@ -521,6 +601,11 @@ namespace DEM
 
 		minCamFrustumHalfWidth = cameraContext->defaultState->minFrustumHalfWidth;
 		minCamFrustumHalfHeight = cameraContext->defaultState->minFrustumHalfHeight;
+
+		logger::debug("SetLocalMapExtents: local ({},{})-({},{}) -> screen ({},{})-({},{}), aspect {}, minFrustumHalf {}x{}",
+					  localLeft, localTop, localRight, localBottom,
+					  localMap->topLeft.x, localMap->topLeft.y, localMap->bottomRight.x, localMap->bottomRight.y,
+					  aspectRatio, minCamFrustumHalfWidth, minCamFrustumHalfHeight);
 	}
 
 	void Minimap::Advance()
@@ -528,6 +613,11 @@ namespace DEM
 		if (pendingReapplyFrames > 0)
 		{
 			--pendingReapplyFrames;
+
+			// Bounded to kPendingReapplyFrames calls right after InitLocalMap(), not a
+			// per-frame steady-state cost, so logging every countdown step is safe.
+			logger::debug("Advance: pending display reapply, {} frame(s) left", pendingReapplyFrames);
+
 			ApplyDisplaySettings();
 		}
 
@@ -540,6 +630,11 @@ namespace DEM
 			if (updateScaleform.GetBool())
 			{
 				updateScaleform.SetBoolean(false);
+
+				// updateScaleform only goes true on the AS side rarely (initial frame, or
+				// this clip having dropped out of HudElements and been re-added), so this
+				// whole block is a meaningful, infrequent event rather than per-frame noise.
+				logger::debug("Advance: updateScaleform triggered, refreshing title/markers/vision cone");
 
 				std::array<RE::GFxValue, 2> title;
 
@@ -565,21 +660,32 @@ namespace DEM
 					if (parentCell->IsInteriorCell())
 					{
 						title[0] = parentCell->GetFullName();
+
+						logger::debug("Advance: title from interior cell \"{}\"", title[0].GetString());
 					}
 					else if (RE::BGSLocation* location = parentCell->GetLocation())
 					{
 						title[0] = location->GetFullName();
-					
+
 						if (location->everCleared)
 						{
 							title[1] = clearedStr;
 						}
+
+						logger::debug("Advance: title from location \"{}\", everCleared {}",
+									  title[0].GetString(), static_cast<bool>(location->everCleared));
 					}
 					else
 					{
 						RE::TESWorldSpace* worldSpace = player->GetWorldspace();
 						title[0] = worldSpace->GetFullName();
+
+						logger::debug("Advance: title from worldspace \"{}\"", title[0].GetString());
 					}
+				}
+				else
+				{
+					logger::debug("Advance: player has no parentCell; title left unset");
 				}
 
 				localMap_->root.Invoke("SetTitle", nullptr, title);

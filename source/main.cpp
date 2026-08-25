@@ -24,22 +24,31 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	logger::info("Loading {} {}...", plugin->GetName(), plugin->GetVersion());
 
 	SKSE::Init(a_skse);
+	logger::debug("SKSE core APIs initialized");
 
+	logger::debug("Loading settings from {}.ini", plugin->GetName());
 	settings::Init(std::string(plugin->GetName()) + ".ini");
 
 	logger::set_level(settings::debug::logLevel, settings::debug::logLevel);
+	logger::debug("Settings loaded; log level set to {}", static_cast<std::uint32_t>(settings::debug::logLevel));
 
 	if (!SKSE::GetMessagingInterface()->RegisterListener("SKSE", SKSEMessageListener))
 	{
+		logger::error("Could not register the SKSE message listener; plugin load aborted");
 		return false;
 	}
 
+	logger::debug("SKSE message listener registered");
+
+	logger::debug("Installing hooks...");
 	hooks::Install();
+	logger::debug("Hooks installed");
 
 	logger::set_level(logger::level::info, logger::level::info);
 	logger::info("Succesfully loaded!");
 
 	logger::set_level(settings::debug::logLevel, settings::debug::logLevel);
+	logger::debug("Log level restored to configured level {}", static_cast<std::uint32_t>(settings::debug::logLevel));
 
 	return true;
 }

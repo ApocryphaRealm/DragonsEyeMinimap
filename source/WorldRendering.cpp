@@ -48,6 +48,7 @@ namespace DEM
 
 		if (!fogOfWarOverlayHolder)
 		{
+			logger::debug("Fog of war overlay not created yet; creating it");
 			localMap->localCullingProcess.CreateFogOfWar();
 		}
 		else
@@ -65,6 +66,7 @@ namespace DEM
 			fogOfWar.overlayHolder = fogOfWarOverlayHolder.get();
 
 			RE::TESObjectCELL* interiorCell = RE::TES::GetSingleton()->interiorCell;
+			bool skyCellAttached = false;
 
 			if (interiorCell)
 			{
@@ -103,10 +105,33 @@ namespace DEM
 					if (skyCell && skyCell->IsAttached())
 					{
 						cullingProcess->AttachFogOfWarOverlay(fogOfWar, skyCell);
+						skyCellAttached = true;
 					}
 				}
 			}
-	
+
+			// Runs every frame while fog of war is enabled - only log when the branch taken actually changes.
+			static bool s_loggedFogOfWarState = false;
+			static bool s_lastFogOfWarInterior = false;
+			static bool s_lastFogOfWarSkyAttached = false;
+			bool isFogOfWarInterior = interiorCell != nullptr;
+			if (!s_loggedFogOfWarState || isFogOfWarInterior != s_lastFogOfWarInterior ||
+				(!isFogOfWarInterior && skyCellAttached != s_lastFogOfWarSkyAttached))
+			{
+				if (isFogOfWarInterior)
+				{
+					logger::debug("Fog of war updating for interior cell {:X}", interiorCell->GetFormID());
+				}
+				else
+				{
+					logger::debug("Fog of war updating for exterior grid; sky cell overlay {}", skyCellAttached ? "attached" : "not attached");
+				}
+
+				s_loggedFogOfWarState = true;
+				s_lastFogOfWarInterior = isFogOfWarInterior;
+				s_lastFogOfWarSkyAttached = skyCellAttached;
+			}
+
 			fogOfWarOverlayHolder->local.translate.z = (cameraContext->maxExtent.z - cameraContext->minExtent.z) * 0.5;
 			
 			RE::NiUpdateData niUpdateData;
@@ -123,6 +148,20 @@ namespace DEM
 
 		GetPixelShaderProperties(prevShaderShape, shaderStyle);
 		SetPixelShaderProperties(shape, shaderStyle);
+
+		// Runs every frame - only log the shader shape swap when it actually differs from last frame.
+		static bool s_loggedShapeSwap = false;
+		static LMU::PixelShaderProperty::Shape s_lastLoggedPrevShape{};
+		static LMU::PixelShaderProperty::Shape s_lastLoggedTargetShape{};
+		if (!s_loggedShapeSwap || prevShaderShape != s_lastLoggedPrevShape || shape != s_lastLoggedTargetShape)
+		{
+			logger::debug("Off-screen render: swapping pixel shader shape from {} to {} to draw the minimap, restoring after",
+				prevShaderShape == LMU::PixelShaderProperty::Shape::kRound ? "round" : "squared",
+				shape == LMU::PixelShaderProperty::Shape::kRound ? "round" : "squared");
+			s_loggedShapeSwap = true;
+			s_lastLoggedPrevShape = prevShaderShape;
+			s_lastLoggedTargetShape = shape;
+		}
 
 		// 1. Setup culling step ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -161,11 +200,21 @@ namespace DEM
 		{
 			unkData.unk8 = false;
 		}
-		else 
+		else
 		{
 			unkData.unk8 = true;
 		}
 
+		// Runs every frame - only log when unk8 actually changes (e.g. on a worldspace change).
+		static bool s_loggedUnk8 = false;
+		static bool s_lastUnk8 = false;
+		if (!s_loggedUnk8 || unkData.unk8 != s_lastUnk8)
+		{
+			logger::debug("Worldspace has fixed dimensions: {}; culling unk8 set to {}",
+				worldSpace && worldSpace->flags.any(RE::TESWorldSpace::Flag::kFixedDimensions), unkData.unk8);
+			s_loggedUnk8 = true;
+			s_lastUnk8 = unkData.unk8;
+		}
 
 		// 2. Culling step /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -186,6 +235,28 @@ namespace DEM
             }
 		}
 
+		// Runs every frame - only log when which cell we're culling against actually changes.
+		static bool s_loggedCellCategory = false;
+		static int s_lastCellCategory = -1;
+		int cellCategory = currentCell ? (currentCell == tes->interiorCell ? 0 : 1) : 2;
+		if (!s_loggedCellCategory || cellCategory != s_lastCellCategory)
+		{
+			switch (cellCategory)
+			{
+			case 0:
+				logger::debug("Off-screen render culling interior cell {:X}", currentCell->GetFormID());
+				break;
+			case 1:
+				logger::debug("Off-screen render culling exterior sky cell {:X}", currentCell->GetFormID());
+				break;
+			default:
+				logger::debug("Off-screen render has no resolvable cell to cull (no interior cell, no attached sky cell)");
+				break;
+			}
+			s_loggedCellCategory = true;
+			s_lastCellCategory = cellCategory;
+		}
+
         if (currentCell)
         {
 			cullingProcess->CullCellObjects(unkData, currentCell);
@@ -198,6 +269,10 @@ namespace DEM
 
         RE::BSPortalGraphEntry* portalGraphEntry = RE::Main__GetPortalGraphEntry(RE::Main::GetSingleton());
 		
+		// Edge-triggered: this runs every frame, but a missing portal graph would mean degraded
+		// culling every frame it stays missing, so only log the transition in and out of that state.
+		static bool s_portalCullingDegraded = false;
+
         if (portalGraphEntry)
         {
 			RE::BSPortalGraph* portalGraph = portalGraphEntry->portalGraph;
@@ -205,8 +280,24 @@ namespace DEM
             {
 				cullJobDesc.cullingObjects = reinterpret_cast<RE::BSTArray<RE::NiPointer<RE::NiAVObject>>*>(&portalGraph->unk58);
 				cullJobDesc.Cull(1, 0);
+
+				if (s_portalCullingDegraded)
+				{
+					logger::debug("Portal graph culling data available again");
+					s_portalCullingDegraded = false;
+				}
             }
+			else if (!s_portalCullingDegraded)
+			{
+				logger::warn("Portal graph entry has no portal graph; skipping portal-object culling");
+				s_portalCullingDegraded = true;
+			}
         }
+		else if (!s_portalCullingDegraded)
+		{
+			logger::warn("Could not get the portal graph entry; skipping portal-object culling");
+			s_portalCullingDegraded = true;
+		}
 
         if (mainShadowSceneChildren.capacity() > 9)
         {
@@ -216,6 +307,16 @@ namespace DEM
 		else
 		{
 			cullJobDesc.scene = nullptr;
+
+			// One-shot: the shadow scene's child count shouldn't shrink back once the engine has
+			// initialized it, so don't keep re-logging this every frame if it stays missing.
+			static bool s_loggedPortalSharedMissing = false;
+			if (!s_loggedPortalSharedMissing)
+			{
+				logger::warn("Shadow scene has no portal-shared node (children capacity {}); skipping its culling",
+					mainShadowSceneChildren.capacity());
+				s_loggedPortalSharedMissing = true;
+			}
 		}
 		cullJobDesc.Cull(0, 0);
 
@@ -226,7 +327,15 @@ namespace DEM
         }
 		else
 		{
-			cullJobDesc.scene = nullptr; 
+			cullJobDesc.scene = nullptr;
+
+			static bool s_loggedMultiBoundMissing = false;
+			if (!s_loggedMultiBoundMissing)
+			{
+				logger::warn("Shadow scene has no multibound node (children capacity {}); skipping its culling",
+					mainShadowSceneChildren.capacity());
+				s_loggedMultiBoundMissing = true;
+			}
 		}
 		cullJobDesc.Cull(0, 0);
 
@@ -241,6 +350,16 @@ namespace DEM
 		RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
 
 		// 4. Post process step (Add fog of war) ///////////////////////////////////////////////////////////////////////////
+
+		// Runs every frame - only log when the fog-of-war compositing step turns on or off.
+		static bool s_loggedFogCompositeState = false;
+		static bool s_lastFogCompositeEnabled = false;
+		if (!s_loggedFogCompositeState || isFogOfWarEnabled != s_lastFogCompositeEnabled)
+		{
+			logger::debug("Fog of war compositing {}", isFogOfWarEnabled ? "enabled for this frame" : "disabled; skipping compositing step");
+			s_loggedFogCompositeState = true;
+			s_lastFogCompositeEnabled = isFogOfWarEnabled;
+		}
 
 		if (isFogOfWarEnabled)
 		{
@@ -334,6 +453,20 @@ namespace DEM
 							  const RE::TESObjectCELL* a_cell)
 	{
 		RE::CullJobDescriptor& cullJobDesc = a_unkData.ptr->cullJobDesc;
+
+		// Called once per frame while in an exterior worldspace with an attached sky cell - only
+		// log when the grid size or the unk8-gated index-2 pass actually changes, not every call.
+		static bool s_loggedTerrainCullParams = false;
+		static std::uint32_t s_lastGridLength = 0;
+		static bool s_lastTerrainUnk8 = false;
+		if (!s_loggedTerrainCullParams || a_gridCells->length != s_lastGridLength || a_unkData.unk8 != s_lastTerrainUnk8)
+		{
+			logger::debug("Culling terrain across a {0}x{0} grid (index-2 render passes {1})",
+				a_gridCells->length, a_unkData.unk8 ? "included" : "excluded");
+			s_loggedTerrainCullParams = true;
+			s_lastGridLength = a_gridCells->length;
+			s_lastTerrainUnk8 = a_unkData.unk8;
+		}
 
 		for (int gridCellX = 0; gridCellX < a_gridCells->length; gridCellX++)
 		{

@@ -132,10 +132,12 @@ namespace UI
 			if (target == BindTarget::kHide)
 			{
 				settings::controls::hideKeyCode = code;
+				logger::debug("Hide key bound to key code {}", code);
 			}
 			else if (target == BindTarget::kZoom)
 			{
 				settings::controls::zoomToggleKeyCode = code;
+				logger::debug("Zoom toggle key bound to key code {}", code);
 			}
 
 			bindTarget.store(BindTarget::kNone);
@@ -203,6 +205,7 @@ namespace UI
 			if (ImGuiMCP::InputInt(a_label, &keyCode))
 			{
 				*a_keyCode = keyCode < 0 ? 0 : keyCode;
+				logger::debug("{} set to {} (typed)", a_label, *a_keyCode);
 			}
 
 			ImGuiMCP::SameLine();
@@ -212,11 +215,13 @@ namespace UI
 				if (ImGuiMCP::Button("Press a key... (cancel)"))
 				{
 					bindTarget.store(BindTarget::kNone);
+					logger::debug("{} bind cancelled", a_label);
 				}
 			}
 			else if (ImGuiMCP::Button(a_bindButtonId))
 			{
 				bindTarget.store(a_target);
+				logger::debug("{} bind started; waiting for a keypress", a_label);
 			}
 		}
 
@@ -305,7 +310,10 @@ namespace UI
 			}
 			else
 			{
-				ImGuiMCP::Checkbox("Show minimap on game start", &display::showOnGameStart);
+				if (ImGuiMCP::Checkbox("Show minimap on game start", &display::showOnGameStart))
+				{
+					logger::debug("Show on game start set to {}", display::showOnGameStart);
+				}
 				HelpMarker("The minimap has not been built yet, so this only sets what happens once it is.");
 			}
 		}
@@ -333,23 +341,31 @@ namespace UI
 			auto* minimap = DEM::Minimap::GetSingleton();
 			const bool ready = minimap && minimap->IsReady();
 
-			NudgeableSlider("Default zoom", &controls::zoomDefault, 0.0F, 1.0F, "%.3f", 0.01F);
+			if (NudgeableSlider("Default zoom", &controls::zoomDefault, 0.0F, 1.0F, "%.3f", 0.01F))
+			{
+				logger::debug("Default zoom set to {:.3f}", controls::zoomDefault);
+			}
 			if (ready)
 			{
 				ImGuiMCP::SameLine();
 				if (ImGuiMCP::Button("Set to current##default"))
 				{
 					controls::zoomDefault = minimap->GetMapZoom();
+					logger::debug("Default zoom set to current camera zoom {:.3f}", controls::zoomDefault);
 				}
 			}
 
-			NudgeableSlider("Zoomed in", &controls::zoomZoomedIn, 0.0F, 1.0F, "%.3f", 0.01F);
+			if (NudgeableSlider("Zoomed in", &controls::zoomZoomedIn, 0.0F, 1.0F, "%.3f", 0.01F))
+			{
+				logger::debug("Zoomed-in zoom set to {:.3f}", controls::zoomZoomedIn);
+			}
 			if (ready)
 			{
 				ImGuiMCP::SameLine();
 				if (ImGuiMCP::Button("Set to current##zoomedin"))
 				{
 					controls::zoomZoomedIn = minimap->GetMapZoom();
+					logger::debug("Zoomed-in zoom set to current camera zoom {:.3f}", controls::zoomZoomedIn);
 				}
 			}
 			HelpMarker("The zoom toggle key alternates between these two. Zoom the map where you want it, then press \"Set to current\" to store that level rather than typing a number in units the game does not document.");
@@ -369,6 +385,8 @@ namespace UI
 			float live = minimap->GetMapZoom();
 			if (NudgeableSlider("Live zoom", &live, 0.0F, 1.0F, "%.3f", 0.01F))
 			{
+				logger::debug("Live zoom set to {:.3f}", live);
+
 				OnMainThread([live]() {
 					if (auto* target = DEM::Minimap::GetSingleton())
 					{
@@ -395,7 +413,10 @@ namespace UI
 
 			ImGuiMCP::Spacing();
 
-			ImGuiMCP::Checkbox("Rotate with the player", &controls::followPlayerCameraRotation);
+			if (ImGuiMCP::Checkbox("Rotate with the player", &controls::followPlayerCameraRotation))
+			{
+				logger::debug("Rotate with player camera set to {}", controls::followPlayerCameraRotation);
+			}
 			HelpMarker("On: the minimap turns to face where the player is looking. Off: north is always up, like the local map.");
 		}
 
@@ -410,6 +431,7 @@ namespace UI
 			{
 				debug::logLevel = static_cast<logger::level>(logLevel);
 				logger::set_level(debug::logLevel, debug::logLevel);
+				logger::debug("Log level set to {}", kLogLevelNames[logLevel]);
 			}
 			HelpMarker("How much detail the plugin writes to its log. Leave this on Info unless you are chasing a problem.");
 		}
@@ -457,6 +479,8 @@ namespace UI
 				OnMainThread([]() {
 					settings::RestoreDefaults();
 					ApplyLiveSettings();
+
+					logger::debug("Restored default settings");
 				});
 
 				statusMessage = "Defaults restored. Press Save to keep them.";

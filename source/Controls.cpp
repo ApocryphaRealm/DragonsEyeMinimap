@@ -1,6 +1,7 @@
 #include "Minimap.h"
 
 #include "utils/INISettingCollection.h"
+#include "utils/Logger.h"
 
 namespace RE
 {
@@ -20,6 +21,7 @@ namespace DEM
 		{
 			if (registered)
 			{
+				logger::debug("Minimap no longer eligible to process input (menu open or minimap hidden); deregistering input handler");
 				menuControls->RemoveHandler(this);
 			}
 
@@ -55,6 +57,8 @@ namespace DEM
 			if (settings::controls::hideKeyCode > 0 &&
 				a_buttonEvent->GetIDCode() == static_cast<std::uint32_t>(settings::controls::hideKeyCode))
 			{
+				logger::debug("Hide key pressed (code {}) - minimap now {}", a_buttonEvent->GetIDCode(), miniMap->IsShown() ? "hidden" : "shown");
+
 				miniMap->IsShown() ? miniMap->Hide() : miniMap->Show();
 
 				return true;
@@ -63,6 +67,8 @@ namespace DEM
 			if (settings::controls::zoomToggleKeyCode > 0 &&
 				a_buttonEvent->GetIDCode() == static_cast<std::uint32_t>(settings::controls::zoomToggleKeyCode))
 			{
+				logger::debug("Zoom toggle key pressed (code {})", a_buttonEvent->GetIDCode());
+
 				miniMap->ToggleZoomPreset();
 
 				return true;
@@ -74,6 +80,8 @@ namespace DEM
 
 	void Minimap::Show()
 	{
+		logger::debug("Showing minimap; persisting bShowOnGameStart:Display = true");
+
 		settings::display::showOnGameStart = true;
 
 		auto iniSettingCollection = utils::INISettingCollection::GetSingleton();
@@ -82,6 +90,10 @@ namespace DEM
 			showOnGameStart->data.b = settings::display::showOnGameStart;
 			iniSettingCollection->WriteSetting(showOnGameStart);
 		}
+		else
+		{
+			logger::error("Setting \"bShowOnGameStart:Display\" is missing from the collection; show-on-start preference not persisted to the INI");
+		}
 
 		localMap_->inForeground = localMap_->enabled = true;
 		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ true });
@@ -89,6 +101,8 @@ namespace DEM
 
 	void Minimap::Hide()
 	{
+		logger::debug("Hiding minimap; persisting bShowOnGameStart:Display = false");
+
 		settings::display::showOnGameStart = false;
 
 		auto iniSettingCollection = utils::INISettingCollection::GetSingleton();
@@ -96,6 +110,10 @@ namespace DEM
 		{
 			showOnGameStart->data.b = settings::display::showOnGameStart;
 			iniSettingCollection->WriteSetting(showOnGameStart);
+		}
+		else
+		{
+			logger::error("Setting \"bShowOnGameStart:Display\" is missing from the collection; show-on-start preference not persisted to the INI");
 		}
 
 		localMap_->inForeground = localMap_->enabled = false;

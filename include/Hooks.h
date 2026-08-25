@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utils/Logger.h"
 #include "utils/Trampoline.h"
 
 void AcceptHUDMenu(RE::HUDMenu* a_hudMenu, RE::FxDelegateHandler::CallbackProcessor* a_gameDelegate);
@@ -46,8 +47,22 @@ namespace hooks
 
 	static inline void Install()
 	{
+		// One line per hook, including the resolved vtable address, so a hook that silently
+		// fails to take effect on a game version this plugin wasn't built against - no crash,
+		// no error, just nothing working - has something to compare against a known-good log
+		// instead of being a total mystery from a bug report alone.
 		HUDMenu::Accept = HUDMenu::vTable.write_vfunc(1, AcceptHUDMenu);
+		logger::debug("Hook installed: HUDMenu::Accept (vfunc 1) at {:#x}", HUDMenu::vTable.address());
+
 		HUDMenu::AdvanceMovie = HUDMenu::vTable.write_vfunc(5, AdvanceMovieHUDMenu);
+		logger::debug("Hook installed: HUDMenu::AdvanceMovie (vfunc 5) at {:#x}", HUDMenu::vTable.address());
+
 		HUDMenu::PreDisplay = HUDMenu::vTable.write_vfunc(7, PreDisplayHUDMenu);
+		logger::debug("Hook installed: HUDMenu::PreDisplay (vfunc 7) at {:#x}", HUDMenu::vTable.address());
+
+		logger::debug("LocalMapMenu::Ctor resolved to {:#x}", LocalMapMenu::Ctor.address());
+		logger::debug("LocalMapMenu::RefreshMarkers resolved to {:#x}", LocalMapMenu::RefreshMarkers.address());
+		logger::debug("LocalMapMenu::LocalMapCullingProcess::RenderOffScreen resolved to {:#x}",
+			LocalMapMenu::LocalMapCullingProcess::RenderOffScreen.address());
 	}
 }
