@@ -308,7 +308,14 @@ namespace DEM
 		// after the 1.1.8 crash engaged on every single launch and the background stayed fully
 		// opaque no matter where the HUD Opacity slider was. Confirmed against a real
 		// SkyrimPrefs.ini: fHUDOpacity=1.0000 sits in [MAIN].
-		RE::Setting* hudOpacitySetting = RE::INIPrefSettingCollection::GetSingleton()->GetSetting("fHUDOpacity:MAIN");
+		// Resolved lazily on first use rather than in a member initializer - the collections are
+		// not necessarily populated when this object is constructed (CLAUDE.md rule 17). The
+		// section name is not something to guess at: fHUDOpacity has now been looked for as
+		// :Display (1.1.8-1.2.2) and :MAIN (1.2.3-1.2.5), and neither was found on a real system.
+		// GetHUDOpacitySetting() tries the plausible names against both settings collections and,
+		// if none match, logs every setting name containing "HUDOpacity" that the engine actually
+		// has, so the next log answers the question instead of prompting another guess.
+		static RE::Setting* GetHUDOpacitySetting();
 
 		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 189820) }.get();
 		const bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ REL::VariantID{ 501260, 359696, 0x1E70DFC } }.get();
