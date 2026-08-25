@@ -187,6 +187,16 @@ namespace DEM
 		// is, for the same reason the minimap's own position had to stop doing that.
 		void ApplyTitlePosition();
 
+		// Applies the current HUD Opacity slider to whichever of BackgroundArtSquare/
+		// BackgroundArtCircle matches `shape`. That clip is the same DefineShape3 the frame
+		// reskin recolored - background fill and frame outline baked into one shape, so there
+		// is no way to fade only the fill through Scaleform without also fading the outline;
+		// this fades the whole backing+frame together, the same way every other vanilla HUD
+		// element responds to this slider. Safe to call every frame - it is one setting read
+		// (a live reference, not a re-query) and one GFx call, and does nothing if localMap_
+		// is not ready yet.
+		void ApplyBackgroundOpacity();
+
 		void UpdateFogOfWar();
 		void RenderOffScreen();
 		void ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object);
@@ -256,6 +266,11 @@ namespace DEM
 
 		const char* const& clearedStr = RE::GameSettingCollection::GetSingleton()->GetSetting("sCleared")->data.s;
 		const float& localMapHeight = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalHeight:MapMenu")->data.f;
+
+		// SkyrimPrefs.ini's [Display] HUD Opacity slider. This is a reference into the live
+		// engine Setting, the same as the others on this page, so it always reads whatever the
+		// player has it set to right now - no need to re-query it.
+		const float& hudOpacity = RE::INIPrefSettingCollection::GetSingleton()->GetSetting("fHUDOpacity:Display")->data.f;
 
 		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 189820) }.get();
 		const bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ REL::VariantID{ 501260, 359696, 0x1E70DFC } }.get();

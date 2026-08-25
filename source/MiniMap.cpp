@@ -440,6 +440,27 @@ namespace DEM
 		logger::debug("Shape set to {}", shape == Shape::kRound ? "round" : "squared");
 	}
 
+	void Minimap::ApplyBackgroundOpacity()
+	{
+		if (!localMap_)
+		{
+			return;
+		}
+
+		const char* artName = shape == Shape::kRound ? "BackgroundArtCircle" : "BackgroundArtSquare";
+
+		RE::GFxValue art;
+		if (!localMap_->root.GetMember(artName, &art) || !art.IsDisplayObject())
+		{
+			return;
+		}
+
+		RE::GFxValue::DisplayInfo displayInfo;
+		art.GetDisplayInfo(&displayInfo);
+		displayInfo.SetAlpha(std::clamp(hudOpacity, 0.0F, 1.0F) * 100.0);
+		art.SetDisplayInfo(displayInfo);
+	}
+
 	void Minimap::SetMapZoom(float a_zoom)
 	{
 		if (!cameraContext || !cameraContext->defaultState)
@@ -512,6 +533,8 @@ namespace DEM
 
 		if (IsVisible() && IsShown())
 		{
+			ApplyBackgroundOpacity();
+
 			RE::GFxValue updateScaleform = displayObj.GetMember("updateScaleform");
 
 			if (updateScaleform.GetBool())
