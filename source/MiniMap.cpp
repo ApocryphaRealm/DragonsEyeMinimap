@@ -64,7 +64,7 @@ namespace DEM
 			localMap_->root.Invoke("InitMap");
 			localMap_->root.Invoke("SetShape", std::array<RE::GFxValue, 1>{ static_cast<std::uint32_t>(shape) });
 
-			if (!localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay) || !localMap_->iconDisplay.IsDisplayObject())
+			if (!localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay) || !localMap_->iconDisplay.IsObject())
 			{
 				logger::debug("InitLocalMap: IconDisplay not reachable yet; Advance will keep retrying (see EnsureIconDisplay)");
 			}
@@ -122,7 +122,15 @@ namespace DEM
 			return false;
 		}
 
-		if (localMap_->iconDisplay.IsDisplayObject())
+		// IsObject(), NOT IsDisplayObject(). IconDisplay is `Map.Display`, declared in the mod's
+		// own ActionScript as a plain AS2 class - `class Map.Display`, with no `extends MovieClip`
+		// - and constructed as `IconDisplay = new Display(this)` in LocalMap.as. It is a plain
+		// object property on the clip, so IsDisplayObject() correctly returns false for it.
+		//
+		// Testing it with IsDisplayObject() is why the minimap never showed a single marker: the
+		// GetMember call succeeded every time and the predicate rejected the result. 1.2.3's
+		// retry loop then faithfully retried a test that could never pass.
+		if (localMap_->iconDisplay.IsObject())
 		{
 			return true;
 		}
@@ -137,7 +145,7 @@ namespace DEM
 			return false;
 		}
 
-		if (!localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay) || !localMap_->iconDisplay.IsDisplayObject())
+		if (!localMap_->root.GetMember("IconDisplay", &localMap_->iconDisplay) || !localMap_->iconDisplay.IsObject())
 		{
 			if (!loggedRetrying)
 			{
