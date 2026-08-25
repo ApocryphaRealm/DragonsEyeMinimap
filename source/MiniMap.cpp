@@ -953,7 +953,13 @@ namespace DEM
 
 				if (!visible || !shown)
 				{
-					logger::warn("Visibility gate CLOSED - the minimap will not be drawn this frame. IsVisible() reads displayObj's own _visible; IsShown() reads localMap_->enabled, which Show() sets on root, a different object.");
+					// Debug, not warn. This described a real fault when it was written in the AE
+					// diagnostic build - the gate was stuck closed and the minimap was never drawn.
+					// Since 1.3.3 it describes normal startup: the gate closes a few times while the
+					// HUD settles and the re-assert reopens it. Left at warn it fires on every single
+					// launch, which trains anyone reading a log - or a log watcher - to ignore the one
+					// severity that should mean something.
+					logger::debug("Visibility gate closed this frame - normal during startup while the HUD settles; the re-assert below reopens it. IsVisible() reads displayObj's own _visible, IsShown() reads localMap_->enabled, which Show() sets on root - a different object.");
 				}
 			}
 		}
