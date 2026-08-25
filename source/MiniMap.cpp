@@ -887,6 +887,32 @@ namespace DEM
 			}
 		}
 
+		// Re-assert our own visibility if something else has cleared it.
+		//
+		// IsShown() is this mod's own intent - set by Show()/Hide() and by bShowOnGameStart. On
+		// Anniversary Edition something outside the mod clears displayObj's _visible after Show()
+		// sets it: on the author's AE setup the minimap is invisible at startup despite being enabled,
+		// appears if toggled off and on again, then disappears again while running. Setting it
+		// once in Show() is therefore not enough - whatever resets it does so repeatedly.
+		//
+		// Scoped deliberately: this only ever forces the clip back to visible when the mod itself
+		// says it should be shown. It never forces it visible when the player has hidden it, so a
+		// deliberate hide still works and stays working.
+		if (IsShown() && !IsVisible())
+		{
+			static int reassertCount = 0;
+			++reassertCount;
+
+			SetDisplayObjectVisible(true);
+
+			// Runs per frame in the failing case, so log the first few and then a milestone every
+			// 600 - enough to show it is still happening without filling the file (rule 14).
+			if (reassertCount <= 3 || reassertCount % 600 == 0)
+			{
+				logger::info("Visibility re-asserted: something cleared displayObj's _visible while the minimap was meant to be shown (occurrence {})", reassertCount);
+			}
+		}
+
 		// ---- AE diagnostic ------------------------------------------------------------------
 		// A reporter on Anniversary Edition 1.6.1170 sees no minimap at all while its settings
 		// menu works normally. Their log showed this block never executing once in a session -
