@@ -1,6 +1,6 @@
 # Port notes — INI-only settings → SKSE Menu Framework
 
-**Version 1.6.9.** This is a fork of
+**Version 1.7.0.** This is a fork of
 [alexsylex/DragonsEyeMinimap](https://github.com/alexsylex/DragonsEyeMinimap) 1.1.0 that adds an in-game settings page driven by
 [SKSE Menu Framework 3](https://github.com/QTR-Modding/SKSE-Menu-Framework-3), so the minimap
 can be configured while the game is running instead of only through `DragonsEyeMinimap.ini`
@@ -244,6 +244,36 @@ function-local `static` instead); hook installation (`hooks::Install()` in `Hook
 each hook's resolved address. The philosophy, confirmed directly by Liam: more diagnostic
 detail in the log is better for troubleshooting a bug report than less - which is exactly
 how the 1.6.9 crash above got root-caused in minutes once a real crash log existed to read.
+
+## 1.7.0: a full null-safety audit, not just the one bug that crashed
+
+Liam extended the 1.6.9 fix into a standing rule (`CLAUDE.md` rule 14): null checks travel
+with the debug-logging pass on every mod in this project, current code included, not just
+the one bug that actually crashed. Dispatched as a parallel sub-agent audit of the whole
+codebase (excluding `include/RE/` and already-fixed `ApplyBackgroundOpacity()`/
+`hudOpacitySetting`). Found and fixed:
+
+- **`include/MiniMap.h`**: two more unchecked bound references sharing the exact pattern the
+  1.6.9 bug used - `clearedStr` (`RE::GameSettingCollection::GetSetting("sCleared")->data.s`)
+  and `localMapHeight` (`RE::INISettingCollection::GetSetting("fMapLocalHeight:MapMenu")->data.f`,
+  currently unused anywhere but hardened pre-emptively). Both now nullable `RE::Setting*`
+  members, checked before every read.
+- **`source/MiniMap.cpp`**: `InitLocalMap()`'s `IconDisplay`/`MarkerData` Scaleform lookups,
+  and the `YouAreHereMarker`/`VisionCone`/`clearedStr` usages in `Advance()`, were all
+  unchecked `GetMember`/`Invoke`/`GetDisplayInfo` calls that could null-deref if those SWF
+  members were ever missing. Added `IsDisplayObject()` guards and fallbacks.
+- **`source/Hooks.cpp`** - the most concrete find: `AcceptHUDMenu`'s `SetLocalMapExtents`
+  callback, `AdvanceMovieHUDMenu`, and `PreDisplayHUDMenu` all dereferenced
+  `DEM::Minimap::GetSingleton()` unconditionally. These hooks install at plugin load, but the
+  `Minimap` singleton is only created later, via the Infinity UI message pipeline - a real
+  ordering race, not a hypothetical one, that could crash on an unlucky load order the same
+  way the 1.6.9 bug did. Fixed with null checks and static-bool-gated warns.
+
+Left deliberately unchecked (reviewed, judged structurally safe): the `utils::INISettingCollection`
+call sites (already covered by the existing `Read<T>`/`AddChecked` layer), `WorldRendering.cpp`'s
+engine render-system singletons (only run mid-frame, well after the engine is fully up), and
+the Scaleform SDK wrapper layer itself (`IUI/GFxObject.h` etc. - out of scope, a different
+layer than this mod's own call sites).
 
 ## Building
 

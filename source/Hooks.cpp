@@ -16,7 +16,17 @@ void AcceptHUDMenu(RE::HUDMenu* a_hudMenu, RE::FxDelegateHandler::CallbackProces
 			logger::debug("SetLocalMapExtents callback: left {}, top {}, right {}, bottom {}",
 						  a_delegateArgs[0].GetNumber(), a_delegateArgs[1].GetNumber(),
 						  a_delegateArgs[2].GetNumber(), a_delegateArgs[3].GetNumber());
-			DEM::Minimap::GetSingleton()->SetLocalMapExtents(a_delegateArgs);
+
+			// This can fire before the Infinity UI patch pipeline has created the minimap
+			// singleton (HUDMenu::Accept runs on the engine's own schedule, not ours).
+			if (auto* miniMap = DEM::Minimap::GetSingleton())
+			{
+				miniMap->SetLocalMapExtents(a_delegateArgs);
+			}
+			else
+			{
+				logger::warn("SetLocalMapExtents callback fired before the minimap singleton exists; ignoring");
+			}
 		});
 }
 
@@ -34,7 +44,22 @@ void AdvanceMovieHUDMenu(RE::HUDMenu* a_hudMenu, float a_interval, std::uint32_t
 	hooks::HUDMenu::AdvanceMovie(a_hudMenu, a_interval, a_currentTime);
 
 	a_hudMenu->menuFlags.set(RE::UI_MENU_FLAGS::kRendersOffscreenTargets);
-	DEM::Minimap::GetSingleton()->Advance();
+
+	// This runs every frame the HUD menu is open, which can start before the Infinity UI
+	// patch pipeline has created the minimap singleton.
+	if (auto* miniMap = DEM::Minimap::GetSingleton())
+	{
+		miniMap->Advance();
+	}
+	else
+	{
+		static bool warnedMissingSingleton = false;
+		if (!warnedMissingSingleton)
+		{
+			logger::warn("AdvanceMovie hook fired before the minimap singleton exists; skipping Advance() until it is ready");
+			warnedMissingSingleton = true;
+		}
+	}
 }
 
 void PreDisplayHUDMenu(RE::HUDMenu* a_hudMenu)
@@ -48,21 +73,35 @@ void PreDisplayHUDMenu(RE::HUDMenu* a_hudMenu)
 		logger::debug("HUDMenu::PreDisplay hook fired for the first time; hook is active (runs every frame, not logged again)");
 	}
 
-	auto miniMap = DEM::Minimap::GetSingleton();
+	auto* miniMap = DEM::Minimap::GetSingleton();
 
-	// Visibility itself changes rarely (user toggle, menu open/close), so logging on
-	// transitions rather than every frame stays useful without spamming.
-	static bool wasVisible = false;
-	bool isVisible = miniMap->IsVisible();
-	if (isVisible != wasVisible)
+	// This runs every frame the HUD menu is open, which can start before the Infinity UI
+	// patch pipeline has created the minimap singleton.
+	if (!miniMap)
 	{
-		logger::debug("Minimap visibility changed: {} -> {}", wasVisible, isVisible);
-		wasVisible = isVisible;
+		static bool warnedMissingSingleton = false;
+		if (!warnedMissingSingleton)
+		{
+			logger::warn("PreDisplay hook fired before the minimap singleton exists; skipping until it is ready");
+			warnedMissingSingleton = true;
+		}
 	}
-
-	if (miniMap->IsVisible())
+	else
 	{
-		DEM::Minimap::GetSingleton()->PreRender();
+		// Visibility itself changes rarely (user toggle, menu open/close), so logging on
+		// transitions rather than every frame stays useful without spamming.
+		static bool wasVisible = false;
+		bool isVisible = miniMap->IsVisible();
+		if (isVisible != wasVisible)
+		{
+			logger::debug("Minimap visibility changed: {} -> {}", wasVisible, isVisible);
+			wasVisible = isVisible;
+		}
+
+		if (isVisible)
+		{
+			miniMap->PreRender();
+		}
 	}
 
 	hooks::HUDMenu::PreDisplay(a_hudMenu);
