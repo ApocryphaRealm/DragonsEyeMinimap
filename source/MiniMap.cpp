@@ -629,11 +629,17 @@ namespace DEM
 		// SkyrimPrefs.ini keeps fHUDOpacity under [MAIN] on this machine, but the engine's own
 		// registered name for it is what GetSetting matches, and that has not proven to be the
 		// same thing. Try what it plausibly is, in both collections.
+		// Confirmed in game 2026-08-25: the engine registers this with no section suffix at all,
+		// as plain "fHUDOpacity", even though SkyrimPrefs.ini files it under [MAIN]. The section
+		// in the file is not part of the name GetSetting matches. Both earlier guesses -
+		// ":Display" (1.1.8-1.2.2) and ":MAIN" (1.2.3-1.2.6) - were therefore wrong, and each
+		// silently fell back to fully opaque. The known-correct name goes first; the rest stay as
+		// fallbacks in case another runtime or a mod registers it differently.
 		constexpr const char* kCandidates[] = {
+			"fHUDOpacity",
 			"fHUDOpacity:MAIN",
 			"fHUDOpacity:Interface",
 			"fHUDOpacity:Display",
-			"fHUDOpacity",
 		};
 
 		for (const char* name : kCandidates)
@@ -849,22 +855,25 @@ namespace DEM
 
 			RE::GFxValue updateScaleform = displayObj.GetMember("updateScaleform");
 
+			// Clearing the flag is the correct thing to do - SetBoolean() on the value GetMember()
+			// returns writes to a local copy and never reaches the ActionScript object, so before
+			// 1.2.8 it was never cleared at all.
+			//
+			// But it must NOT gate the work below. 1.2.8 cleared the flag correctly and moved this
+			// whole block behind it, which dropped it from ~19,000 executions a session to exactly
+			// one - and every marker, the player rotation arrow and the vision cone stopped updating,
+			// because all of that is per-frame work that only ever ran at all thanks to the flag
+			// never being cleared. The accident was load-bearing. Confirmed in game by the author: markers
+			// vanished on 1.2.8 having worked on 1.2.6.
 			if (updateScaleform.GetBool())
 			{
-				// SetBoolean() on the value returned by GetMember() writes to the local copy and
-				// never reaches the ActionScript object - the flag has to be written back through
-				// the owning object. Until this was fixed the flag was never cleared at all: it is
-				// set true once in Minimap.as and stayed true forever, so everything below ran on
-				// every single frame rather than on the rare events it is meant for. the author's log
-				// showed this block executing 18,989 times in one session.
 				displayObj.SetMember("updateScaleform", RE::GFxValue{ false });
+				logger::debug("Advance: updateScaleform flag was set; cleared it");
+			}
 
-				// Now genuinely infrequent - updateScaleform only goes true on the AS side on the
-				// initial frame, or when this clip drops out of HudElements and is re-added. The
-				// logging below is deliberately left ungated so that the log itself proves the
-				// write-back works: if these lines ever appear per-frame again, the flag has
-				// stopped being cleared.
-				logger::debug("Advance: updateScaleform triggered, refreshing title/markers/vision cone");
+			// Per-frame from here: actors move in and out of range, the player turns, the camera
+			// rotates. A bare scope, so the body below keeps its existing indentation.
+			{
 
 				std::array<RE::GFxValue, 2> title;
 
@@ -918,8 +927,25 @@ namespace DEM
 							}
 						}
 
-						logger::debug("Advance: title from location \"{}\", everCleared {}",
-									  title[0].GetString(), static_cast<bool>(location->everCleared));
+						// Per-frame path - log only when the location or its cleared state actually changes,
+						// per CLAUDE.md rule 14. Ungated, this produced 18,989 identical lines in one session.
+						{
+							const std::string currentTitle = title[0].GetString() ? title[0].GetString() : "";
+							const bool currentCleared = static_cast<bool>(location->everCleared);
+
+							static std::string lastTitle;
+							static bool lastCleared = false;
+							static bool everLogged = false;
+
+							if (!everLogged || currentTitle != lastTitle || currentCleared != lastCleared)
+							{
+								everLogged = true;
+								lastTitle = currentTitle;
+								lastCleared = currentCleared;
+
+								logger::debug("Advance: title from location \"{}\", everCleared {}", currentTitle, currentCleared);
+							}
+						}
 					}
 					else
 					{
