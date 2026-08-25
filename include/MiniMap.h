@@ -278,7 +278,24 @@ namespace DEM
 		// some loads rather than every one. This counts down kPendingReapplyFrames after
 		// InitLocalMap(), re-applying once per frame until it reaches zero, so a late-settling
 		// measurement gets caught instead of possibly needing a settings change to self-correct.
-		static constexpr int kPendingReapplyFrames = 6;
+		// A safety cap, NOT a target. The old value of 6 was a guess at how many re-applies the
+		// artwork would need to stop resizing, and it was sometimes one short: each re-apply moves
+		// the map about 9.3 units, so running out of budget early left the minimap that far off
+		// position with its frame past the screen edge. Confirmed by comparing two logs that
+		// followed the same trajectory - 1.2.7 reached _x 482.29 in six, 1.2.8 needed a seventh
+		// and stopped at 491.51. Settling is now decided by the position actually going still
+		// (see kRequiredStableFrames); this only bounds how long that may take.
+		static constexpr int kPendingReapplyFrames = 300;
+
+		// How many consecutive re-applies must produce no movement before it counts as settled.
+		// More than one, because the artwork can pause resizing for a frame and then continue.
+		static constexpr int kRequiredStableFrames = 3;
+
+		// Where the last ApplyDisplaySettings() left the clip, so Advance() can tell whether a
+		// re-apply actually moved anything.
+		float lastAppliedX = 0.0F;
+		float lastAppliedY = 0.0F;
+		int   displayStableFrames = 0;
 		int pendingReapplyFrames = 0;
 
 		// Vanilla's "Cleared" location-name suffix (sCleared). Kept as a nullable pointer

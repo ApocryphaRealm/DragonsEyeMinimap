@@ -494,6 +494,11 @@ namespace DEM
 			logger::debug("ApplyDisplaySettings: settled after {} pass(es)", pass + 1);
 		}
 
+		// Remember where this left the clip so Advance() can detect the artwork having stopped
+		// changing size between calls, which is a different question from converging within one.
+		lastAppliedX = static_cast<float>(displayObj.GetMember("_x").GetNumber());
+		lastAppliedY = static_cast<float>(displayObj.GetMember("_y").GetNumber());
+
 		ApplyTitlePosition();
 	}
 
@@ -838,15 +843,48 @@ namespace DEM
 
 	void Minimap::Advance()
 	{
+		// Re-apply until the position stops moving, rather than for a fixed number of frames.
+		//
+		// The artwork keeps resizing for the first few seconds after a load - the map texture
+		// arrives, InitMap re-derives the extents - and each re-apply aligns whatever it measures
+		// at that moment, moving the clip roughly 9.3 units. How many re-applies that takes is not
+		// fixed, so the old countdown of 6 was a guess that was sometimes one short, leaving the
+		// minimap ~9 units off with its frame past the screen edge. ApplyDisplaySettings()
+		// converges within a single call; this converges across calls, which is the other half of
+		// the same problem and the half 1.2.5 did not fix.
 		if (pendingReapplyFrames > 0)
 		{
 			--pendingReapplyFrames;
 
-			// Bounded to kPendingReapplyFrames calls right after InitLocalMap(), not a
-			// per-frame steady-state cost, so logging every countdown step is safe.
-			logger::debug("Advance: pending display reapply, {} frame(s) left", pendingReapplyFrames);
+			const float beforeX = lastAppliedX;
+			const float beforeY = lastAppliedY;
 
 			ApplyDisplaySettings();
+
+			constexpr float kStillPixels = 0.5F;
+
+			if (std::abs(lastAppliedX - beforeX) < kStillPixels && std::abs(lastAppliedY - beforeY) < kStillPixels)
+			{
+				++displayStableFrames;
+
+				if (displayStableFrames >= kRequiredStableFrames)
+				{
+					logger::info("Display settled at _x {}, _y {} after {} re-applies", lastAppliedX, lastAppliedY,
+								 kPendingReapplyFrames - pendingReapplyFrames);
+					pendingReapplyFrames = 0;
+				}
+			}
+			else
+			{
+				// Still moving - restart the run of quiet frames.
+				displayStableFrames = 0;
+			}
+
+			if (pendingReapplyFrames == 0 && displayStableFrames < kRequiredStableFrames)
+			{
+				logger::warn("Display never settled within {} re-applies; left at _x {}, _y {}",
+							 kPendingReapplyFrames, lastAppliedX, lastAppliedY);
+			}
 		}
 
 		if (IsVisible() && IsShown())
