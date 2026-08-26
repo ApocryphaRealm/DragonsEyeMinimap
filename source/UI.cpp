@@ -19,12 +19,6 @@ namespace UI
 		// The slider the arrow keys currently drive. Set by clicking one.
 		std::string selectedSlider;
 
-		// Mirrors !selectedSlider.empty(), but readable from OnInputEvent below, which the
-		// framework runs on its own input thread - selectedSlider itself is a plain
-		// std::string with no such guarantee, so this is the thread-safe version of the same
-		// fact. Written by NudgeableSlider on the render thread whenever it selects a slider.
-		std::atomic<bool> sliderSelected{ false };
-
 		// Which key, if any, the next keypress should be bound to. kNone means the Bind
 		// buttons are idle; OnInputEvent clears it back to kNone as soon as it captures one.
 		enum class BindTarget
@@ -161,22 +155,11 @@ namespace UI
 				return true;
 			}
 
-			// A NudgeableSlider is currently selected and this is one of the same four arrow
-			// keys it is about to nudge with - swallow it here too, so it does not also reach
-			// whatever else on-screen treats an arrow key as gamepad-equivalent menu
-			// navigation. This only touches the RE::InputEvent the game itself sees; ImGui
-			// reads its own key state through the framework's separate hook, so
-			// NudgeableSlider's own nudge still happens exactly as before regardless of what
-			// this returns.
-			if (sliderSelected.load() &&
-				(code == RE::BSKeyboardDevice::Keys::kLeft || code == RE::BSKeyboardDevice::Keys::kRight ||
-					code == RE::BSKeyboardDevice::Keys::kUp || code == RE::BSKeyboardDevice::Keys::kDown))
-			{
-				logger::trace("OnInputEvent: swallowing arrow key {} - a slider is selected", code);
-
-				return true;
-			}
-
+			// Deliberately not swallowing arrow keys for NudgeableSlider here - by request,
+			// this mod does not try to claim exclusive input away from gamepad-equivalent menu
+			// navigation elsewhere on screen. NudgeableSlider's own nudge is independent of
+			// this callback either way (it reads ImGui's own key state through the framework's
+			// separate hook), so it is unaffected by removing this.
 			return false;
 		}
 
@@ -192,7 +175,6 @@ namespace UI
 			if (ImGuiMCP::IsItemClicked() || ImGuiMCP::IsItemActive())
 			{
 				selectedSlider = a_label;
-				sliderSelected.store(true);
 			}
 
 			if (selectedSlider == a_label)
@@ -549,8 +531,7 @@ namespace UI
 			return;
 		}
 
-		// Used by the "Bind" buttons, and to keep an arrow key nudging a selected slider from
-		// also reaching the game's own gamepad-equivalent menu navigation underneath.
+		// Only needed for the "Bind" buttons; without it both keys can still be typed in.
 		if (GetMenuFrameworkFunction<void*>("RegisterInpoutEvent"))
 		{
 			inputHook = SKSEMenuFramework::AddInputEvent(OnInputEvent);
@@ -558,8 +539,7 @@ namespace UI
 		else
 		{
 			logger::info("SKSE Menu Framework does not export \"RegisterInpoutEvent\"; "
-						 "both keys can still be set by typing their scan codes, but an arrow "
-						 "key nudging a slider may also move menu navigation underneath");
+						 "both keys can still be set by typing their scan codes");
 		}
 
 		SKSEMenuFramework::SetSection("Dragon's Eye Minimap");
