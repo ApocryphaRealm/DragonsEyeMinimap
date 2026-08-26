@@ -139,13 +139,15 @@ namespace DEM
 			logger::debug("InitLocalMap: scaleform wired up, queued {} reapply frame(s), showOnGameStart {}",
 						  pendingReapplyFrames, settings::display::showOnGameStart);
 
+			// Applying the stored value at startup - writing it straight back would be a
+			// pointless disk write of a value that came from that same file.
 			if (settings::display::showOnGameStart)
 			{
-				Show();
+				Show(false);
 			}
 			else
 			{
-				Hide();
+				Hide(false);
 			}
 		}
 		else

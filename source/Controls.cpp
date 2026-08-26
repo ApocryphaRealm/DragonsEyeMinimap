@@ -69,7 +69,8 @@ namespace DEM
 			{
 				logger::debug("Hide key pressed (code {}) - minimap now {}", a_buttonEvent->GetIDCode(), miniMap->IsShown() ? "hidden" : "shown");
 
-				miniMap->IsShown() ? miniMap->Hide() : miniMap->Show();
+				// Runtime toggle: change what is drawn, leave bShowOnGameStart alone.
+				miniMap->IsShown() ? miniMap->Hide(false) : miniMap->Show(false);
 
 				return true;
 			}
@@ -206,9 +207,9 @@ namespace DEM
 		logger::debug("SetDisplayObjectVisible: displayObj _visible set to {}", a_visible);
 	}
 
-	void Minimap::Show()
+	void Minimap::Show(bool a_persist)
 	{
-		logger::debug("Showing minimap; persisting bShowOnGameStart:Display = true");
+		logger::debug("Showing minimap (persist={})", a_persist);
 
 		settings::display::showOnGameStart = true;
 
@@ -227,7 +228,12 @@ namespace DEM
 			logger::warn("Setting \"bShowOnGameStart:Display\" is missing from the collection; the in-memory copy was not updated");
 		}
 
-		settings::SaveShowOnGameStart();
+		// Only a deliberate settings-page choice reaches the INI. A runtime toggle changes what
+		// is on screen and nothing more.
+		if (a_persist)
+		{
+			settings::SaveShowOnGameStart();
+		}
 
 		localMap_->inForeground = localMap_->enabled = true;
 		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ true });
@@ -245,9 +251,9 @@ namespace DEM
 		SetDisplayObjectVisible(true);
 	}
 
-	void Minimap::Hide()
+	void Minimap::Hide(bool a_persist)
 	{
-		logger::debug("Hiding minimap; persisting bShowOnGameStart:Display = false");
+		logger::debug("Hiding minimap (persist={})", a_persist);
 
 		settings::display::showOnGameStart = false;
 
@@ -266,7 +272,12 @@ namespace DEM
 			logger::warn("Setting \"bShowOnGameStart:Display\" is missing from the collection; the in-memory copy was not updated");
 		}
 
-		settings::SaveShowOnGameStart();
+		// Only a deliberate settings-page choice reaches the INI. A runtime toggle changes what
+		// is on screen and nothing more.
+		if (a_persist)
+		{
+			settings::SaveShowOnGameStart();
+		}
 
 		localMap_->inForeground = localMap_->enabled = false;
 		localMap_->root.Invoke("Show", std::array<RE::GFxValue, 1>{ false });

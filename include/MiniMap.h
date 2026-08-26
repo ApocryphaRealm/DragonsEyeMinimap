@@ -127,8 +127,14 @@ namespace DEM
 		// every per-frame update in Advance() - reads displayObj, so both have to be kept in step.
 		void SetDisplayObjectVisible(bool a_visible);
 
-		void Show();
-		void Hide();
+		// a_persist writes bShowOnGameStart to the INI. TRUE for a deliberate settings-page
+		// choice; FALSE for a runtime show/hide, which is transient state and should not decide
+		// what happens on the next game start. Every toggle used to persist, so quitting on an
+		// odd-numbered keypress left the minimap hidden on disk - and the player never chose
+		// that, they just pressed the key an odd number of times (CLAUDE.md rule 16 case,
+		// 2026-08-26).
+		void Show(bool a_persist = true);
+		void Hide(bool a_persist = true);
 
 		// The largest fScale that still keeps the minimap within a quarter of the screen, i.e.
 		// within one screen quadrant. Returns the plain slider maximum until the clip has been

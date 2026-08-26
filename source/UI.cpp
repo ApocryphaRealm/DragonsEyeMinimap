@@ -9,6 +9,8 @@
 #include "utils/Toggle.h"
 
 #include <algorithm>
+#include <chrono>
+#include <vector>
 
 namespace UI
 {
@@ -109,6 +111,161 @@ namespace UI
 			return true;
 		}
 
+		// Heartbeat proving the settings panel is actually on screen.
+		//
+		// The framework offers no "menu closed" callback, but Render() only runs while the menu
+		// is open, so a recent draw IS the open signal. Written on the render thread, read on the
+		// input thread, hence atomic. Milliseconds since an arbitrary epoch; only differences are
+		// ever used.
+		std::atomic<std::int64_t> panelLastDrawnMs{ 0 };
+
+		std::int64_t NowMs()
+		{
+			return std::chrono::duration_cast<std::chrono::milliseconds>(
+					   std::chrono::steady_clock::now().time_since_epoch())
+				.count();
+		}
+
+		void MarkPanelDrawn() { panelLastDrawnMs.store(NowMs(), std::memory_order_relaxed); }
+
+		// 500 ms is generously longer than any frame the game will draw while a menu is open, and
+		// far shorter than a human can close a menu and press an unrelated key.
+		bool PanelIsOpen()
+		{
+			const std::int64_t last = panelLastDrawnMs.load(std::memory_order_relaxed);
+			return last != 0 && (NowMs() - last) < 500;
+		}
+
+		// DirectInput scan codes - the same table GetIDCode() reports and Controls.cpp compares
+		// against. Confirmed live 2026-08-26: Escape reported 1, Tab 15, F1 59, K 37, L 38.
+		constexpr std::int32_t kScanEscape = 0x01;
+		constexpr std::int32_t kScanTab = 0x0F;
+		constexpr std::int32_t kScanEnter = 0x1C;
+		constexpr std::int32_t kScanSpace = 0x39;
+		constexpr std::int32_t kScanUp = 0xC8;
+		constexpr std::int32_t kScanLeft = 0xCB;
+		constexpr std::int32_t kScanRight = 0xCD;
+		constexpr std::int32_t kScanDown = 0xD0;
+
+		// Is the framework currently running ImGui's own keyboard navigation?
+		//
+		// Asked at runtime rather than assumed, because it decides how many keys are off limits
+		// and stock SMF has been observed both ways. There is no "which key is nav" export to
+		// query - the whole cimgui surface is exported but nothing reports a nav binding - so the
+		// closest honest answer is to read the config flag ImGui itself acts on. Returns false if
+		// the export is missing or IO is null, which errs toward allowing a bind rather than
+		// blocking one on a guess.
+		bool ImGuiKeyboardNavEnabled()
+		{
+			auto* io = ImGuiMCP::GetIO();
+
+			if (!io)
+			{
+				logger::trace("ImGuiKeyboardNavEnabled: GetIO() returned null; assuming nav off");
+				return false;
+			}
+
+			return (io->ConfigFlags & ImGuiMCP::ImGuiConfigFlags_NavEnableKeyboard) != 0;
+		}
+
+		// FORWARD COMPATIBILITY WITH THE SMF/ImGui REMAKE.
+		//
+		// Everything below infers which keys the framework has taken, because stock SMF cannot be
+		// asked: it exports the whole cimgui surface but nothing that reports a nav binding. The
+		// remake is the fix, and this is the contract it should honour so that this mod - and any
+		// other - stops having to infer:
+		//
+		//     extern "C" __declspec(dllexport)
+		//     std::uint32_t SMF_GetReservedKeyCodes(std::int32_t* a_buffer, std::uint32_t a_capacity);
+		//
+		// Fills a_buffer with the DirectInput scan codes the framework currently consumes (nav,
+		// activate, back - whatever its Controls page has them set to) and returns how many it
+		// wrote; called with a null buffer it returns the count required. DirectInput scan codes
+		// specifically, because that is what RE::ButtonEvent::GetIDCode() reports and therefore
+		// what a keybind is stored as - returning ImGuiKey values would make every caller repeat
+		// a mapping the framework is far better placed to do once.
+		//
+		// Once that export exists this returns its answer and the inference below never runs, so
+		// a player who rebinds nav on the remake's Controls page immediately gets the right keys
+		// refused here, with no change to this mod at all.
+		bool FrameworkReportsReservedKeys(std::vector<std::int32_t>& a_out)
+		{
+			using func_t = std::uint32_t (*)(std::int32_t*, std::uint32_t);
+			static const auto func = GetMenuFrameworkFunction<func_t>("SMF_GetReservedKeyCodes");
+
+			if (!func)
+			{
+				return false;
+			}
+
+			const std::uint32_t needed = func(nullptr, 0);
+
+			if (needed == 0)
+			{
+				a_out.clear();
+				return true;
+			}
+
+			a_out.resize(needed);
+			const std::uint32_t written = func(a_out.data(), needed);
+			a_out.resize(written < needed ? written : needed);
+
+			return true;
+		}
+
+		// nullptr means the key is fine to bind; anything else is the reason it is not, phrased
+		// for the player rather than for the log.
+		const char* ReservedKeyReason(std::int32_t a_code)
+		{
+			// Preferred path once the remake ships - ask the framework instead of inferring.
+			std::vector<std::int32_t> reported;
+
+			if (FrameworkReportsReservedKeys(reported))
+			{
+				if (std::find(reported.begin(), reported.end(), a_code) != reported.end())
+				{
+					return "the menu framework uses it";
+				}
+
+				return nullptr;
+			}
+
+			// Always off limits regardless of framework configuration: these are the game's own
+			// menu keys, and binding one costs the player that key everywhere.
+			if (a_code == kScanTab)
+			{
+				return "Tab opens the Tween menu";
+			}
+
+			if (a_code == kScanEscape)
+			{
+				return "Escape closes menus";
+			}
+
+			// Conditional: only reserved while the framework actually drives ImGui navigation
+			// from the keyboard. When it does not, these are ordinary keys and there is no reason
+			// to refuse them.
+			if (ImGuiKeyboardNavEnabled())
+			{
+				switch (a_code)
+				{
+				case kScanUp:
+				case kScanDown:
+				case kScanLeft:
+				case kScanRight:
+					return "arrow keys drive menu navigation";
+				case kScanEnter:
+					return "Enter activates the focused control";
+				case kScanSpace:
+					return "Space activates the focused control";
+				default:
+					break;
+				}
+			}
+
+			return nullptr;
+		}
+
 		// Runs on the framework's input thread. Only ever writes the scan code and clears the
 		// target, so there is nothing here that needs the main thread.
 		bool __stdcall OnInputEvent(RE::InputEvent* a_event)
@@ -138,6 +295,45 @@ namespace UI
 
 			if (target != BindTarget::kNone)
 			{
+				// A stale arm must never eat a gameplay keypress. The panel only draws while the
+				// menu is open, so if it has not drawn recently the menu is closed and this arm is
+				// left over - drop it and let the key through untouched.
+				if (!PanelIsOpen())
+				{
+					logger::debug("Bind still armed with the settings panel closed; disarming and "
+								  "letting key code {} through", code);
+					bindTarget.store(BindTarget::kNone);
+					return false;
+				}
+
+				// Refuse keys the menu itself needs. Binding one used to succeed silently and cost
+				// the player that key: Tab was captured, stored as the hide key, and then toggled
+				// the minimap every time the Tween menu opened (2026-08-26 report). Leave the bind
+				// ARMED so a different key can just be pressed, and do NOT swallow - the key still
+				// has to do its normal job.
+				if (const char* reason = ReservedKeyReason(code))
+				{
+					logger::info("Refusing to bind key code {} - {}", code, reason);
+					statusMessage = std::string{ "That key is reserved (" } + reason +
+									"). Press a different key.";
+					return false;
+				}
+
+				// Refuse a key the other binding already owns. Nothing checked this before, so
+				// binding hide to L while zoom was already L was accepted without a word.
+				const std::int32_t otherCode = (target == BindTarget::kHide)
+												   ? settings::controls::zoomToggleKeyCode
+												   : settings::controls::hideKeyCode;
+				const char* otherName = (target == BindTarget::kHide) ? "zoom toggle" : "hide";
+
+				if (code != 0 && code == otherCode)
+				{
+					logger::info("Refusing to bind key code {} - already the {} key", code, otherName);
+					statusMessage = std::string{ "That key is already the " } + otherName +
+									" key. Press a different key.";
+					return false;
+				}
+
 				if (target == BindTarget::kHide)
 				{
 					settings::controls::hideKeyCode = code;
@@ -149,6 +345,7 @@ namespace UI
 					logger::debug("Zoom toggle key bound to key code {}", code);
 				}
 
+				statusMessage.clear();
 				bindTarget.store(BindTarget::kNone);
 
 				// Swallow it, so binding a key does not also trigger whatever it is bound to.
@@ -314,8 +511,9 @@ namespace UI
 				bool shown = minimap->IsShown();
 				if (ImGuiMCP::Toggle("Show minimap", &shown))
 				{
-					// Show()/Hide() also persist bShowOnGameStart, exactly as pressing the
-					// hide key in game does, so this doubles as the on-start setting.
+					// This is the deliberate choice, so it persists (default a_persist = true)
+					// and doubles as the on-start setting. The hide KEY deliberately does not -
+					// it only changes what is on screen right now.
 					OnMainThread([shown]() {
 						if (auto* target = DEM::Minimap::GetSingleton())
 						{
@@ -563,6 +761,12 @@ namespace UI
 
 	void __stdcall SettingsPanel::Render()
 	{
+		// Heartbeat for PanelIsOpen(). This function only runs while the framework's menu is
+		// actually on screen, so the fact it ran at all is the signal - it is what lets a bind
+		// left armed when the menu was closed be detected and dropped instead of eating a
+		// keypress during play.
+		MarkPanelDrawn();
+
 		ImGuiMCP::TextWrapped("Changes apply as soon as you make them. Press Save to keep them for the next time you play.");
 		ImGuiMCP::Spacing();
 
