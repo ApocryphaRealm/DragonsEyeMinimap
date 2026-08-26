@@ -133,6 +133,43 @@ namespace DEM
 		return out.empty() ? "<unreadable entries>" : out;
 	}
 
+	void Minimap::ReportModeFlagOwnership() const
+	{
+		// Every mode vanilla HUDMenu can push, so the log shows the whole picture rather than
+		// only the ones this clip was authored with.
+		constexpr const char* kModes[] = {
+			"All", "Favor", "InventoryMode", "TweenMode", "BookMode", "DialogueMode",
+			"BarterMode", "WorldMapMode", "MovementDisabled", "StealthMode", "Swimming",
+			"HorseMode", "WarHorseMode", "CartMode", "SleepWaitMode", "JournalMode",
+			"VATSPlayback"
+		};
+
+		std::string owned;
+		std::string missing;
+
+		for (const char* mode : kModes)
+		{
+			std::string& target = displayObj.HasMember(mode) ? owned : missing;
+
+			if (!target.empty())
+			{
+				target += ", ";
+			}
+
+			target += mode;
+		}
+
+		logger::info("HUD mode flags OWNED by the minimap clip: {}", owned.empty() ? "<none>" : owned);
+		logger::info("HUD mode flags MISSING: {}", missing.empty() ? "<none>" : missing);
+
+		if (!displayObj.HasMember("All"))
+		{
+			logger::warn("The clip does not own an \"All\" property. ShowElements tests "
+						 "hasOwnProperty(mode) and will hide this element every time it runs, even "
+						 "though the mode stack reads \"All\" - which is exactly the observed flicker.");
+		}
+	}
+
 	bool Minimap::HudModeAllowsMinimap() const
 	{
 		RE::GFxValue parent = displayObj.GetMember("_parent");
