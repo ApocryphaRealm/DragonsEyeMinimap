@@ -901,6 +901,26 @@ namespace DEM
 		// So this is bounded to the startup race and nothing else. The moment the gate is observed
 		// open, re-asserting stops permanently and visibility belongs to the game and to whatever
 		// else manages the HUD - which is the behaviour Skyrim SE had all along.
+		//
+		// 1.3.8 adds a DEADLINE, because "until it sticks" is not actually bounded. ImmersiveHUD
+		// writes _visible on the very object IsVisible() reads, and its shipped default
+		// (bStartVisible = 0) holds the minimap hidden until the player presses the toggle key. With
+		// no deadline the gate never opens, so this re-asserted every frame and the two wrote
+		// opposite values indefinitely. That is precisely the bug Minimap.as fixed for itself in
+		// 1.3.2 and the C++ side kept.
+		//
+		// The startup race resolves in two or three frames. If it has not resolved in this many,
+		// something else owns visibility on purpose - and the right answer is to let it.
+		constexpr std::uint32_t kMaxReassertFrames = 600;
+
+		if (!visibilitySettled && visibilityReassertCount >= kMaxReassertFrames)
+		{
+			visibilitySettled = true;
+			logger::info("Visibility never settled after {} re-assertions - something else is managing "
+						 "this element deliberately (ImmersiveHUD and similar HUD managers do). Standing "
+						 "down and leaving visibility to it.", visibilityReassertCount);
+		}
+
 		if (!visibilitySettled)
 		{
 			if (IsVisible() && IsShown())
@@ -917,9 +937,11 @@ namespace DEM
 				{
 					logger::info("Visibility re-asserted during startup (occurrence {})", visibilityReassertCount);
 				}
-				else if (visibilityReassertCount == 600)
+				else if (visibilityReassertCount == kMaxReassertFrames / 2)
 				{
-					logger::warn("Visibility has been re-asserted 600 times without settling; something is clearing it continuously and this is no longer just a startup race");
+					logger::info("Visibility re-asserted {} times without settling; if this reaches {} the "
+								 "mod will stand down and leave visibility alone",
+								 visibilityReassertCount, kMaxReassertFrames);
 				}
 			}
 		}
