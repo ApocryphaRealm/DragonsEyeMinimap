@@ -161,14 +161,16 @@ namespace UI
 				return true;
 			}
 
-			// A NudgeableSlider is currently selected and this is the same left/right arrow
-			// it is about to nudge - swallow it here too, so it does not also reach whatever
-			// else on-screen treats an arrow key as gamepad-equivalent menu navigation. This
-			// only touches the RE::InputEvent the game itself sees; ImGui reads its own key
-			// state through the framework's separate hook, so NudgeableSlider's own nudge
-			// still happens exactly as before regardless of what this returns.
+			// A NudgeableSlider is currently selected and this is one of the same four arrow
+			// keys it is about to nudge with - swallow it here too, so it does not also reach
+			// whatever else on-screen treats an arrow key as gamepad-equivalent menu
+			// navigation. This only touches the RE::InputEvent the game itself sees; ImGui
+			// reads its own key state through the framework's separate hook, so
+			// NudgeableSlider's own nudge still happens exactly as before regardless of what
+			// this returns.
 			if (sliderSelected.load() &&
-				(code == RE::BSKeyboardDevice::Keys::kLeft || code == RE::BSKeyboardDevice::Keys::kRight))
+				(code == RE::BSKeyboardDevice::Keys::kLeft || code == RE::BSKeyboardDevice::Keys::kRight ||
+					code == RE::BSKeyboardDevice::Keys::kUp || code == RE::BSKeyboardDevice::Keys::kDown))
 			{
 				logger::trace("OnInputEvent: swallowing arrow key {} - a slider is selected", code);
 
@@ -197,11 +199,11 @@ namespace UI
 			{
 				float nudge = 0.0F;
 
-				if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_LeftArrow))
+				if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_LeftArrow) || ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_DownArrow))
 				{
 					nudge -= a_step;
 				}
-				if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_RightArrow))
+				if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_RightArrow) || ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_UpArrow))
 				{
 					nudge += a_step;
 				}
