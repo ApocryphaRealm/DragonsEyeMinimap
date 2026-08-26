@@ -90,6 +90,25 @@ void PreDisplayHUDMenu(RE::HUDMenu* a_hudMenu)
 	{
 		// Visibility itself changes rarely (user toggle, menu open/close), so logging on
 		// transitions rather than every frame stays useful without spamming.
+		// One-shot: does the clip actually OWN the HUD mode flags?
+		//
+		// ShowElements hides an element by testing hasOwnProperty(mode) on it. The flags are
+		// declared on the minimap clip's timeline as bare `var All;` and are only ASSIGNED inside
+		// the Minimap() constructor - which nothing in this plugin ever invokes. If a declared but
+		// unassigned timeline var does not create an own property, the test fails every time
+		// ShowElements runs, and the element is hidden while the mode stack innocently reads
+		// "All". That matches every observation so far, including why disabling every other HUD
+		// mod changed nothing.
+		{
+			static bool reportedFlags = false;
+
+			if (!reportedFlags)
+			{
+				reportedFlags = true;
+				miniMap->ReportModeFlagOwnership();
+			}
+		}
+
 		static bool wasVisible = false;
 		bool isVisible = miniMap->IsVisible();
 		if (isVisible != wasVisible)
