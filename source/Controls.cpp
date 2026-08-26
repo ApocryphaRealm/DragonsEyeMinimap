@@ -133,6 +133,44 @@ namespace DEM
 		return out.empty() ? "<unreadable entries>" : out;
 	}
 
+	bool Minimap::HudModeAllowsMinimap() const
+	{
+		RE::GFxValue parent = displayObj.GetMember("_parent");
+
+		if (!parent.IsDisplayObject())
+		{
+			// Cannot tell, so do not force anything.
+			return false;
+		}
+
+		RE::GFxValue modes;
+
+		if (!parent.GetMember("HUDModes", &modes) || !modes.IsArray())
+		{
+			return false;
+		}
+
+		const std::uint32_t count = modes.GetArraySize();
+
+		if (count == 0)
+		{
+			// An empty stack is the HUD's resting state and means everything is drawn.
+			return true;
+		}
+
+		RE::GFxValue top;
+
+		if (!modes.GetElement(count - 1, &top) || !top.IsString())
+		{
+			return false;
+		}
+
+		// Only "All" - the resting mode. Menus (WorldMapMode, JournalMode, TweenMode and the
+		// rest) deliberately hide the HUD, and this must not fight them: that was 1.3.2's bug,
+		// where the minimap sat on top of the world map refusing to go away.
+		return std::string_view(top.GetString()) == "All";
+	}
+
 	void Minimap::SetDisplayObjectVisible(bool a_visible)
 	{
 		if (!displayObj.IsDisplayObject())

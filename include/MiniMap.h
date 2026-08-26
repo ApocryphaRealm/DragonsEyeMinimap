@@ -120,6 +120,12 @@ namespace DEM
 		// flag the clip is missing, instead of guessing at the seventeen possibilities.
 		std::string DescribeHudModes() const;
 
+		// Whether the HUD's current mode permits this element to be drawn - the same question
+		// ShowElements asks, answered from C++ so the render hook can act on it in the same frame.
+		// Empty stack or "All" means yes; any other mode means the HUD is deliberately showing
+		// something else and the minimap must stay out of the way.
+		bool HudModeAllowsMinimap() const;
+
 		// Sets displayObj's own _visible. Show()/Hide() drive root, but IsVisible() - which gates
 		// every per-frame update in Advance() - reads displayObj, so both have to be kept in step.
 		void SetDisplayObjectVisible(bool a_visible);
