@@ -17,11 +17,21 @@ namespace DEM
 {
 	bool Minimap::InputHandler::CanProcess(RE::InputEvent* a_event)
 	{
-		if (RE::UI__IsInMenuMode() || !miniMap->IsVisible())
+		// Menu mode only. Deliberately NOT gated on IsVisible() any more.
+		//
+		// It used to deregister the handler whenever the minimap was not visible, which made the
+		// hide key a one-way switch: it could hide the map, and then - because the handler was
+		// gone the moment it became invisible - it could never show it again. the author hit exactly
+		// that: "whenever I set the keybind to hide, it won't trigger it to show like toggling it
+		// would, but it will turn off the map if I use the keybind."
+		//
+		// A toggle has to work in both states, so the only thing that should suppress it is the
+		// player being in a menu, where the key belongs to the menu.
+		if (RE::UI__IsInMenuMode())
 		{
 			if (registered)
 			{
-				logger::debug("Minimap no longer eligible to process input (menu open or minimap hidden); deregistering input handler");
+				logger::debug("Minimap no longer eligible to process input (menu open); deregistering input handler");
 				menuControls->RemoveHandler(this);
 			}
 

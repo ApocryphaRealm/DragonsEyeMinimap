@@ -301,11 +301,22 @@ namespace DEM
 		float lastAppliedY = 0.0F;
 		int   displayStableFrames = 0;
 
-		// True once the minimap has been successfully visible at least once. After that the mod
-		// stops re-asserting visibility entirely, so the world map, the local map and any other
-		// mod that hides the HUD can do so without being overridden.
+		// How long the visibility gate must stay OPEN before the mod accepts it and stops
+		// re-asserting. Distinct from kRequiredStableFrames above, which is about the artwork's
+		// position going still - these are two different kinds of "settled" and must not share a
+		// constant.
+		//
+		// A single frame was far too eager. A log had the gate open at 20:30:04.672, settled at
+		// .694, and closed again by something else at .926 - 232ms later, long after the mod had
+		// stood down for good. Sixty frames is about a second at 60fps, comfortably past that.
+		static constexpr int kVisibilityStableFrames = 60;
+
+		// True once the minimap has been visible CONTINUOUSLY for kVisibilityStableFrames. After
+		// that the mod stops re-asserting visibility entirely, so the world map, the local map and
+		// any other mod that hides the HUD can do so without being overridden.
 		bool visibilitySettled = false;
 		int  visibilityReassertCount = 0;
+		int  visibilityStableFrames = 0;
 		int pendingReapplyFrames = 0;
 
 		// Vanilla's "Cleared" location-name suffix (sCleared). Kept as a nullable pointer
