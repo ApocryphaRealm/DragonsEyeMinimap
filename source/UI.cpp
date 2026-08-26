@@ -6,6 +6,7 @@
 #include "Settings.h"
 
 #include "utils/Logger.h"
+#include "utils/Toggle.h"
 
 #include <algorithm>
 
@@ -82,7 +83,17 @@ namespace UI
 				"igIndent",
 				"igUnindent",
 				"igPushItemWidth",
-				"igPopItemWidth"
+				"igPopItemWidth",
+				// Toggle() - the on/off switch every boolean setting now renders as
+				// instead of a tick-box (utils/Toggle.h, CLAUDE.md rule 32).
+				"igGetCursorScreenPos",
+				"igGetWindowDrawList",
+				"igGetFrameHeight",
+				"igInvisibleButton",
+				"igPushID_Str",
+				"igPopID",
+				"ImDrawList_AddRectFilled",
+				"ImDrawList_AddCircleFilled"
 			};
 
 			for (const char* name : required)
@@ -295,7 +306,7 @@ namespace UI
 			if (minimap && minimap->IsReady())
 			{
 				bool shown = minimap->IsShown();
-				if (ImGuiMCP::Checkbox("Show minimap", &shown))
+				if (ImGuiMCP::Toggle("Show minimap", &shown))
 				{
 					// Show()/Hide() also persist bShowOnGameStart, exactly as pressing the
 					// hide key in game does, so this doubles as the on-start setting.
@@ -310,7 +321,7 @@ namespace UI
 			}
 			else
 			{
-				if (ImGuiMCP::Checkbox("Show minimap on game start", &display::showOnGameStart))
+				if (ImGuiMCP::Toggle("Show minimap on game start", &display::showOnGameStart))
 				{
 					logger::debug("Show on game start set to {}", display::showOnGameStart);
 				}
@@ -413,7 +424,7 @@ namespace UI
 
 			ImGuiMCP::Spacing();
 
-			if (ImGuiMCP::Checkbox("Rotate with the player", &controls::followPlayerCameraRotation))
+			if (ImGuiMCP::Toggle("Rotate with the player", &controls::followPlayerCameraRotation))
 			{
 				logger::debug("Rotate with player camera set to {}", controls::followPlayerCameraRotation);
 			}
