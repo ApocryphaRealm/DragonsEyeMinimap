@@ -84,11 +84,18 @@ namespace settings
 		// pressed. 0 disables it. This is the only way to hide the minimap - there is no
 		// tap-to-hide on the map-control binding any more. Signed, because the INI name
 		// starts with "i" and the setting type is taken from that prefix.
-		inline std::int32_t hideKeyCode = 0;
+		//
+		// Ships bound to K (0x25). These used to ship at 0, which made both features invisible:
+		// nothing hinted that hide/show or the zoom toggle existed unless the player went looking
+		// in the settings menu. the author asked for every mod to ship with its keys already assigned.
+		//
+		// Note these are DirectInput scan codes, not ASCII or virtual-key codes - K is 0x25 and
+		// L is 0x26. Using the wrong table binds some unrelated key rather than failing visibly.
+		inline std::int32_t hideKeyCode = 0x25;
 
 		// Tapping this key jumps the map zoom between the two presets below, instead of having
-		// to hold the control key and scroll. 0 disables it.
-		inline std::int32_t zoomToggleKeyCode = 0;
+		// to hold the control key and scroll. 0 disables it. Ships bound to L (0x26).
+		inline std::int32_t zoomToggleKeyCode = 0x26;
 
 		// The two zoom levels the toggle key alternates between - not "whichever is further
 		// from where the camera happens to be", which behaves oddly once the player has
