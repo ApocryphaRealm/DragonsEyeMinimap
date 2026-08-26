@@ -923,13 +923,28 @@ namespace DEM
 
 		if (!visibilitySettled)
 		{
+			// Settle only once the gate has held open for a while - not on the first frame it
+			// happens to be true.
+			//
+			// A single observation was far too eager. The log showed the gate open at
+			// 20:30:04.672, settled at .694, and something closed it again at .926 - 232ms later,
+			// by which point this had already stood down permanently. Reverting the ActionScript
+			// to its last known-good copy changed nothing, which ruled the SWF out and left this.
 			if (IsVisible() && IsShown())
 			{
-				visibilitySettled = true;
-				logger::info("Visibility settled after {} re-assertion(s); leaving it to the game from here", visibilityReassertCount);
+				++visibilityStableFrames;
+
+				if (visibilityStableFrames >= kVisibilityStableFrames)
+				{
+					visibilitySettled = true;
+					logger::info("Visibility settled after {} re-assertion(s) and {} stable frames; leaving it to the game from here",
+								 visibilityReassertCount, visibilityStableFrames);
+				}
 			}
 			else if (IsShown() && !IsVisible())
 			{
+				// Closed again - the run of stability is broken, so start counting over.
+				visibilityStableFrames = 0;
 				++visibilityReassertCount;
 				SetDisplayObjectVisible(true);
 
