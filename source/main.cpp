@@ -33,11 +33,6 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	logger::debug("Settings loaded; log level set to {}", static_cast<std::uint32_t>(settings::debug::logLevel));
 	logger::describe_level(std::string(plugin->GetName()) + ".ini");
 
-	// This build is a diagnostic sent to a specific reporter, not a release. It carries the
-	// same version number as 1.3.0, so say so plainly at the top of the log - otherwise a log
-	// from it is indistinguishable from a release log.
-	logger::info("*** AE TEST BUILD - diagnostic only, not a release. Extra visibility logging is enabled. ***");
-
 	if (!SKSE::GetMessagingInterface()->RegisterListener("SKSE", SKSEMessageListener))
 	{
 		logger::error("Could not register the SKSE message listener; plugin load aborted");
