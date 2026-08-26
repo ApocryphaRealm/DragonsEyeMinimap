@@ -61,6 +61,45 @@ namespace DEM
 
 			view->GetVariable(&localMap_->root, (std::string(DEM::Minimap::path) + ".MapClip").c_str());
 
+			// Assign the HUD mode flags on the minimap clip.
+			//
+			// THE ROOT CAUSE of the flicker. HUDMovieBaseInstance.ShowElements decides whether an
+			// element is drawn with hasOwnProperty(mode) - and the clip owned NONE of the seventeen
+			// modes. Not even "All". Measured directly:
+			//
+			//   HUD mode flags OWNED by the minimap clip: <none>
+			//   HUD mode flags MISSING: All, Favor, InventoryMode, ... (all seventeen)
+			//
+			// So ShowElements hid the minimap EVERY time it ran, whatever the mode. That is why the
+			// mode stack read "All" throughout and looked innocent, why disabling ImmersiveHUD,
+			// moreHUD and TrueHUD changed nothing, and why reverting the SWF to its last known-good
+			// copy changed nothing either.
+			//
+			// Minimap.as declares the flags as bare timeline vars and only ASSIGNS them inside its
+			// Minimap() constructor - which nothing ever invokes. A declared-but-unassigned AS2
+			// timeline var does not create an own property, so the declarations alone were worth
+			// nothing to hasOwnProperty.
+			//
+			// Setting them from here rather than in the SWF means it works against any build of the
+			// artwork, including the pristine upstream one, and needs no Flash toolchain.
+			//
+			// Only the gameplay modes. The menu modes are deliberately absent so the HUD can still
+			// hide the minimap for the world map, journal, inventory, dialogue and sleep/wait -
+			// the author confirmed dialogue and sleep/wait should hide it, and Favor should not.
+			{
+				constexpr const char* kGameplayModes[] = {
+					"All", "Favor", "StealthMode", "Swimming", "HorseMode", "WarHorseMode"
+				};
+
+				for (const char* mode : kGameplayModes)
+				{
+					displayObj.SetMember(mode, RE::GFxValue{ true });
+				}
+
+				logger::info("HUD mode flags assigned on the minimap clip: All, Favor, StealthMode, "
+							 "Swimming, HorseMode, WarHorseMode - ShowElements can now keep it visible");
+			}
+
 			localMap_->root.Invoke("InitMap");
 			localMap_->root.Invoke("SetShape", std::array<RE::GFxValue, 1>{ static_cast<std::uint32_t>(shape) });
 
