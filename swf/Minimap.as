@@ -7,6 +7,10 @@
 // waiting are not gameplay, and Liam's call is that the minimap should go away for them. The
 // rest of the seventeen modes are absent for the same reason - they are menus and screens the
 // minimap has no business being drawn over.
+//
+// DialogueMode in particular is absent DELIBERATELY and should stay that way. The minimap
+// disappearing while you talk to someone is the behaviour Liam wants, confirmed in testing -
+// it is not a bug to be fixed by declaring the flag.
 var All:Boolean;
 var StealthMode:Boolean;
 var Swimming:Boolean;
@@ -55,7 +59,21 @@ function SyncVisibilityToHudMode():Void
 		mode = hud.HUDModes[hud.HUDModes.length - 1];
 	}
 
-	this._visible = (mode == "All") || this.hasOwnProperty(mode);
+	// Only ever turn visibility ON. Never off.
+	//
+	// 1.3.6 set _visible from this test in both directions, and that was wrong: the clip
+	// re-registers whenever the HUD drops it, so any mode this clip does not declare turned the
+	// minimap off again a moment after the player turned it on. Liam hit exactly that - invisible
+	// at startup, visible after toggling Show, invisible again after doing anything.
+	//
+	// Hiding is the HUD's job and it already does it through ShowElements. The only thing this
+	// needs to fix is the opposite case: HUDModes starts EMPTY, so a clip that registers before
+	// the first mode is pushed never gets told anything and can sit hidden forever. Turning
+	// visibility on when the current mode permits it fixes that and cannot cause the regression.
+	if ((mode == "All") || this.hasOwnProperty(mode))
+	{
+		this._visible = true;
+	}
 }
 
 function AddToHudElements():Void
