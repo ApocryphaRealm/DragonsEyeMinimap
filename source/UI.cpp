@@ -19,6 +19,12 @@ namespace UI
 		// The slider the arrow keys currently drive. Set by clicking one.
 		std::string selectedSlider;
 
+		// Mirrors !selectedSlider.empty(), but readable from OnInputEvent below, which the
+		// framework runs on its own input thread - selectedSlider itself is a plain
+		// std::string with no such guarantee, so this is the thread-safe version of the same
+		// fact. Written by NudgeableSlider on the render thread whenever it selects a slider.
+		std::atomic<bool> sliderSelected{ false };
+
 		// Which key, if any, the next keypress should be bound to. kNone means the Bind
 		// buttons are idle; OnInputEvent clears it back to kNone as soon as it captures one.
 		enum class BindTarget
@@ -113,12 +119,6 @@ namespace UI
 		// target, so there is nothing here that needs the main thread.
 		bool __stdcall OnInputEvent(RE::InputEvent* a_event)
 		{
-			const BindTarget target = bindTarget.load();
-			if (target == BindTarget::kNone)
-			{
-				return false;
-			}
-
 			auto* buttonEvent = a_event ? a_event->AsButtonEvent() : nullptr;
 
 			// IsPressed() (any nonzero value) rather than IsDown() (only the very first frame
@@ -140,21 +140,42 @@ namespace UI
 
 			const auto code = static_cast<std::int32_t>(buttonEvent->GetIDCode());
 
-			if (target == BindTarget::kHide)
+			const BindTarget target = bindTarget.load();
+
+			if (target != BindTarget::kNone)
 			{
-				settings::controls::hideKeyCode = code;
-				logger::debug("Hide key bound to key code {}", code);
-			}
-			else if (target == BindTarget::kZoom)
-			{
-				settings::controls::zoomToggleKeyCode = code;
-				logger::debug("Zoom toggle key bound to key code {}", code);
+				if (target == BindTarget::kHide)
+				{
+					settings::controls::hideKeyCode = code;
+					logger::debug("Hide key bound to key code {}", code);
+				}
+				else if (target == BindTarget::kZoom)
+				{
+					settings::controls::zoomToggleKeyCode = code;
+					logger::debug("Zoom toggle key bound to key code {}", code);
+				}
+
+				bindTarget.store(BindTarget::kNone);
+
+				// Swallow it, so binding a key does not also trigger whatever it is bound to.
+				return true;
 			}
 
-			bindTarget.store(BindTarget::kNone);
+			// A NudgeableSlider is currently selected and this is the same left/right arrow
+			// it is about to nudge - swallow it here too, so it does not also reach whatever
+			// else on-screen treats an arrow key as gamepad-equivalent menu navigation. This
+			// only touches the RE::InputEvent the game itself sees; ImGui reads its own key
+			// state through the framework's separate hook, so NudgeableSlider's own nudge
+			// still happens exactly as before regardless of what this returns.
+			if (sliderSelected.load() &&
+				(code == RE::BSKeyboardDevice::Keys::kLeft || code == RE::BSKeyboardDevice::Keys::kRight))
+			{
+				logger::trace("OnInputEvent: swallowing arrow key {} - a slider is selected", code);
 
-			// Swallow it, so binding a key does not also trigger whatever it is bound to.
-			return true;
+				return true;
+			}
+
+			return false;
 		}
 
 		// A slider that the arrow keys can also nudge, once it has been clicked. Dragging is
@@ -169,6 +190,7 @@ namespace UI
 			if (ImGuiMCP::IsItemClicked() || ImGuiMCP::IsItemActive())
 			{
 				selectedSlider = a_label;
+				sliderSelected.store(true);
 			}
 
 			if (selectedSlider == a_label)
@@ -525,7 +547,8 @@ namespace UI
 			return;
 		}
 
-		// Only needed for the "Bind" buttons; without it both keys can still be typed in.
+		// Used by the "Bind" buttons, and to keep an arrow key nudging a selected slider from
+		// also reaching the game's own gamepad-equivalent menu navigation underneath.
 		if (GetMenuFrameworkFunction<void*>("RegisterInpoutEvent"))
 		{
 			inputHook = SKSEMenuFramework::AddInputEvent(OnInputEvent);
@@ -533,7 +556,8 @@ namespace UI
 		else
 		{
 			logger::info("SKSE Menu Framework does not export \"RegisterInpoutEvent\"; "
-						 "both keys can still be set by typing their scan codes");
+						 "both keys can still be set by typing their scan codes, but an arrow "
+						 "key nudging a slider may also move menu navigation underneath");
 		}
 
 		SKSEMenuFramework::SetSection("Dragon's Eye Minimap");
