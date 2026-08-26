@@ -94,7 +94,11 @@ void PreDisplayHUDMenu(RE::HUDMenu* a_hudMenu)
 		bool isVisible = miniMap->IsVisible();
 		if (isVisible != wasVisible)
 		{
-			logger::debug("Minimap visibility changed: {} -> {}", wasVisible, isVisible);
+			// Report the mode stack alongside the change. When something hides this element, the
+			// mode on top of the stack is the flag the clip does not declare - this turns a guess
+			// among seventeen modes into a name.
+			logger::info("Minimap visibility changed: {} -> {} | HUD modes: {}",
+						 wasVisible, isVisible, miniMap->DescribeHudModes());
 			wasVisible = isVisible;
 		}
 

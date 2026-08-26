@@ -112,6 +112,14 @@ namespace DEM
 			return localMap_ && localMap_->enabled;
 		}
 
+		// Reports the HUD's current mode stack, for diagnosing who is hiding this element.
+		//
+		// HUDMovieBaseInstance keeps a stack of mode names and hides any element that has no
+		// property matching the mode on top. Something is closing this element's visibility every
+		// 100-200ms during play, and knowing WHICH mode is on the stack at that moment names the
+		// flag the clip is missing, instead of guessing at the seventeen possibilities.
+		std::string DescribeHudModes() const;
+
 		// Sets displayObj's own _visible. Show()/Hide() drive root, but IsVisible() - which gates
 		// every per-frame update in Advance() - reads displayObj, so both have to be kept in step.
 		void SetDisplayObjectVisible(bool a_visible);

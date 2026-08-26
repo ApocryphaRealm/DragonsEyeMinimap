@@ -88,6 +88,51 @@ namespace DEM
 		return false;
 	}
 
+	std::string Minimap::DescribeHudModes() const
+	{
+		// The minimap clip is a child of HUDMovieBaseInstance, so its _parent is the object that
+		// owns the mode stack.
+		RE::GFxValue parent = displayObj.GetMember("_parent");
+
+		if (!parent.IsDisplayObject())
+		{
+			return "<no parent>";
+		}
+
+		RE::GFxValue modes;
+
+		if (!parent.GetMember("HUDModes", &modes) || !modes.IsArray())
+		{
+			return "<no HUDModes>";
+		}
+
+		const std::uint32_t count = modes.GetArraySize();
+
+		if (count == 0)
+		{
+			return "<empty stack, treated as All>";
+		}
+
+		std::string out;
+
+		for (std::uint32_t i = 0; i < count; ++i)
+		{
+			RE::GFxValue entry;
+
+			if (modes.GetElement(i, &entry) && entry.IsString())
+			{
+				if (!out.empty())
+				{
+					out += " -> ";
+				}
+
+				out += entry.GetString();
+			}
+		}
+
+		return out.empty() ? "<unreadable entries>" : out;
+	}
+
 	void Minimap::SetDisplayObjectVisible(bool a_visible)
 	{
 		if (!displayObj.IsDisplayObject())
