@@ -121,29 +121,15 @@ void PreDisplayHUDMenu(RE::HUDMenu* a_hudMenu)
 			wasVisible = isVisible;
 		}
 
-		// Restore visibility in the SAME frame it was lost, before anything is drawn.
+		// The per-frame visibility restore that used to live here is gone as of 1.4.8.
 		//
-		// Something outside this mod clears the clip's _visible about twice a second during play.
-		// It is not the ActionScript (proven by reverting the SWF to its last known-good copy),
-		// not this mod's own code (nothing here writes _visible per frame), not ImmersiveHUD,
-		// moreHUD or TrueHUD (all disabled, 114 transitions against 116 with them on), not the
-		// HUD mode system (the stack reads "All" in 111 of 114 samples), and not the map's
-		// re-initialisation cycle (0 of 57 hides fell within 150ms of one).
+		// It existed because ShowElements hid the minimap on every pass, which 1.4.7 fixed at the
+		// root by assigning the HUD mode flags the clip never owned. With that fixed the restore
+		// had nothing left to correct, and it was costing up to five Scaleform calls per frame -
+		// GetMember("_parent"), IsDisplayObject, GetMember("HUDModes"), GetArraySize, GetElement -
+		// each crossing the C++/ActionScript boundary, every frame the HUD was open.
 		//
-		// The ActionScript sync restores it, but only on the NEXT frame, so one blank frame
-		// reaches the screen every time - which is the flicker. This hook runs every frame BEFORE
-		// rendering, so correcting it here means the blank frame is never drawn at all.
-		//
-		// Gated on the HUD mode, which is what makes this safe where 1.3.2's blind re-assert was
-		// not: in WorldMapMode or any menu mode this does nothing, so the world map still hides
-		// the minimap normally.
-		if (!isVisible && miniMap->IsShown() && miniMap->HudModeAllowsMinimap())
-		{
-			miniMap->SetDisplayObjectVisible(true);
-			isVisible = miniMap->IsVisible();
-		}
-
-		if (isVisible)
+				if (isVisible)
 		{
 			miniMap->PreRender();
 		}

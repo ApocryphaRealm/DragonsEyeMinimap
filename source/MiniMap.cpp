@@ -1009,21 +1009,33 @@ namespace DEM
 		// than guessing. Transition-gated (rule 14): this runs every frame, so it logs only when
 		// the picture actually changes.
 		{
+			// Trimmed in 1.4.8 for frame cost. This ran four Scaleform probes every single frame
+			// just to notice a change: IsVisible(), IsDisplayObject() and GetDisplayInfo() all
+			// cross the C++/ActionScript boundary, and IsVisible() already calls GetDisplayInfo
+			// internally - so two of them were duplicating work the first had just done.
+			//
+			// The cheap pair is enough to detect a transition. The expensive detail that made
+			// this diagnostic worth having - whether displayObj still resolves, whether its
+			// display info can be read - is only gathered WHEN something actually changes, which
+			// is now a couple of dozen times a session rather than sixty times a second.
 			const bool visible = IsVisible();
 			const bool shown = IsShown();
-			const bool haveLocalMap = localMap_ != nullptr;
-			const bool enabled = haveLocalMap && localMap_->enabled;
-			const bool displayIsObject = displayObj.IsDisplayObject();
 
-			RE::GFxValue::DisplayInfo info;
-			const bool gotInfo = displayObj.GetDisplayInfo(&info);
-
-			const auto state = std::make_tuple(visible, shown, haveLocalMap, enabled, displayIsObject, gotInfo);
+			const auto state = std::make_tuple(visible, shown);
 			static std::optional<std::remove_const_t<decltype(state)>> lastLogged;
 
 			if (!lastLogged || *lastLogged != state)
 			{
 				lastLogged = state;
+
+				// Only now, on an actual change, pay for the detail.
+				const bool haveLocalMap = localMap_ != nullptr;
+				const bool enabled = haveLocalMap && localMap_->enabled;
+				const bool displayIsObject = displayObj.IsDisplayObject();
+
+				RE::GFxValue::DisplayInfo info;
+				const bool gotInfo = displayObj.GetDisplayInfo(&info);
+
 				logger::info("Visibility gate: IsVisible={} IsShown={} | localMap_={} enabled={} displayObj.IsDisplayObject={} GetDisplayInfo={}",
 							 visible, shown, haveLocalMap, enabled, displayIsObject, gotInfo);
 

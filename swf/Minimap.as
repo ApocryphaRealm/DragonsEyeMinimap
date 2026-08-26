@@ -86,18 +86,6 @@ function AddToHudElements():Void
 // make sure that "this" is always on that list.
 function onEnterFrame():Void
 {
-	// Every frame, before the registration check - not only when the clip is re-added.
-	//
-	// The HUD can hide this element WITHOUT dropping it from HudElements, in which case the
-	// re-registration path below never runs and nothing notices. Liam saw exactly that: visible
-	// on load, then invisible the moment he moved or looked around, permanently.
-	//
-	// This is safe to run every frame precisely because it is mode-aware and one-directional. In
-	// WorldMapMode or any other mode this clip does not declare, the test fails and it does
-	// nothing - so it cannot reproduce 1.3.2's bug of sitting on top of the world map. It only
-	// restores visibility in modes where the minimap is supposed to be visible anyway.
-	SyncVisibilityToHudMode();
-
 	var hudElements:Array = _level0.HUDMovieBaseInstance.HudElements;
 	var hudElementsLen:Number = hudElements.length;
 	for (var i:Number = 0; i < hudElementsLen; i++)
@@ -109,6 +97,13 @@ function onEnterFrame():Void
 	}
 
 	hudElements.push(this);
+
+	// On re-registration only, not every frame. 1.4.3 called this every frame to fight something
+	// hiding the clip; 1.4.7 removed the reason by assigning the HUD mode flags the clip never
+	// owned, so the per-frame walk of _level0.HUDMovieBaseInstance.HUDModes was pure cost.
+	// Kept here because rejoining HudElements is exactly when a stale visibility state matters,
+	// and it happens rarely.
+	SyncVisibilityToHudMode();
 
 	updateScaleform = true;
 }

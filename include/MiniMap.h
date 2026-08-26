@@ -120,12 +120,6 @@ namespace DEM
 		// flag the clip is missing, instead of guessing at the seventeen possibilities.
 		std::string DescribeHudModes() const;
 
-		// Whether the HUD's current mode permits this element to be drawn - the same question
-		// ShowElements asks, answered from C++ so the render hook can act on it in the same frame.
-		// Empty stack or "All" means yes; any other mode means the HUD is deliberately showing
-		// something else and the minimap must stay out of the way.
-		bool HudModeAllowsMinimap() const;
-
 		// Logs which HUD mode flags the clip actually owns, which is what ShowElements tests.
 		void ReportModeFlagOwnership() const;
 
