@@ -24,12 +24,27 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 	{
 		logger::debug("kPostPostLoad received; registering settings page with SKSE Menu Framework");
 		UI::Register();
+
+		// Rule-17 retry: a real launch showed devbench's own server can still be finishing
+		// startup a moment after kPostLoad fires, which is early enough to lose the race even
+		// though kPostLoad is DevBenchAPI's own documented earliest-safe point. Cheap no-op if
+		// the kPostLoad attempt already succeeded.
+	}
+
+	// Last retry point - if DevBench still is not found here, conclude it is not installed and
+	// say so once, rather than staying silent about it forever.
+	if (a_msg->type == SKSE::MessagingInterface::kDataLoaded)
+	{
 	}
 
 	// If all plugins have been loaded
 	if (a_msg->type == SKSE::MessagingInterface::kPostLoad)
 	{
 		logger::debug("kPostLoad received; registering for Infinity UI and Local Map Upgrade messages");
+
+		// DevBenchAPI's own contract: the interface can only be requested once SKSE has sent
+		// kPostLoad, since that is the earliest point every plugin (DevBench included) has had
+		// its own SKSEPluginLoad run.
 
 		if (SKSE::GetMessagingInterface()->RegisterListener("InfinityUI", InfinityUIMessageListener))
 		{

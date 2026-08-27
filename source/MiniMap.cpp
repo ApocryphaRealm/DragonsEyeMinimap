@@ -1,5 +1,6 @@
 #include "Minimap.h"
 
+
 #include <numbers>
 
 namespace DEM
@@ -139,6 +140,10 @@ namespace DEM
 			logger::debug("InitLocalMap: scaleform wired up, queued {} reapply frame(s), showOnGameStart {}",
 						  pendingReapplyFrames, settings::display::showOnGameStart);
 
+			// Whether the icon display resolved on this first pass decides whether markers work
+			// immediately or only once EnsureIconDisplay() catches up, so record both facts here
+			// rather than inferring one from the other.
+
 			// Applying the stored value at startup - writing it straight back would be a
 			// pointless disk write of a value that came from that same file.
 			if (settings::display::showOnGameStart)
@@ -153,6 +158,9 @@ namespace DEM
 		else
 		{
 			logger::debug("InitLocalMap: allocation of LocalMapMenu failed; minimap will not be functional");
+
+			// The one failure that leaves the minimap dead for the whole session with nothing
+			// else to say why - worth a queryable flag of its own.
 		}
 	}
 
@@ -214,6 +222,8 @@ namespace DEM
 		{
 			logger::info("IconDisplay resolved; minimap markers are available");
 			resolvedOnce = true;
+
+			// Only on the transition, never per frame - this runs from Advance().
 		}
 
 		return true;
@@ -829,12 +839,14 @@ namespace DEM
 		{
 			logger::debug("ToggleZoomPreset: ignored, no camera context yet");
 
+
 			return;
 		}
 
 		if (!cameraContext->defaultState)
 		{
 			logger::debug("ToggleZoomPreset: ignored, camera context has no default state yet");
+
 
 			return;
 		}
@@ -850,6 +862,7 @@ namespace DEM
 
 		logger::info("Zoom toggle: camera reports {}, targeting {} ({})",
 					 cameraContext->defaultState->zoom, target, zoomedIn ? "zoomed in" : "default");
+
 
 		SetMapZoom(target);
 	}
@@ -1022,6 +1035,15 @@ namespace DEM
 			// is now a couple of dozen times a session rather than sixty times a second.
 			const bool visible = IsVisible();
 			const bool shown = IsShown();
+
+			// One cheap snapshot per frame for "dragonseyeminimap.status". Deliberately placed
+			// here so it REUSES the visible/shown pair this block already paid for rather than
+			// probing Scaleform again, and so it runs on every frame regardless of what the work
+			// below decides to skip. GetMapZoom() is two pointer dereferences.
+			//
+			// This is the only way the tool can report live visibility and zoom at all: its
+			// handler runs on devbench's listener thread, where touching Scaleform or the camera
+			// would be a data race.
 
 			const auto state = std::make_tuple(visible, shown);
 			static std::optional<std::remove_const_t<decltype(state)>> lastLogged;

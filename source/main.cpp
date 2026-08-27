@@ -45,6 +45,13 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	hooks::Install();
 	logger::debug("Hooks installed");
 
+	// REMOVED for 1.5.9 crash isolation. This used to call
+	// diagnostics::RecordHooksInstalled(...) with four REL::Relocation .address() values, which
+	// resolved four relocated addresses during SKSEPluginLoad - earlier than anything else this
+	// mod does. Stubbing the function would NOT have removed that behaviour, because arguments
+	// are evaluated regardless of what the body does, so the whole call is gone instead.
+	// See include/Diagnostics.h and the 2026-08-27 crash bug report.
+
 	logger::set_level(logger::level::info, logger::level::info);
 	logger::info("Succesfully loaded!");
 
