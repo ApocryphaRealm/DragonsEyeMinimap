@@ -8,7 +8,7 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 * **failed** - built but crashed or malfunctioned; the number was reclaimed
 * **scratch** - a hypothesis-test build that never held a real number
 
-## 1.5.7 - 2026-08-27 - untested
+## 1.5.7 - 2026-08-27 - working
 
 ### Fixed
 - Settings reload returned compiled defaults instead of the saved values. Save() wrote the INI with plain file I/O, but Reload() read it back through INISettingCollection, which uses the Win32 profile APIs that PrivateProfileRedirector caches - so a reload was served the values from game start. Verified end to end: the file on disk held uAnchor=0 and fOffsetXTopLeft=148 while the reload applied anchor 1 / offset (0,0) / scale 0.5.
