@@ -10,6 +10,10 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cctype>
+#include <filesystem>
+#include <fstream>
+#include <map>
 #include <vector>
 
 namespace UI
@@ -168,6 +172,144 @@ namespace UI
 			return (io->ConfigFlags & ImGuiMCP::ImGuiConfigFlags_NavEnableKeyboard) != 0;
 		}
 
+		// DirectInput scan code for a key NAME as SKSE Menu Framework writes it in its own INI.
+		// Only the names a person would plausibly set as a menu toggle - if it is not here the
+		// caller treats the key as unknown rather than guessing, which errs toward allowing a
+		// bind rather than refusing one for the wrong reason.
+		std::int32_t KeyNameToScanCode(std::string a_name)
+		{
+			for (auto& c : a_name)
+			{
+				c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+			}
+
+			static const std::map<std::string, std::int32_t> table = {
+				{ "ESCAPE", 0x01 }, { "TAB", 0x0F }, { "ENTER", 0x1C }, { "RETURN", 0x1C },
+				{ "SPACE", 0x39 }, { "BACKSPACE", 0x0E },
+				{ "F1", 0x3B }, { "F2", 0x3C }, { "F3", 0x3D }, { "F4", 0x3E },
+				{ "F5", 0x3F }, { "F6", 0x40 }, { "F7", 0x41 }, { "F8", 0x42 },
+				{ "F9", 0x43 }, { "F10", 0x44 }, { "F11", 0x57 }, { "F12", 0x58 },
+				{ "A", 0x1E }, { "B", 0x30 }, { "C", 0x2E }, { "D", 0x20 }, { "E", 0x12 },
+				{ "F", 0x21 }, { "G", 0x22 }, { "H", 0x23 }, { "I", 0x17 }, { "J", 0x24 },
+				{ "K", 0x25 }, { "L", 0x26 }, { "M", 0x32 }, { "N", 0x31 }, { "O", 0x18 },
+				{ "P", 0x19 }, { "Q", 0x10 }, { "R", 0x13 }, { "S", 0x1F }, { "T", 0x14 },
+				{ "U", 0x16 }, { "V", 0x2F }, { "W", 0x11 }, { "X", 0x2D }, { "Y", 0x15 },
+				{ "Z", 0x2C },
+				{ "0", 0x0B }, { "1", 0x02 }, { "2", 0x03 }, { "3", 0x04 }, { "4", 0x05 },
+				{ "5", 0x06 }, { "6", 0x07 }, { "7", 0x08 }, { "8", 0x09 }, { "9", 0x0A },
+				{ "INSERT", 0xD2 }, { "DELETE", 0xD3 }, { "HOME", 0xC7 }, { "END", 0xCF },
+				{ "PAGEUP", 0xC9 }, { "PAGEDOWN", 0xD1 },
+				{ "MINUS", 0x0C }, { "EQUALS", 0x0D }, { "BACKSLASH", 0x2B },
+				{ "LEFTBRACKET", 0x1A }, { "RIGHTBRACKET", 0x1B }, { "TILDE", 0x29 },
+				{ "SEMICOLON", 0x27 }, { "APOSTROPHE", 0x28 }, { "COMMA", 0x33 },
+				{ "PERIOD", 0x34 }, { "SLASH", 0x35 }, { "CAPSLOCK", 0x3A }
+			};
+
+			const auto it = table.find(a_name);
+
+			return it != table.end() ? it->second : 0;
+		}
+
+		// Which key opens the framework's own menu?
+		//
+		// Found by reading SKSE Menu Framework's own INI - `[General] ToggleKey`, default F1 -
+		// rather than hardcoding a guess, so it follows the player if they change it. The path
+		// is resolved the same way this mod resolves its own INI, so under Mod Organizer 2 the
+		// VFS hands back whichever copy actually wins the load order (on the machine this was
+		// found on, an "INIs and Configs" mod overrides the framework's own copy - both said F1,
+		// but only one of them was the file the game reads).
+		//
+		// Cached: read once, on first use, not per keypress.
+		//
+		// Why it matters: binding the hide key to F1 was accepted, and then F1 both opened the
+		// settings menu and toggled the minimap. Found in testing on 2026-08-26.
+		std::int32_t FrameworkToggleKeyCode()
+		{
+			static const std::int32_t cached = []() -> std::int32_t {
+				std::error_code ec;
+				const auto path = std::filesystem::current_path(ec)
+									  .append("Data\\SKSE\\Plugins")
+									  .append("SKSEMenuFramework.ini");
+
+				if (ec)
+				{
+					logger::debug("FrameworkToggleKeyCode: could not resolve the working directory; "
+								  "the framework's toggle key will not be reserved");
+					return 0;
+				}
+
+				std::ifstream file(path);
+
+				if (!file)
+				{
+					logger::debug("FrameworkToggleKeyCode: {} not found; the framework's toggle key "
+								  "will not be reserved", path.string());
+					return 0;
+				}
+
+				std::string line;
+
+				while (std::getline(file, line))
+				{
+					// Strip comments and whitespace before matching, so "; ToggleKey = F2" is not
+					// mistaken for a live setting.
+					const auto comment = line.find_first_of(";#");
+
+					if (comment != std::string::npos)
+					{
+						line.erase(comment);
+					}
+
+					const auto eq = line.find('=');
+
+					if (eq == std::string::npos)
+					{
+						continue;
+					}
+
+					std::string key = line.substr(0, eq);
+					std::string value = line.substr(eq + 1);
+
+					const auto trim = [](std::string& a_s) {
+						const auto b = a_s.find_first_not_of(" \t\r\n");
+						const auto e = a_s.find_last_not_of(" \t\r\n");
+						a_s = (b == std::string::npos) ? std::string{} : a_s.substr(b, e - b + 1);
+					};
+
+					trim(key);
+					trim(value);
+
+					// ToggleKey only - deliberately NOT ToggleKeyGamePad, which names a controller
+					// button ("LB"), not a keyboard scan code, and cannot collide with a keybind.
+					if (_stricmp(key.c_str(), "ToggleKey") != 0)
+					{
+						continue;
+					}
+
+					const std::int32_t code = KeyNameToScanCode(value);
+
+					if (code != 0)
+					{
+						logger::info("Framework menu toggle key is \"{}\" (scan code {}); it will "
+									 "not be offered as a bind", value, code);
+					}
+					else
+					{
+						logger::warn("Framework menu toggle key \"{}\" is not a name this plugin "
+									 "recognises; it cannot be reserved", value);
+					}
+
+					return code;
+				}
+
+				logger::debug("FrameworkToggleKeyCode: no ToggleKey entry in SKSEMenuFramework.ini");
+
+				return 0;
+			}();
+
+			return cached;
+		}
+
 		// FORWARD COMPATIBILITY WITH THE SMF/ImGui REMAKE.
 		//
 		// Everything below infers which keys the framework has taken, because stock SMF cannot be
@@ -240,6 +382,14 @@ namespace UI
 			if (a_code == kScanEscape)
 			{
 				return "Escape closes menus";
+			}
+
+			// The framework's own menu key, read from its INI at runtime rather than assumed.
+			// Binding this used to be accepted, and then the one key both opened the settings
+			// menu and toggled the minimap.
+			if (a_code != 0 && a_code == FrameworkToggleKeyCode())
+			{
+				return "it opens the mod configuration menu";
 			}
 
 			// Conditional: only reserved while the framework actually drives ImGui navigation
@@ -400,6 +550,25 @@ namespace UI
 			return changed;
 		}
 
+		// WHICH TEXT IS DIM AND WHICH IS NOT - the rule for this page, and for every page in this
+		// project (see PLANNED-UPDATES.md, "help/description text is too dark to read").
+		//
+		// ImGuiMCP::TextDisabled renders at ImGuiCol_TextDisabled, about 50% grey. That colour
+		// means "this is unavailable", and against SKSE Menu Framework's dark background it is
+		// close to unreadable. It is correct for MARKERS - the "(?)" below, the "<-->" separator -
+		// which are meant to recede and carry no words anyone has to read.
+		//
+		// It is wrong for PROSE. Anything a reader actually has to read - what a slider does, a
+		// "no key set" state, an instruction telling the player what to do in game - uses
+		// ImGuiMCP::Text (or TextWrapped when it runs long) so it inherits the theme's own text
+		// colour and therefore matches the headings at the top of the page exactly, which is what
+		// was asked for. Using Text rather than a hardcoded colour also keeps it correct if the
+		// framework's theme ever changes, and needs no export this panel is not already probing
+		// for in HasRequiredExports.
+		//
+		// There is NO exception for "footnotes". The INI path at the bottom of the page was
+		// originally left dim on that reasoning and it was the one thing still unreadable in
+		// game. If it carries information, it is readable.
 		void HelpMarker(const char* a_description)
 		{
 			ImGuiMCP::SameLine();
@@ -466,7 +635,7 @@ namespace UI
 			changed |= NudgeableSlider("Offset Y", &display::offsetY[offsetCorner], -600.0F, 600.0F, "%.0f px", 1.0F);
 			HelpMarker("Nudge from the corner, in screen pixels. Positive is always downwards, whichever corner is anchored. Each corner remembers its own pair.");
 
-			ImGuiMCP::TextDisabled("Editing the %s offset.", kAnchorNames[offsetCorner]);
+			ImGuiMCP::Text("Editing the %s offset.", kAnchorNames[offsetCorner]);
 
 			// The upper end is whatever keeps the minimap within a quarter of the screen, so
 			// the slider cannot ask for a size the plugin will refuse to apply.
@@ -478,7 +647,7 @@ namespace UI
 			changed |= NudgeableSlider("Scale", &display::scale, display::kScaleSliderMin, maxScale, "%.2f", 0.01F);
 			HelpMarker("Size of the minimap. 1.00 is the size the artwork was drawn at. The top of the range is capped so the minimap stays within a quarter of the screen.");
 
-			ImGuiMCP::TextDisabled("Largest allowed: %.2f (a quarter of the screen)", maxScale);
+			ImGuiMCP::Text("Largest allowed: %.2f (a quarter of the screen)", maxScale);
 
 			if (changed)
 			{
@@ -548,7 +717,7 @@ namespace UI
 
 			if (controls::zoomToggleKeyCode == 0)
 			{
-				ImGuiMCP::TextDisabled("No zoom key set.");
+				ImGuiMCP::Text("No zoom key set.");
 			}
 
 			ImGuiMCP::Spacing();
@@ -587,8 +756,8 @@ namespace UI
 
 			if (!ready)
 			{
-				ImGuiMCP::TextDisabled("Zoom the map in game and use \"Set to current\" once the minimap is running - "
-									   "the numbers above are in the camera's own units, which are not documented.");
+				ImGuiMCP::TextWrapped("Zoom the map in game and use \"Set to current\" once the minimap is running - "
+									  "the numbers above are in the camera's own units, which are not documented.");
 
 				return;
 			}
@@ -623,7 +792,7 @@ namespace UI
 
 			if (controls::hideKeyCode == 0)
 			{
-				ImGuiMCP::TextDisabled("No hide key set.");
+				ImGuiMCP::Text("No hide key set.");
 			}
 
 			ImGuiMCP::Spacing();
@@ -708,7 +877,11 @@ namespace UI
 			}
 
 			ImGuiMCP::Spacing();
-			ImGuiMCP::TextDisabled("%s", settings::GetIniPath().c_str());
+			// Readable, not dim: a file path is something a person reads and often copies. The
+			// first pass left this dim as a "footnote" and it was the one remaining unreadable
+			// thing on the page. If it carries information, it is readable - only pure ornament
+			// (the "(?)" marker, the "<-->" separator) stays dim.
+			ImGuiMCP::Text("%s", settings::GetIniPath().c_str());
 		}
 	}
 
@@ -718,6 +891,7 @@ namespace UI
 		{
 			logger::info("SKSE Menu Framework is not installed; settings will be read from the INI only");
 
+
 			return;
 		}
 
@@ -725,6 +899,7 @@ namespace UI
 		{
 			logger::warn("The installed SKSE Menu Framework is older than this plugin's settings "
 						 "menu needs. Update it to version 3 or newer to configure the minimap in game.");
+
 
 			return;
 		}
@@ -744,6 +919,18 @@ namespace UI
 		SKSEMenuFramework::AddSectionItem("Settings", SettingsPanel::Render);
 
 		logger::info("Registered the settings page with SKSE Menu Framework");
+
+		// Resolve the reserved-key picture NOW rather than lazily on the first bind attempt, so
+		// "dragonseyeminimap.status" can answer it without the player having had to open the
+		// settings page first. FrameworkToggleKeyCode() caches its one INI read internally, so
+		// this only moves that read earlier - it does not add one.
+		//
+		// This is the field that explains the class of bug where one key does two things: binding
+		// the hide key to the framework's own menu key was accepted, and then F1 both opened the
+		// settings menu and toggled the minimap (found in testing, 2026-08-26).
+		std::vector<std::int32_t> reserved;
+		const bool frameworkReports = FrameworkReportsReservedKeys(reserved);
+
 	}
 
 	void ApplyLiveSettings()

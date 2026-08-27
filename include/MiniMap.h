@@ -123,6 +123,7 @@ namespace DEM
 		// Logs which HUD mode flags the clip actually owns, which is what ShowElements tests.
 		void ReportModeFlagOwnership() const;
 
+
 		// Sets displayObj's own _visible. Show()/Hide() drive root, but IsVisible() - which gates
 		// every per-frame update in Advance() - reads displayObj, so both have to be kept in step.
 		void SetDisplayObjectVisible(bool a_visible);

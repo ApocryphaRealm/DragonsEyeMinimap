@@ -69,6 +69,10 @@ namespace DEM
 			{
 				logger::debug("Hide key pressed (code {}) - minimap now {}", a_buttonEvent->GetIDCode(), miniMap->IsShown() ? "hidden" : "shown");
 
+				// Recorded separately from Show()/Hide() below: the settings page can call those
+				// too, so "the keybind fired" and "the minimap changed" are different facts and a
+				// dead keybind is only visible when they are reported apart.
+
 				// Runtime toggle: change what is drawn, leave bShowOnGameStart alone.
 				miniMap->IsShown() ? miniMap->Hide(false) : miniMap->Show(false);
 
@@ -79,6 +83,7 @@ namespace DEM
 				a_buttonEvent->GetIDCode() == static_cast<std::uint32_t>(settings::controls::zoomToggleKeyCode))
 			{
 				logger::debug("Zoom toggle key pressed (code {})", a_buttonEvent->GetIDCode());
+
 
 				miniMap->ToggleZoomPreset();
 
@@ -211,6 +216,7 @@ namespace DEM
 	{
 		logger::debug("Showing minimap (persist={})", a_persist);
 
+
 		settings::display::showOnGameStart = true;
 
 		// Keep the in-memory collection in step for anything that reads back through it, then
@@ -254,6 +260,7 @@ namespace DEM
 	void Minimap::Hide(bool a_persist)
 	{
 		logger::debug("Hiding minimap (persist={})", a_persist);
+
 
 		settings::display::showOnGameStart = false;
 
