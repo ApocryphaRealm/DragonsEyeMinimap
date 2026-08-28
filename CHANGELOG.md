@@ -8,6 +8,17 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 * **failed** - built but crashed or malfunctioned; the number was reclaimed
 * **scratch** - a hypothesis-test build that never held a real number
 
+## 1.5.12 - 2026-08-28 - untested
+### Fixed
+- The settings menu now registers with Apocrypha Menu Framework (AMF), the parallel framework
+  these mods ship with. It previously resolved the framework only by the stock name
+  "SKSEMenuFramework", which AMF is deliberately NOT named; the VFS alias under that name is
+  refused at load and unloaded by SKSE, so `GetModuleHandleW` returned null and the plugin
+  logged "SKSE Menu Framework does not export AddSectionItem". The vendored consumer header now
+  prefers AMF's real module (ApocryphaMenuFramework), falling back to stock SMF, so both
+  registration and the in-menu drawing calls reach the one live framework instance.
+  (1.5.8-1.5.11 were earlier spent numbers; this ships as 1.5.12.)
+
 ## 1.5.7 - 2026-08-27 - working
 
 ### Fixed

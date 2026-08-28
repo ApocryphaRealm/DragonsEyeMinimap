@@ -6,7 +6,7 @@
 
 project(
 	DragonsEyeMinimap
-	VERSION 1.5.7
+	VERSION 1.5.12
 	LANGUAGES CXX
 )
 
