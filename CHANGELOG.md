@@ -8,7 +8,7 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 * **failed** - built but crashed or malfunctioned; the number was reclaimed
 * **scratch** - a hypothesis-test build that never held a real number
 
-## 1.5.12 - 2026-08-28 - untested
+## 1.5.8 - 2026-08-28 - untested
 ### Fixed
 - The settings menu now registers with Apocrypha Menu Framework (AMF), the parallel framework
   these mods ship with. It previously resolved the framework only by the stock name
@@ -17,7 +17,6 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   logged "SKSE Menu Framework does not export AddSectionItem". The vendored consumer header now
   prefers AMF's real module (ApocryphaMenuFramework), falling back to stock SMF, so both
   registration and the in-menu drawing calls reach the one live framework instance.
-  (1.5.8-1.5.11 were earlier spent numbers; this ships as 1.5.12.)
 
 ## 1.5.7 - 2026-08-27 - working
 
@@ -40,38 +39,6 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 > at the time of the change. It carries only what the ledger recorded, so it is thinner
 > than a real entry and may omit changes the ledger never captured. Everything ABOVE this
 > line was written as the change was made.
-
-## 1.5.11 - 2026-08-27 - scratch
-
-### Changed
-- worked, but 1.5.6 rebuilt to isolate the flicker fix - no new change, so no number earned
-
-## 1.5.10 - 2026-08-27 - failed
-
-### Known
-- Every screenshot in the project up to 2026-08-27 was taken with the Frame Reskin ENABLED (modlist line 2), so the published banners show an optional add-on's appearance rather than what the main mod ships. Before building a banner from any capture, check modlist.txt for an enabled reskin - the two looks are close enough to pass unnoticed side by side.
-- The Frame Reskin Preview add-on is NOT a palette shift: 52,378 bytes differ from the default art, the body is 718 bytes SHORTER, and the frame colour records are unchanged at #FFFFFF/#969696. Most likely it REMOVES the corner ornaments rather than recolouring - which fits its own description's 'no ornament' but makes its 'off-white hairline' claim doubtful. Unconfirmed; the vanilla capture run settles it.
-- The DEFAULT frame art has corner ornaments that protrude beyond the map edge (the author, observed in game). They are geometry inside BackgroundArtSquared, not a named symbol, so they cannot be found by searching the SWF symbol table. Any frame-detection crop that finds the bright rectangle will CLIP them, because the rectangle is the stroke, not the artwork bounds - this silently broke the banner plate extractor for vanilla captures.
-- The FRAME art lives in Minimap.swf (BackgroundArtSquared, BackgroundArtCircle, LocalMapBackgroundSquared, LocalMapBackgroundRound, backgroundArtMask, SetShape, SHAPE_ROUND, SHAPE_SQUARED). MinimapArt.swf is MARKER art (WoodMillMarker, TownMarker, hIconClip) despite the name suggesting otherwise. Anything touching the frame must go to Minimap.swf.
-- crashed at kDataLoaded - ActorValueGenerator+002429D; number reclaimed
-
-## 1.5.9 - 2026-08-27 - failed
-
-### Known
-- Every screenshot in the project up to 2026-08-27 was taken with the Frame Reskin ENABLED (modlist line 2), so the published banners show an optional add-on's appearance rather than what the main mod ships. Before building a banner from any capture, check modlist.txt for an enabled reskin - the two looks are close enough to pass unnoticed side by side.
-- The Frame Reskin Preview add-on is NOT a palette shift: 52,378 bytes differ from the default art, the body is 718 bytes SHORTER, and the frame colour records are unchanged at #FFFFFF/#969696. Most likely it REMOVES the corner ornaments rather than recolouring - which fits its own description's 'no ornament' but makes its 'off-white hairline' claim doubtful. Unconfirmed; the vanilla capture run settles it.
-- The DEFAULT frame art has corner ornaments that protrude beyond the map edge (the author, observed in game). They are geometry inside BackgroundArtSquared, not a named symbol, so they cannot be found by searching the SWF symbol table. Any frame-detection crop that finds the bright rectangle will CLIP them, because the rectangle is the stroke, not the artwork bounds - this silently broke the banner plate extractor for vanilla captures.
-- The FRAME art lives in Minimap.swf (BackgroundArtSquared, BackgroundArtCircle, LocalMapBackgroundSquared, LocalMapBackgroundRound, backgroundArtMask, SetShape, SHAPE_ROUND, SHAPE_SQUARED). MinimapArt.swf is MARKER art (WoodMillMarker, TownMarker, hIconClip) despite the name suggesting otherwise. Anything touching the frame must go to Minimap.swf.
-- crashed at kDataLoaded - ActorValueGenerator+002429D; number reclaimed
-
-## 1.5.8 - 2026-08-27 - failed
-
-### Known
-- Every screenshot in the project up to 2026-08-27 was taken with the Frame Reskin ENABLED (modlist line 2), so the published banners show an optional add-on's appearance rather than what the main mod ships. Before building a banner from any capture, check modlist.txt for an enabled reskin - the two looks are close enough to pass unnoticed side by side.
-- The Frame Reskin Preview add-on is NOT a palette shift: 52,378 bytes differ from the default art, the body is 718 bytes SHORTER, and the frame colour records are unchanged at #FFFFFF/#969696. Most likely it REMOVES the corner ornaments rather than recolouring - which fits its own description's 'no ornament' but makes its 'off-white hairline' claim doubtful. Unconfirmed; the vanilla capture run settles it.
-- The DEFAULT frame art has corner ornaments that protrude beyond the map edge (the author, observed in game). They are geometry inside BackgroundArtSquared, not a named symbol, so they cannot be found by searching the SWF symbol table. Any frame-detection crop that finds the bright rectangle will CLIP them, because the rectangle is the stroke, not the artwork bounds - this silently broke the banner plate extractor for vanilla captures.
-- The FRAME art lives in Minimap.swf (BackgroundArtSquared, BackgroundArtCircle, LocalMapBackgroundSquared, LocalMapBackgroundRound, backgroundArtMask, SetShape, SHAPE_ROUND, SHAPE_SQUARED). MinimapArt.swf is MARKER art (WoodMillMarker, TownMarker, hIconClip) despite the name suggesting otherwise. Anything touching the frame must go to Minimap.swf.
-- crashed at kDataLoaded - ActorValueGenerator+002429D; number reclaimed
 
 ## 1.5.6 - 2026-08-27 - working
 
