@@ -22,6 +22,7 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 ## 1.5.9 - 2026-08-29 - failed
 
 ### Added
+- HOLD-TO-PAN restored on the hide key (the author: "hold to pan and press to hide using the same button"): a tap (shorter than fHoldToPanSecs, default 0.25 s) still toggles hide/show on release; holding the key hands the mouse to the map - move pans, wheel zooms at the game's own local-map speeds - and returns looking/wheel-zoom to the camera on release or when a menu opens. Mirrors the original mod's control scheme from its source (heldDownSecs + ControlMap::ToggleControls), on this port's existing K key.
 - DEM_GetMinimapStageRect C export: the minimap artwork's rect in stage pixels, stage size, anchored corner and shown state, published after every positioning pass - for the Dragon's Eye Pointers add-on (quest pointer + compass ring widget that follows the map's corner).
 
 ## 1.5.8 - 2026-08-28 - untested

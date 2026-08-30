@@ -93,6 +93,11 @@ namespace settings
 		// L is 0x26. Using the wrong table binds some unrelated key rather than failing visibly.
 		inline std::int32_t hideKeyCode = 0x25;
 
+		// Hold the hide key at least this long to PAN instead of toggling (1.5.9, the author: "hold to
+		// pan and press to hide using the same button"). While held: mouse moves the map, the
+		// wheel zooms it, and the camera ignores both. A shorter press still toggles hide/show.
+		inline float holdToPanSecs = 0.25F;
+
 		// Tapping this key jumps the map zoom between the two presets below, instead of having
 		// to hold the control key and scroll. 0 disables it. Ships bound to L (0x26).
 		inline std::int32_t zoomToggleKeyCode = 0x26;

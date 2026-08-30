@@ -62,10 +62,10 @@ namespace DEM
 
 			~InputHandler() final{};  // 00
 
-			// override (RE::MenuEventHandler). ProcessThumbstick/ProcessMouseMove are not
-			// overridden any more - the base class default (return false) is exactly what is
-			// needed now that there is no camera panning to drive from them.
+			// override (RE::MenuEventHandler). ProcessMouseMove is back (1.5.9, the author): holding the
+			// hide key pans the map with the mouse, the original control scheme, on the same key.
 			bool CanProcess(RE::InputEvent* a_event) final;				 // 01
+			bool ProcessMouseMove(RE::MouseMoveEvent* a_event) final;	 // 04
 			bool ProcessButton(RE::ButtonEvent* a_event) final;			 // 05
 
 			bool ProcessKeyboardOrMouseButton(RE::ButtonEvent* a_butonEvent);
@@ -255,6 +255,15 @@ namespace DEM
 						 const RE::TESObjectCELL* a_cell);
 
 		static inline Minimap* singleton = nullptr;
+
+		// Hold-to-pan (1.5.9): true while the hide key is held past the threshold. Looking and
+		// wheel-zoom controls are handed to the map for the duration and given back on release.
+		bool inputControlledMode = false;
+		void EnterInputControlledMode();
+		void LeaveInputControlledMode();
+		// The game's own local-map speeds, so panning feels like the vanilla local map.
+		const float& localMapMousePanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMousePanSpeed:MapMenu")->data.f;
+		const float& localMapMouseZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMouseZoomSpeed:MapMenu")->data.f;
 
 		// members
 		IUI::GFxDisplayObject displayObj;

@@ -3,6 +3,8 @@
 #include "utils/INISettingCollection.h"
 #include "utils/Logger.h"
 
+#include <algorithm>
+
 namespace RE
 {
 	bool UI__IsInMenuMode()
@@ -29,6 +31,7 @@ namespace DEM
 		// player being in a menu, where the key belongs to the menu.
 		if (RE::UI__IsInMenuMode())
 		{
+			if (miniMap->inputControlledMode) { miniMap->LeaveInputControlledMode(); }
 			if (registered)
 			{
 				logger::debug("Minimap no longer eligible to process input (menu open); deregistering input handler");
@@ -45,9 +48,10 @@ namespace DEM
 	{
 		if (RE::ButtonEvent* buttonEvent = a_event->AsButtonEvent())
 		{
-			// Only the keyboard hide/zoom keys are handled here now; there is no gamepad or
-			// mouse behaviour left to route to.
-			if (buttonEvent->GetDevice() == RE::INPUT_DEVICE::kKeyboard)
+			// Keyboard: the hide/zoom keys. Mouse: the wheel, only while the map is being held
+			// (hold-to-pan, 1.5.9) - otherwise the wheel belongs to the camera as usual.
+			if (buttonEvent->GetDevice() == RE::INPUT_DEVICE::kKeyboard ||
+				(buttonEvent->GetDevice() == RE::INPUT_DEVICE::kMouse && miniMap->inputControlledMode))
 			{
 				return ProcessKeyboardOrMouseButton(buttonEvent);
 			}
@@ -62,23 +66,51 @@ namespace DEM
 		// go down. The device check that used to matter here (mouse IDCodes are 0-7 and
 		// overlap the low DirectInput scan codes) is now redundant with ProcessButton only
 		// ever routing keyboard events here, but is harmless to keep implicit.
-		if (a_buttonEvent->IsDown())
+		// Hold-to-pan on the hide key (1.5.9, the author). Mirrors the original mod's scheme: a press
+		// shorter than fHoldToPanSecs toggles hide/show on RELEASE; holding past it hands the
+		// mouse to the map (move = pan, wheel = zoom) until the key is released. The game keeps
+		// sending the button event every frame while it is held, with heldDownSecs climbing.
+		if (settings::controls::hideKeyCode > 0 &&
+			a_buttonEvent->GetIDCode() == static_cast<std::uint32_t>(settings::controls::hideKeyCode) &&
+			a_buttonEvent->GetDevice() == RE::INPUT_DEVICE::kKeyboard)
 		{
-			if (settings::controls::hideKeyCode > 0 &&
-				a_buttonEvent->GetIDCode() == static_cast<std::uint32_t>(settings::controls::hideKeyCode))
+			const bool isPressed = a_buttonEvent->Value() != 0.0F;
+			const bool isReleased = !isPressed;
+			const float held = a_buttonEvent->GetRuntimeData().heldDownSecs;
+			const float threshold = std::max(0.05F, settings::controls::holdToPanSecs);
+
+			if (isReleased && held < threshold)
 			{
-				logger::debug("Hide key pressed (code {}) - minimap now {}", a_buttonEvent->GetIDCode(), miniMap->IsShown() ? "hidden" : "shown");
-
-				// Recorded separately from Show()/Hide() below: the settings page can call those
-				// too, so "the keybind fired" and "the minimap changed" are different facts and a
-				// dead keybind is only visible when they are reported apart.
-
+				logger::debug("Hide key tapped ({}s) - minimap now {}", held, miniMap->IsShown() ? "hidden" : "shown");
 				// Runtime toggle: change what is drawn, leave bShowOnGameStart alone.
 				miniMap->IsShown() ? miniMap->Hide(false) : miniMap->Show(false);
-
-				return true;
 			}
+			else if (isPressed && held >= threshold && miniMap->IsShown())
+			{
+				if (!miniMap->inputControlledMode) { miniMap->EnterInputControlledMode(); }
+			}
+			if (isReleased && miniMap->inputControlledMode)
+			{
+				miniMap->LeaveInputControlledMode();
+			}
+			return true;
+		}
 
+		// Wheel zoom while holding: the map's own zoom channel, at the game's local-map speed.
+		if (miniMap->inputControlledMode && a_buttonEvent->GetDevice() == RE::INPUT_DEVICE::kMouse && a_buttonEvent->IsDown())
+		{
+			auto* controlMap = RE::ControlMap::GetSingleton();
+			auto* userEvents = RE::UserEvents::GetSingleton();
+			if (controlMap && userEvents && miniMap->cameraContext)
+			{
+				const std::string_view name = controlMap->GetUserEventName(a_buttonEvent->GetIDCode(), RE::INPUT_DEVICE::kMouse, RE::ControlMap::InputContextID::kMap);
+				if (name == userEvents->zoomIn) { miniMap->cameraContext->zoomInput += miniMap->localMapMouseZoomSpeed; return true; }
+				if (name == userEvents->zoomOut) { miniMap->cameraContext->zoomInput -= miniMap->localMapMouseZoomSpeed; return true; }
+			}
+		}
+
+		if (a_buttonEvent->IsDown())
+		{
 			if (settings::controls::zoomToggleKeyCode > 0 &&
 				a_buttonEvent->GetIDCode() == static_cast<std::uint32_t>(settings::controls::zoomToggleKeyCode))
 			{
@@ -92,6 +124,41 @@ namespace DEM
 		}
 
 		return false;
+	}
+
+	bool Minimap::InputHandler::ProcessMouseMove(RE::MouseMoveEvent* a_event)
+	{
+		if (!miniMap->inputControlledMode || !a_event || !miniMap->cameraContext || !miniMap->cameraContext->defaultState || !miniMap->cameraContext->cameraRoot)
+		{
+			return false;
+		}
+		const float xOffset = -a_event->mouseInputX * miniMap->localMapMousePanSpeed;
+		const float yOffset = a_event->mouseInputY * miniMap->localMapMousePanSpeed;
+		const RE::NiPoint3 translationOffset = miniMap->cameraContext->cameraRoot->local.rotate * RE::NiPoint3{ 0, yOffset, xOffset };
+		miniMap->cameraContext->defaultState->translation += translationOffset;
+		return true;
+	}
+
+	void Minimap::EnterInputControlledMode()
+	{
+		inputControlledMode = true;
+		if (auto* controlMap = RE::ControlMap::GetSingleton())
+		{
+			controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, false);
+			controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, false);
+		}
+		logger::debug("hold-to-pan: entered (looking + wheel zoom handed to the map)");
+	}
+
+	void Minimap::LeaveInputControlledMode()
+	{
+		inputControlledMode = false;
+		if (auto* controlMap = RE::ControlMap::GetSingleton())
+		{
+			controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, true);
+			controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, true);
+		}
+		logger::debug("hold-to-pan: left (controls returned to the camera)");
 	}
 
 	std::string Minimap::DescribeHudModes() const
