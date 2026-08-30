@@ -489,8 +489,11 @@ namespace DEM
 			r.right = r.left + wStage;
 			r.bottom = r.top + hStage;
 			r.valid = wStage > 0.0F && hStage > 0.0F;
+			// While HIDDEN the artwork measures smaller (103 vs 189 stage px in the 2026-08-30 capture) and
+			// the published rect would shrink the pointer widget's disc to half the map. Keep the last rect
+			// measured while SHOWN once there is one; only a never-shown session publishes a hidden measure.
 			std::scoped_lock lock(stageRectLock);
-			stageRect = r;
+			if (IsShown() || !stageRectFromShown) { stageRect = r; stageRectFromShown = IsShown(); }
 			stageRectCorner = corner;
 			stageRectStageW = stageWidth;
 			stageRectStageH = stageHeight;

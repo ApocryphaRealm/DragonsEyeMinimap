@@ -29,6 +29,9 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 ### Changed
 - Controller hide/pan button is OFF by default and behind a settings-page switch ('Controller: tap to hide, hold to pan'), with the XInput button mask editable beside it (the author: gamepad buttons are used for other things and PC players remap via Steam Input). bGamepadHideButton / iPanHoldGamepadButton in the INI.
 
+### Fixed
+- DEM_GetMinimapStageRect kept the last rect measured while the map was SHOWN - while hidden the artwork measures about half size (103 vs 189 stage px), which had shrunk the pointer add-on's disc to half the map. A never-shown session still publishes the hidden measurement.
+
 ## 1.5.8 - 2026-08-28 - untested
 ### Fixed
 - The settings menu now registers with Apocrypha Menu Framework (AMF), the parallel framework

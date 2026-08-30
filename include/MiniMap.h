@@ -102,6 +102,7 @@ namespace DEM
 		static inline std::mutex stageRectLock;
 		static inline StageRect stageRect;
 		static inline int stageRectCorner = 0;
+		static inline bool stageRectFromShown = false;
 		static inline float stageRectStageW = 0.0F, stageRectStageH = 0.0F;
 
 
