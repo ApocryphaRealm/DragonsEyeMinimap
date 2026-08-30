@@ -797,6 +797,25 @@ namespace UI
 
 			ImGuiMCP::Spacing();
 
+			// Controller (design decision, 2026-08-30): off by default, and the button is the player's choice - every
+			// gamepad button already does something, and Steam Input remaps them anyway.
+			if (ImGuiMCP::Toggle("Controller: tap to hide, hold to pan", &controls::gamepadHideButtonEnabled))
+			{
+				logger::debug("Controller hide/pan button {}", controls::gamepadHideButtonEnabled ? "enabled" : "disabled");
+			}
+			HelpMarker("Off by default. On: tapping the controller button below hides/shows the minimap, holding it pans the map with the RIGHT stick. Pick a button that is free in your layout.");
+			if (controls::gamepadHideButtonEnabled)
+			{
+				int code = controls::panHoldGamepadButton;
+				if (ImGuiMCP::InputInt("Controller button (XInput mask)", &code))
+				{
+					controls::panHoldGamepadButton = std::max(0, code);
+				}
+				HelpMarker("XInput button masks: 128 = R3 (right stick click), 64 = L3, 256 = LB, 512 = RB, 16 = Start, 32 = Back, 4096 A, 8192 B, 16384 X, 32768 Y.");
+			}
+
+			ImGuiMCP::Spacing();
+
 			if (ImGuiMCP::Toggle("Rotate with the player", &controls::followPlayerCameraRotation))
 			{
 				logger::debug("Rotate with player camera set to {}", controls::followPlayerCameraRotation);

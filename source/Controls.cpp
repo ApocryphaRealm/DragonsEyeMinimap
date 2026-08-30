@@ -98,7 +98,7 @@ namespace DEM
 
 		// Controller: the same tap/hold scheme on iPanHoldGamepadButton (default R3). Holding hands
 		// the RIGHT stick to the map (ProcessThumbstick) instead of the camera.
-		if (settings::controls::panHoldGamepadButton > 0 && a_buttonEvent->GetDevice() == RE::INPUT_DEVICE::kGamepad &&
+		if (settings::controls::gamepadHideButtonEnabled && settings::controls::panHoldGamepadButton > 0 && a_buttonEvent->GetDevice() == RE::INPUT_DEVICE::kGamepad &&
 			a_buttonEvent->GetIDCode() == static_cast<std::uint32_t>(settings::controls::panHoldGamepadButton))
 		{
 			const bool isPressed = a_buttonEvent->Value() != 0.0F;
