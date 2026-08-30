@@ -4,7 +4,7 @@
 //
 // Favor was missing, so the minimap disappeared while commanding a follower - that is ordinary
 // gameplay and the map should stay up. SleepWaitMode is deliberately NOT declared: sleeping and
-// waiting are not gameplay, and the author's call is that the minimap should go away for them. The
+// waiting are not gameplay, and design call is that the minimap should go away for them. The
 // rest of the seventeen modes are absent for the same reason - they are menus and screens the
 // minimap has no business being drawn over.
 //
