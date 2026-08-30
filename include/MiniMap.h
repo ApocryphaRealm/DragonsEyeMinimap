@@ -159,6 +159,9 @@ namespace DEM
 		// True once InitLocalMap() has run and the Scaleform side is there to talk to.
 		bool IsReady() const { return localMap_ != nullptr; }
 
+		// The HUD movie that hosts the minimap - CompassRing draws its own clip on its root.
+		RE::GFxMovieView* GetHudMovieView() { return displayObj.GetMovieView(); }
+
 		// Re-applies fPositionX / fPositionY / fScale to the Scaleform clip, and uShape to the
 		// local map. Both must run on the main thread; the settings menu queues them there.
 		void ApplyDisplaySettings();

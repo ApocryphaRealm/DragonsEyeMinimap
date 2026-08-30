@@ -599,6 +599,17 @@ namespace settings
 				zoomDefault = Read<float>(c, "fZoomDefault:Controls", zoomDefault);
 				zoomZoomedIn = Read<float>(c, "fZoomZoomedIn:Controls", zoomZoomedIn);
 				followPlayerCameraRotation = Read<bool>(c, "bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation);
+				compass::compassRing = Read<bool>(c, "bCompassRing:Compass", compass::compassRing);
+				compass::questPointer = Read<bool>(c, "bQuestPointer:Compass", compass::questPointer);
+				compass::metricUnits = Read<bool>(c, "bMetricUnits:Compass", compass::metricUnits);
+				compass::ringGap = Read<float>(c, "fRingGap:Compass", compass::ringGap);
+				compass::ringThickness = Read<float>(c, "fRingThickness:Compass", compass::ringThickness);
+				compass::pointerSize = Read<float>(c, "fPointerSize:Compass", compass::pointerSize);
+				compass::labelSize = Read<float>(c, "fLabelSize:Compass", compass::labelSize);
+				compass::ringColor = Read<std::uint32_t>(c, "uRingColor:Compass", compass::ringColor);
+				compass::northColor = Read<std::uint32_t>(c, "uNorthColor:Compass", compass::northColor);
+				compass::pointerColor = Read<std::uint32_t>(c, "uPointerColor:Compass", compass::pointerColor);
+				compass::discAlpha = Read<std::uint32_t>(c, "uDiscAlpha:Compass", compass::discAlpha);
 
 				logger::debug("Key bindings resolved: hideKey={}, zoomToggleKey={}", hideKeyCode, zoomToggleKeyCode);
 				logger::debug("Zoom presets resolved: default={:.2f}, zoomedIn={:.2f}, followPlayerCameraRotation={}",

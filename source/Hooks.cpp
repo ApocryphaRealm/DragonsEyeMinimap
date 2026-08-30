@@ -1,3 +1,4 @@
+#include "CompassRing.h"
 #include "Hooks.h"
 
 #include "Minimap.h"
@@ -50,6 +51,7 @@ void AdvanceMovieHUDMenu(RE::HUDMenu* a_hudMenu, float a_interval, std::uint32_t
 	if (auto* miniMap = DEM::Minimap::GetSingleton())
 	{
 		miniMap->Advance();
+		DEM::compassring::Update();
 	}
 	else
 	{

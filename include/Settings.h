@@ -120,4 +120,22 @@ namespace settings
 
 		inline bool followPlayerCameraRotation = true;
 	}
+
+	// Built-in compass ring + quest pointer (design decision, 2026-08-30) - INI-only for now
+	// ([Compass]); every piece individually toggleable, and the ring only exists while the
+	// minimap is deliberately hidden, so the defaults can ship ON.
+	namespace compass
+	{
+		inline bool compassRing = true;        // bCompassRing:Compass
+		inline bool questPointer = true;       // bQuestPointer:Compass
+		inline bool metricUnits = false;       // bMetricUnits:Compass - feet by default, like the vanilla compass
+		inline float ringGap = 6.0F;           // fRingGap:Compass - inward of the map frame's inscribed circle
+		inline float ringThickness = 2.0F;     // fRingThickness:Compass
+		inline float pointerSize = 20.0F;      // fPointerSize:Compass
+		inline float labelSize = 18.0F;        // fLabelSize:Compass
+		inline std::uint32_t ringColor = 0xE0E0E0;    // uRingColor:Compass (RGB)
+		inline std::uint32_t northColor = 0xFF3030;   // uNorthColor:Compass
+		inline std::uint32_t pointerColor = 0xFFE040; // uPointerColor:Compass - our gold
+		inline std::uint32_t discAlpha = 90;   // uDiscAlpha:Compass - backing disc opacity 0-100
+	}
 }

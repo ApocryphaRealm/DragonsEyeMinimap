@@ -22,6 +22,14 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 ## 1.5.9 - 2026-08-29 - failed
 
 ### Added
+- COMPASS BUILT IN (design decision, 2026-08-30: "the compass feature should be built in to DEM
+  not AMF"): a compass ring with cardinal letters and a dark backing disc in the minimap's corner
+  while the map is hidden, and the vanilla-style notched quest pointer riding the ring (or the
+  visible map's inscribed circle) with a distance readout (CNO conventions, feet by default) and
+  an above/below mark past +-840 units. Drawn at RUNTIME into an own clip on the HUD root via the
+  ActionScript drawing API (Local Map Upgrade's border technique) - no framework HUD API, no SWF
+  recompile. INI-only settings ([Compass], every piece toggleable); the settings-page section
+  follows. Ported from the parked DragonsEyePointers reference.
 - CONTROLLER: the same tap/hold scheme on iPanHoldGamepadButton (default R3, 0x0080; 0 disables) - tap toggles hide/show, holding hands the RIGHT stick to the map for panning (the author: 'the panning feature should be keyed to the right stick on controller'); the left stick keeps moving the player; looking returns to the camera on release.
 - HOLD-TO-PAN restored on the hide key (the author: "hold to pan and press to hide using the same button"): a tap (shorter than fHoldToPanSecs, default 0.25 s) still toggles hide/show on release; holding the key hands the mouse to the map - move pans, wheel zooms at the game's own local-map speeds - and returns looking/wheel-zoom to the camera on release or when a menu opens. Mirrors the original mod's control scheme from its source (heldDownSecs + ControlMap::ToggleControls), on this port's existing K key.
 - DEM_GetMinimapStageRect C export: the minimap artwork's rect in stage pixels, stage size, anchored corner and shown state, published after every positioning pass - for the Dragon's Eye Pointers add-on (quest pointer + compass ring widget that follows the map's corner).
