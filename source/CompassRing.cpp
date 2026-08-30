@@ -217,8 +217,15 @@ namespace DEM::compassring
 		// false exactly when the ring must show.
 		if (!g_clip.IsDisplayObject())
 		{
+			// "_root" resolved to an EMPTY root on the first build (clip landed at depth 0 and
+			// never drew): under Infinity UI the minimap's view is a patched sub-movie whose _root
+			// is not the HUD. _level0 is the actual HUD movie root in every configuration.
 			RE::GFxValue root;
-			if (!view->GetVariable(&root, "_root") || !root.IsDisplayObject()) { return; }
+			if (!view->GetVariable(&root, "_level0") || !root.IsDisplayObject())
+			{
+				if (!view->GetVariable(&root, "_root") || !root.IsDisplayObject()) { return; }
+				logger::debug("CompassRing: _level0 unavailable, using _root");
+			}
 			RE::GFxValue existing;
 			if (root.GetMember(kClipName, &existing) && existing.IsDisplayObject())
 			{

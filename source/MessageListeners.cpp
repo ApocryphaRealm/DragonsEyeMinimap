@@ -1,3 +1,4 @@
+﻿#include "DevBenchTool.h"
 #include "Settings.h"
 
 #include "Minimap.h"
@@ -35,12 +36,15 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 	// say so once, rather than staying silent about it forever.
 	if (a_msg->type == SKSE::MessagingInterface::kDataLoaded)
 	{
+		DEM::devbench::Init(true);
 	}
 
 	// If all plugins have been loaded
 	if (a_msg->type == SKSE::MessagingInterface::kPostLoad)
 	{
 		logger::debug("kPostLoad received; registering for Infinity UI and Local Map Upgrade messages");
+
+		DEM::devbench::Init(false);
 
 		// DevBenchAPI's own contract: the interface can only be requested once SKSE has sent
 		// kPostLoad, since that is the earliest point every plugin (DevBench included) has had
