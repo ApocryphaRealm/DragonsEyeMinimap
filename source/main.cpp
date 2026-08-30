@@ -1,4 +1,5 @@
 #include "Hooks.h"
+#include "MiniMap.h"
 #include "Settings.h"
 
 #include "utils/Logger.h"
@@ -59,4 +60,38 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	logger::debug("Log level restored to configured level {}", static_cast<std::uint32_t>(settings::debug::logLevel));
 
 	return true;
+}
+
+// ------------------------------------------------------------------------------------------
+// Public C export (1.5.9) for the pointer add-on (DragonsEyePointers): where the minimap
+// artwork currently sits, in STAGE pixels (HUD movie stage; the caller scales by its own
+// screen size / stage size), which corner it is anchored to, and whether the minimap is shown.
+// Returns false until the minimap has been positioned at least once. Safe from any thread.
+// ------------------------------------------------------------------------------------------
+extern "C" DLLEXPORT bool DEM_GetMinimapStageRect(float* a_left, float* a_top, float* a_right, float* a_bottom,
+												  float* a_stageWidth, float* a_stageHeight, int* a_corner, bool* a_shown)
+{
+	DEM::Minimap::StageRect r;
+	int corner = 0;
+	float sw = 0.0F, sh = 0.0F;
+	{
+		std::scoped_lock lock(DEM::Minimap::stageRectLock);
+		r = DEM::Minimap::stageRect;
+		corner = DEM::Minimap::stageRectCorner;
+		sw = DEM::Minimap::stageRectStageW;
+		sh = DEM::Minimap::stageRectStageH;
+	}
+	if (a_left) { *a_left = r.left; }
+	if (a_top) { *a_top = r.top; }
+	if (a_right) { *a_right = r.right; }
+	if (a_bottom) { *a_bottom = r.bottom; }
+	if (a_stageWidth) { *a_stageWidth = sw; }
+	if (a_stageHeight) { *a_stageHeight = sh; }
+	if (a_corner) { *a_corner = corner; }
+	if (a_shown)
+	{
+		const DEM::Minimap* mm = DEM::Minimap::GetSingleton();
+		*a_shown = mm && mm->IsShown();
+	}
+	return r.valid;
 }

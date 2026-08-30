@@ -6,6 +6,8 @@
 
 #include "Settings.h"
 
+#include <mutex>
+
 #include "LMU/API.h"
 
 namespace DEM
@@ -91,6 +93,16 @@ namespace DEM
 		}
 
 		static Minimap* GetSingleton() { return singleton; }
+
+		// The artwork rect as last positioned, in STAGE pixels, published for the pointer add-on
+		// (DEM_GetMinimapStageRect, 1.5.9). Written on the UI thread at the end of
+		// ApplyDisplaySettingsOnce, read from the framework's render thread - hence the mutex.
+		struct StageRect { float left = 0, top = 0, right = 0, bottom = 0; bool valid = false; };
+		static inline std::mutex stageRectLock;
+		static inline StageRect stageRect;
+		static inline int stageRectCorner = 0;
+		static inline float stageRectStageW = 0.0F, stageRectStageH = 0.0F;
+
 
 		void SetLocalMapExtents(const RE::FxDelegateArgs& a_delegateArgs);
 

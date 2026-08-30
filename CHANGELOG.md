@@ -8,6 +8,11 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 * **failed** - built but crashed or malfunctioned; the number was reclaimed
 * **scratch** - a hypothesis-test build that never held a real number
 
+## 1.5.9 - 2026-08-29 - failed
+
+### Added
+- DEM_GetMinimapStageRect C export: the minimap artwork's rect in stage pixels, stage size, anchored corner and shown state, published after every positioning pass - for the Dragon's Eye Pointers add-on (quest pointer + compass ring widget that follows the map's corner).
+
 ## 1.5.8 - 2026-08-28 - untested
 ### Fixed
 - The settings menu now registers with Apocrypha Menu Framework (AMF), the parallel framework

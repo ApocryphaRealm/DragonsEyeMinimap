@@ -475,6 +475,27 @@ namespace DEM
 		StageToParent(0.0F, 0.0F, screenMinX, screenMinY);
 		StageToParent(stageWidth, stageHeight, screenMaxX, screenMaxY);
 
+		// Publish the artwork rect in STAGE pixels for the pointer add-on (1.5.9). The anchored
+		// corner sits at (wantStageX, wantStageY) by construction; the artwork's size in parent
+		// pixels converts to stage pixels through the measured stage->parent factor.
+		{
+			const float ppsX = (stageWidth > 0.0F) ? (screenMaxX - screenMinX) / stageWidth : 1.0F;
+			const float ppsY = (stageHeight > 0.0F) ? (screenMaxY - screenMinY) / stageHeight : 1.0F;
+			const float wStage = (ppsX != 0.0F) ? (artRight - artLeft) / ppsX : 0.0F;
+			const float hStage = (ppsY != 0.0F) ? (artBottom - artTop) / ppsY : 0.0F;
+			StageRect r;
+			r.left = atRight ? wantStageX - wStage : wantStageX;
+			r.top = atBottom ? wantStageY - hStage : wantStageY;
+			r.right = r.left + wStage;
+			r.bottom = r.top + hStage;
+			r.valid = wStage > 0.0F && hStage > 0.0F;
+			std::scoped_lock lock(stageRectLock);
+			stageRect = r;
+			stageRectCorner = corner;
+			stageRectStageW = stageWidth;
+			stageRectStageH = stageHeight;
+		}
+
 		// The map extents the renderer uses are worked out once, by the ActionScript InitMap,
 		// from the clip's geometry at that moment. Moving or rescaling the clip afterwards
 		// leaves them stale, so ask for them again.
