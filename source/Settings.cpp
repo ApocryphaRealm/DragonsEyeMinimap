@@ -593,6 +593,7 @@ namespace settings
 				using namespace controls;
 				hideKeyCode = Read<std::int32_t>(c, "iHideKeyCode:Controls", hideKeyCode);
 				holdToPanSecs = Read<float>(c, "fHoldToPanSecs:Controls", holdToPanSecs);
+				panHoldGamepadButton = Read<std::int32_t>(c, "iPanHoldGamepadButton:Controls", panHoldGamepadButton);
 				zoomToggleKeyCode = Read<std::int32_t>(c, "iZoomToggleKeyCode:Controls", zoomToggleKeyCode);
 				zoomDefault = Read<float>(c, "fZoomDefault:Controls", zoomDefault);
 				zoomZoomedIn = Read<float>(c, "fZoomZoomedIn:Controls", zoomZoomedIn);
@@ -644,6 +645,7 @@ namespace settings
 			using namespace controls;
 			add("iHideKeyCode:Controls", static_cast<int>(hideKeyCode));
 			add("fHoldToPanSecs:Controls", holdToPanSecs);
+			add("iPanHoldGamepadButton:Controls", static_cast<int>(panHoldGamepadButton));
 			add("iZoomToggleKeyCode:Controls", static_cast<int>(zoomToggleKeyCode));
 			add("fZoomDefault:Controls", zoomDefault);
 			add("fZoomZoomedIn:Controls", zoomZoomedIn);
@@ -739,6 +741,7 @@ namespace settings
 
 		ok &= WriteInt(kControlsSection, "iHideKeyCode", controls::hideKeyCode);
 		ok &= WriteFloat(kControlsSection, "fHoldToPanSecs", controls::holdToPanSecs);
+		ok &= WriteInt(kControlsSection, "iPanHoldGamepadButton", controls::panHoldGamepadButton);
 		ok &= WriteInt(kControlsSection, "iZoomToggleKeyCode", controls::zoomToggleKeyCode);
 		ok &= WriteFloat(kControlsSection, "fZoomDefault", controls::zoomDefault);
 		ok &= WriteFloat(kControlsSection, "fZoomZoomedIn", controls::zoomZoomedIn);

@@ -98,6 +98,11 @@ namespace settings
 		// wheel zooms it, and the camera ignores both. A shorter press still toggles hide/show.
 		inline float holdToPanSecs = 0.25F;
 
+		// Controller equivalent of the hide key (XInput button mask, DirectInput gamepad codes):
+		// tap = hide/show, hold = pan with the RIGHT stick (design decision, 2026-08-30). Default R3 (right
+		// stick click, 0x0080); 0 disables. Looking is handed to the map while held.
+		inline std::int32_t panHoldGamepadButton = 0x0080;
+
 		// Tapping this key jumps the map zoom between the two presets below, instead of having
 		// to hold the control key and scroll. 0 disables it. Ships bound to L (0x26).
 		inline std::int32_t zoomToggleKeyCode = 0x26;

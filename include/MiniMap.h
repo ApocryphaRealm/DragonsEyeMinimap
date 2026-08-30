@@ -65,6 +65,7 @@ namespace DEM
 			// override (RE::MenuEventHandler). ProcessMouseMove is back (1.5.9, the author): holding the
 			// hide key pans the map with the mouse, the original control scheme, on the same key.
 			bool CanProcess(RE::InputEvent* a_event) final;				 // 01
+			bool ProcessThumbstick(RE::ThumbstickEvent* a_event) final; // 03 - RIGHT stick pans while holding (design decision, 2026-08-30)
 			bool ProcessMouseMove(RE::MouseMoveEvent* a_event) final;	 // 04
 			bool ProcessButton(RE::ButtonEvent* a_event) final;			 // 05
 
@@ -264,6 +265,7 @@ namespace DEM
 		// The game's own local-map speeds, so panning feels like the vanilla local map.
 		const float& localMapMousePanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMousePanSpeed:MapMenu")->data.f;
 		const float& localMapMouseZoomSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalMouseZoomSpeed:MapMenu")->data.f;
+		const float& localMapGamepadPanSpeed = RE::INISettingCollection::GetSingleton()->GetSetting("fMapLocalGamepadPanSpeed:MapMenu")->data.f;
 
 		// members
 		IUI::GFxDisplayObject displayObj;

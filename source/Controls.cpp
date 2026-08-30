@@ -50,7 +50,7 @@ namespace DEM
 		{
 			// Keyboard: the hide/zoom keys. Mouse: the wheel, only while the map is being held
 			// (hold-to-pan, 1.5.9) - otherwise the wheel belongs to the camera as usual.
-			if (buttonEvent->GetDevice() == RE::INPUT_DEVICE::kKeyboard ||
+			if (buttonEvent->GetDevice() == RE::INPUT_DEVICE::kKeyboard || buttonEvent->GetDevice() == RE::INPUT_DEVICE::kGamepad ||
 				(buttonEvent->GetDevice() == RE::INPUT_DEVICE::kMouse && miniMap->inputControlledMode))
 			{
 				return ProcessKeyboardOrMouseButton(buttonEvent);
@@ -96,6 +96,28 @@ namespace DEM
 			return true;
 		}
 
+		// Controller: the same tap/hold scheme on iPanHoldGamepadButton (default R3). Holding hands
+		// the RIGHT stick to the map (ProcessThumbstick) instead of the camera.
+		if (settings::controls::panHoldGamepadButton > 0 && a_buttonEvent->GetDevice() == RE::INPUT_DEVICE::kGamepad &&
+			a_buttonEvent->GetIDCode() == static_cast<std::uint32_t>(settings::controls::panHoldGamepadButton))
+		{
+			const bool isPressed = a_buttonEvent->Value() != 0.0F;
+			const bool isReleased = !isPressed;
+			const float held = a_buttonEvent->GetRuntimeData().heldDownSecs;
+			const float threshold = std::max(0.05F, settings::controls::holdToPanSecs);
+			if (isReleased && held < threshold)
+			{
+				logger::debug("Gamepad hide button tapped ({}s) - minimap now {}", held, miniMap->IsShown() ? "hidden" : "shown");
+				miniMap->IsShown() ? miniMap->Hide(false) : miniMap->Show(false);
+			}
+			else if (isPressed && held >= threshold && miniMap->IsShown())
+			{
+				if (!miniMap->inputControlledMode) { miniMap->EnterInputControlledMode(); }
+			}
+			if (isReleased && miniMap->inputControlledMode) { miniMap->LeaveInputControlledMode(); }
+			return true;
+		}
+
 		// Wheel zoom while holding: the map's own zoom channel, at the game's local-map speed.
 		if (miniMap->inputControlledMode && a_buttonEvent->GetDevice() == RE::INPUT_DEVICE::kMouse && a_buttonEvent->IsDown())
 		{
@@ -124,6 +146,21 @@ namespace DEM
 		}
 
 		return false;
+	}
+
+	bool Minimap::InputHandler::ProcessThumbstick(RE::ThumbstickEvent* a_event)
+	{
+		// RIGHT stick only (design decision, 2026-08-30), and only while the hold button is down - the left
+		// stick keeps moving the player. Same maths as the vanilla local map's gamepad pan.
+		if (!miniMap->inputControlledMode || !a_event || !a_event->IsRight() || !miniMap->cameraContext || !miniMap->cameraContext->defaultState || !miniMap->cameraContext->cameraRoot)
+		{
+			return false;
+		}
+		const float xOffset = 2.0F * a_event->xValue * std::abs(a_event->xValue) * miniMap->localMapGamepadPanSpeed;
+		const float yOffset = 2.0F * a_event->yValue * std::abs(a_event->yValue) * miniMap->localMapGamepadPanSpeed;
+		const RE::NiPoint3 translationOffset = miniMap->cameraContext->cameraRoot->local.rotate * RE::NiPoint3{ 0, yOffset, xOffset };
+		miniMap->cameraContext->defaultState->translation += translationOffset;
+		return true;
 	}
 
 	bool Minimap::InputHandler::ProcessMouseMove(RE::MouseMoveEvent* a_event)
