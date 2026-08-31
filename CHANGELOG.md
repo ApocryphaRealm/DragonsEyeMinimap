@@ -50,8 +50,8 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 ### Changed
 - Controller hide/pan button is OFF by default and behind a settings-page switch ('Controller: tap to hide, hold to pan'), with the XInput button mask editable beside it (the author: gamepad buttons are used for other things and PC players remap via Steam Input). bGamepadHideButton / iPanHoldGamepadButton in the INI.
 - The MAIN mod zip now ships the .pdb debug symbols beside the DLL (packaging decision,
-  2026-08-31), so users' Crash Logger resolves this mod's stack frames out of the box; the
-  separate Debug Symbols package remains for older versions.
+  2026-08-31), so users' Crash Logger resolves this mod's stack frames out of the box. The
+  separate Debug Symbols upload is retired - the main download is all users need.
 
 ### Fixed
 - DEM_GetMinimapStageRect kept the last rect measured while the map was SHOWN - while hidden the artwork measures about half size (103 vs 189 stage px), which had shrunk the pointer add-on's disc to half the map. A never-shown session still publishes the hidden measurement.
