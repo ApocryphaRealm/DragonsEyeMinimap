@@ -35,7 +35,7 @@ namespace DEM::compassring
 		// produced nothing), so the polygonal circle is the reliable primitive.
 		void CirclePath(RE::GFxValue& a_clip, double a_cx, double a_cy, double a_r)
 		{
-			constexpr int kSegs = 32;
+			constexpr int kSegs = 64;
 			constexpr double kStep = 2.0 * std::numbers::pi / kSegs;
 			Draw2(a_clip, "moveTo", a_cx + a_r, a_cy);
 			for (int i = 1; i <= kSegs; ++i)
@@ -318,7 +318,7 @@ namespace DEM::compassring
 			(void)g_clip.Invoke("endFill");
 
 			{
-				constexpr int kRingSegs = 24;
+				constexpr int kRingSegs = 48;
 				constexpr double kSegStep = 2.0 * std::numbers::pi / kRingSegs;
 				const double ro = radius + th * 0.5, ri = radius - th * 0.5;
 				for (int s = 0; s < kRingSegs; ++s)

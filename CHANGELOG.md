@@ -31,6 +31,8 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   thickness (was + 2x). The distance readout uses the old widget's bearing-aware clearing
   formula, and the above/below mark is its small triangle glyph beside the number instead of
   a text caret.
+- Circles drawn with 64 lineTo segments (ring strip 48) so the ring reads smooth at
+  screenshot scale, matching the old widget's 96-segment ImGui circles.
 
 ## 1.5.8 - 2026-08-31 - working
 
