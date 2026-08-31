@@ -442,12 +442,12 @@ namespace settings
 				}
 				else if constexpr (std::is_signed_v<T>)
 				{
-					a_out = static_cast<T>(std::stoll(a_text));
+					a_out = static_cast<T>(std::stoll(a_text, nullptr, 0));
 					return true;
 				}
 				else
 				{
-					a_out = static_cast<T>(std::stoull(a_text));
+					a_out = static_cast<T>(std::stoull(a_text, nullptr, 0));
 					return true;
 				}
 			}

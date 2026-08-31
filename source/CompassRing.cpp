@@ -30,20 +30,18 @@ namespace DEM::compassring
 			(void)a_clip.Invoke(a_call, nullptr, args.data(), args.size());
 		}
 
-		// Full circle with 12 curveTo segments (the AS2 drawing API has no arc primitive).
+		// Full circle as 32 straight segments. curveTo NEVER renders in this movie (the red-
+		// block diagnostic proved moveTo/lineTo/beginFill work while every curveTo path
+		// produced nothing), so the polygonal circle is the reliable primitive.
 		void CirclePath(RE::GFxValue& a_clip, double a_cx, double a_cy, double a_r)
 		{
-			constexpr int kSegs = 12;
+			constexpr int kSegs = 32;
 			constexpr double kStep = 2.0 * std::numbers::pi / kSegs;
-			const double ctrlR = a_r / std::cos(kStep * 0.5);
 			Draw2(a_clip, "moveTo", a_cx + a_r, a_cy);
 			for (int i = 1; i <= kSegs; ++i)
 			{
-				const double aEnd = i * kStep;
-				const double aMid = aEnd - kStep * 0.5;
-				std::array<RE::GFxValue, 4> args{ RE::GFxValue{ a_cx + std::cos(aMid) * ctrlR }, RE::GFxValue{ a_cy + std::sin(aMid) * ctrlR },
-												  RE::GFxValue{ a_cx + std::cos(aEnd) * a_r }, RE::GFxValue{ a_cy + std::sin(aEnd) * a_r } };
-				(void)a_clip.Invoke("curveTo", nullptr, args.data(), args.size());
+				const double a = i * kStep;
+				Draw2(a_clip, "lineTo", a_cx + std::cos(a) * a_r, a_cy + std::sin(a) * a_r);
 			}
 		}
 
@@ -79,9 +77,17 @@ namespace DEM::compassring
 			if (g_clip.Invoke("getNextHighestDepth", &nextDepth) && nextDepth.IsNumber()) { depth = nextDepth.GetNumber(); }
 			std::array<RE::GFxValue, 6> create{ RE::GFxValue{ a_name }, RE::GFxValue{ depth },
 												RE::GFxValue{ 0.0 }, RE::GFxValue{ 0.0 }, RE::GFxValue{ 200.0 }, RE::GFxValue{ 40.0 } };
-			if (!g_clip.Invoke("createTextField", nullptr, create.data(), create.size())) { return false; }
+			if (!g_clip.Invoke("createTextField", nullptr, create.data(), create.size()))
+			{
+				logger::warn("CompassRing: createTextField('{}') Invoke returned false", a_name);
+				return false;
+			}
 			RE::GFxValue field;
-			if (!g_clip.GetMember(a_name, &field)) { return false; }
+			if (!g_clip.GetMember(a_name, &field))
+			{
+				logger::warn("CompassRing: field '{}' not found after createTextField", a_name);
+				return false;
+			}
 			field.SetMember("selectable", RE::GFxValue{ false });
 			// embedFonts=false: with true, a font name that fails to resolve in THIS movie
 			// renders NOTHING - and runtime-created fields have no authored embed to fall back
@@ -301,15 +307,30 @@ namespace DEM::compassring
 		constexpr double kPi = std::numbers::pi;
 		if (ringNow)
 		{
-			// Backing disc like the round minimap's plate, then the ring and its ticks.
+			// Backing disc (lineTo circle), then the ring as a SEGMENTED QUAD STRIP - every
+			// element on the proven moveTo/lineTo/beginFill primitives only (curveTo renders
+			// nothing in this movie; the red-block diagnostic settled it).
+			const double th = settings::compass::ringThickness;
 			NoLine(g_clip);
 			std::array<RE::GFxValue, 2> fill{ RE::GFxValue{ ToRgb(0x000000) }, RE::GFxValue{ static_cast<double>(settings::compass::discAlpha) } };
 			(void)g_clip.Invoke("beginFill", nullptr, fill.data(), fill.size());
-			CirclePath(g_clip, cx, cy, radius + settings::compass::ringThickness * 2.0);
+			CirclePath(g_clip, cx, cy, radius + th * 2.0);
 			(void)g_clip.Invoke("endFill");
 
-			LineStyle(g_clip, settings::compass::ringThickness, settings::compass::ringColor, 100.0);
-			CirclePath(g_clip, cx, cy, radius);
+			{
+				constexpr int kRingSegs = 24;
+				constexpr double kSegStep = 2.0 * std::numbers::pi / kRingSegs;
+				const double ro = radius + th * 0.5, ri = radius - th * 0.5;
+				for (int s = 0; s < kRingSegs; ++s)
+				{
+					const double a0 = s * kSegStep, a1 = (s + 1) * kSegStep;
+					FillPoly(g_clip, settings::compass::ringColor, 100.0,
+							 { { cx + std::cos(a0) * ro, cy + std::sin(a0) * ro },
+							   { cx + std::cos(a1) * ro, cy + std::sin(a1) * ro },
+							   { cx + std::cos(a1) * ri, cy + std::sin(a1) * ri },
+							   { cx + std::cos(a0) * ri, cy + std::sin(a0) * ri } });
+				}
+			}
 
 			for (int i = 0; i < 8; ++i)
 			{
@@ -319,10 +340,13 @@ namespace DEM::compassring
 				double x0, y0, x1, y1;
 				onRing(bearing, radius - tick * 2.0, x0, y0);
 				onRing(bearing, radius, x1, y1);
-				LineStyle(g_clip, settings::compass::ringThickness,
-						  i == 0 ? settings::compass::northColor : settings::compass::ringColor, 100.0);
-				Draw2(g_clip, "moveTo", x0, y0);
-				Draw2(g_clip, "lineTo", x1, y1);
+				// filled quad perpendicular to the tick direction
+				const double dx = x1 - x0, dy = y1 - y0;
+				const double len = std::sqrt(dx * dx + dy * dy);
+				const double px = len > 0.0 ? -dy / len * (th * 0.5) : 0.0;
+				const double py = len > 0.0 ? dx / len * (th * 0.5) : 0.0;
+				FillPoly(g_clip, i == 0 ? settings::compass::northColor : settings::compass::ringColor, 100.0,
+						 { { x0 - px, y0 - py }, { x1 - px, y1 - py }, { x1 + px, y1 + py }, { x0 + px, y0 + py } });
 				if (cardinal && g_fieldsMade)
 				{
 					double lx, ly;
