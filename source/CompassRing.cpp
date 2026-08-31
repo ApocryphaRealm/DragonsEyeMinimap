@@ -83,7 +83,11 @@ namespace DEM::compassring
 			RE::GFxValue field;
 			if (!g_clip.GetMember(a_name, &field)) { return false; }
 			field.SetMember("selectable", RE::GFxValue{ false });
-			field.SetMember("embedFonts", RE::GFxValue{ true });
+			// embedFonts=false: with true, a font name that fails to resolve in THIS movie
+			// renders NOTHING - and runtime-created fields have no authored embed to fall back
+			// on (the SWF-authored title fields carry their own; these do not). The device font
+			// always renders; the TextFormat below still asks for the HUD face first.
+			field.SetMember("embedFonts", RE::GFxValue{ false });
 			field.SetMember("autoSize", RE::GFxValue{ "center" });
 			RE::GFxValue tf;
 			a_view->CreateObject(&tf, "TextFormat");
