@@ -19,6 +19,19 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   `rules-version.ps1 -Action bump`. If a number was typed by hand, it is wrong until the tool
 >   agrees.
 
+## 1.5.9 - 2026-08-31 - untested
+
+### Changed
+- COMPASS RESTYLED to match the original separate-widget design (design decision, 2026-08-31:
+  the built-in compass must look like the old add-on's screenshots). The old widget drew in
+  SCREEN pixels while the built-in ring draws in stage pixels (~2.5x on a 3200-wide screen),
+  so every element was rendering ~2.5x too fat. Defaults converted to stage units: ring 0.8
+  (was 2), gap 2.4 (was 6), pointer 8 (was 20), labels 8 (was 18), ticks 3.2/1.6 (was 8/4),
+  cardinal letters riding the ring (offset 4.8, was 14), backing disc at ring radius +
+  thickness (was + 2x). The distance readout uses the old widget's bearing-aware clearing
+  formula, and the above/below mark is its small triangle glyph beside the number instead of
+  a text caret.
+
 ## 1.5.8 - 2026-08-31 - working
 
 ### Added

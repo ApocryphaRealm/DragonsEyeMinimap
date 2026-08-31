@@ -314,7 +314,7 @@ namespace DEM::compassring
 			NoLine(g_clip);
 			std::array<RE::GFxValue, 2> fill{ RE::GFxValue{ ToRgb(0x000000) }, RE::GFxValue{ static_cast<double>(settings::compass::discAlpha) } };
 			(void)g_clip.Invoke("beginFill", nullptr, fill.data(), fill.size());
-			CirclePath(g_clip, cx, cy, radius + th * 2.0);
+			CirclePath(g_clip, cx, cy, radius + th);
 			(void)g_clip.Invoke("endFill");
 
 			{
@@ -336,7 +336,9 @@ namespace DEM::compassring
 			{
 				const double bearing = i * (kPi / 4.0);
 				const bool cardinal = (i % 2) == 0;
-				const double tick = cardinal ? 8.0 : 4.0;
+				// The old separate widget's proportions, converted from its screen pixels to
+				// stage pixels (the HUD movie scales ~2.5x onto a 3200-wide screen).
+				const double tick = cardinal ? 3.2 : 1.6;
 				double x0, y0, x1, y1;
 				onRing(bearing, radius - tick * 2.0, x0, y0);
 				onRing(bearing, radius, x1, y1);
@@ -350,7 +352,7 @@ namespace DEM::compassring
 				if (cardinal && g_fieldsMade)
 				{
 					double lx, ly;
-					onRing(bearing, radius - tick * 2.0 - 14.0, lx, ly);
+					onRing(bearing, radius - tick * 2.0 - 4.8, lx, ly);
 					static const char* kText[4] = { "N", "E", "S", "W" };
 					SetField(labels[i / 2], kText[i / 2], lx, ly - settings::compass::labelSize * 0.7, true);
 				}
@@ -391,11 +393,26 @@ namespace DEM::compassring
 												static_cast<double>(target.y - from.y) * (target.y - from.y) + dz * dz);
 					char buf[40];
 					const bool up = dz > 840.0, down = dz < -840.0;
-					if (settings::compass::metricUnits) { std::snprintf(buf, sizeof(buf), "%d m%s", static_cast<int>(d3 * 0.01428 + 0.5), up ? " ^" : (down ? " v" : "")); }
-					else { std::snprintf(buf, sizeof(buf), "%d ft%s", static_cast<int>(d3 * 0.01428 * 3.2808 + 0.5), up ? " ^" : (down ? " v" : "")); }
+					int blen;
+					if (settings::compass::metricUnits) { blen = std::snprintf(buf, sizeof(buf), "%d m", static_cast<int>(d3 * 0.01428 + 0.5)); }
+					else { blen = std::snprintf(buf, sizeof(buf), "%d ft", static_cast<int>(d3 * 0.01428 * 3.2808 + 0.5)); }
+					// The old separate widget's placement: clear the marker whatever the bearing by
+					// stepping inward by the marker plus half the text extent along the bearing
+					// direction. Width estimated (device font, ~0.55 em per character).
+					const double tw = blen * settings::compass::labelSize * 0.65;
+					const double inward = settings::compass::pointerSize + 4.0 +
+										  0.5 * (tw * std::abs(std::sin(a)) + settings::compass::labelSize * std::abs(std::cos(a)));
 					double lx, ly;
-					onRing(bearing, radius - settings::compass::pointerSize - 22.0, lx, ly);
+					onRing(bearing, radius - inward, lx, ly);
 					SetField("labDist", buf, lx, ly - settings::compass::labelSize * 0.7, true);
+					// Above/below the target: the old widget's small triangle beside the number,
+					// not a text caret.
+					if (up || down)
+					{
+						const double gx = lx + tw * 0.5 + 4.0, gy = ly;
+						if (up) { FillPoly(g_clip, settings::compass::pointerColor, 100.0, { { gx, gy - 2.4 }, { gx - 2.0, gy + 1.6 }, { gx + 2.0, gy + 1.6 } }); }
+						else { FillPoly(g_clip, settings::compass::pointerColor, 100.0, { { gx, gy + 2.4 }, { gx - 2.0, gy - 1.6 }, { gx + 2.0, gy - 1.6 } }); }
+					}
 					distShown = true;
 				}
 			}

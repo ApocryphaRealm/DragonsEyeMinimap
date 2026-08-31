@@ -129,10 +129,12 @@ namespace settings
 		inline bool compassRing = true;        // bCompassRing:Compass
 		inline bool questPointer = true;       // bQuestPointer:Compass
 		inline bool metricUnits = false;       // bMetricUnits:Compass - feet by default, like the vanilla compass
-		inline float ringGap = 6.0F;           // fRingGap:Compass - inward of the map frame's inscribed circle
-		inline float ringThickness = 2.0F;     // fRingThickness:Compass
-		inline float pointerSize = 20.0F;      // fPointerSize:Compass
-		inline float labelSize = 18.0F;        // fLabelSize:Compass
+		// Stage-pixel conversions of the old separate widget's SCREEN-pixel defaults (the HUD
+		// movie scales ~2.5x onto a 3200-wide screen), so the built-in compass keeps its look.
+		inline float ringGap = 2.4F;           // fRingGap:Compass - inward of the map frame's inscribed circle
+		inline float ringThickness = 0.8F;     // fRingThickness:Compass
+		inline float pointerSize = 8.0F;       // fPointerSize:Compass
+		inline float labelSize = 8.0F;         // fLabelSize:Compass
 		inline std::uint32_t ringColor = 0xE0E0E0;    // uRingColor:Compass (RGB)
 		inline std::uint32_t northColor = 0xFF3030;   // uNorthColor:Compass
 		inline std::uint32_t pointerColor = 0xFFE040; // uPointerColor:Compass - our gold
