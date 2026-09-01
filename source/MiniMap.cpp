@@ -837,6 +837,37 @@ namespace DEM
 
 			lastLoggedAlpha = static_cast<float>(alpha);
 		}
+
+		// MINIMAP THEME frame tint (1.6.0): an AS2 Color.setTransform MULTIPLY, so the art's
+		// own shading survives (setRGB would flatten it to a solid). Change-detected on
+		// (tint, shape) - SetShape swaps in a fresh duplicate of the art, so a shape switch
+		// must re-tint the new clip; everything else re-applies only when the value changes.
+		static std::uint32_t lastTintKey = 0xFFFFFFFF;
+		const std::uint32_t tint = settings::display::frameTint & 0xFFFFFFu;
+		const std::uint32_t tintKey = tint | (shape == Shape::kRound ? 0x1000000u : 0u);
+		if (tintKey != lastTintKey)
+		{
+			if (auto* view = GetHudMovieView())
+			{
+				RE::GFxValue color;
+				std::array<RE::GFxValue, 1> colorArg{ art };
+				view->CreateObject(&color, "Color", colorArg.data(), colorArg.size());
+				RE::GFxValue xform;
+				view->CreateObject(&xform);
+				if (color.IsObject() && xform.IsObject())
+				{
+					xform.SetMember("ra", RE::GFxValue{ ((tint >> 16) & 0xFF) / 255.0 * 100.0 });
+					xform.SetMember("ga", RE::GFxValue{ ((tint >> 8) & 0xFF) / 255.0 * 100.0 });
+					xform.SetMember("ba", RE::GFxValue{ (tint & 0xFF) / 255.0 * 100.0 });
+					std::array<RE::GFxValue, 1> xformArg{ xform };
+					if (color.Invoke("setTransform", nullptr, xformArg.data(), xformArg.size()))
+					{
+						lastTintKey = tintKey;
+						logger::debug("frame tint applied: 0x{:06X} on {}", tint, artName);
+					}
+				}
+			}
+		}
 	}
 
 	void Minimap::SetMapZoom(float a_zoom)

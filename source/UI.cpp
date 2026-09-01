@@ -610,11 +610,92 @@ namespace UI
 			}
 		}
 
+		// Compass themes (author request, 2026-09-01: the AMF-style theme dropdown, in DEM,
+		// shipped with a few options). A theme file is a tiny INI in
+		// Data/SKSE/Plugins/DragonsEyeMinimap/themes/ carrying the four compass colours. The
+		// dropdown APPLIES a theme by copying its values into the ordinary colour settings -
+		// nothing new is persisted; Save keeps the colours like any other change, and on the
+		// next visit the dropdown shows whichever theme matches the current colours ("Custom"
+		// when none does). Drop a file in, never overwrite: new files are picked up on the
+		// next game start.
+		struct ThemeChoice
+		{
+			std::string label;
+			std::uint32_t frameTint = 0xFFFFFF;
+		};
+		std::vector<ThemeChoice> g_themes;
+		bool g_themesScanned = false;
+
+		void ScanThemes()
+		{
+			g_themes.clear();
+			const std::filesystem::path dir{ "Data/SKSE/Plugins/DragonsEyeMinimap/themes" };
+			std::error_code ec;
+			for (const auto& e : std::filesystem::directory_iterator(dir, ec))
+			{
+				if (!e.is_regular_file() || e.path().extension() != ".ini") { continue; }
+				ThemeChoice tc;
+				tc.label = e.path().stem().string();
+				std::ifstream in(e.path());
+				std::string line;
+				bool any = false;
+				while (std::getline(in, line))
+				{
+					const auto eq = line.find('=');
+					if (eq == std::string::npos || line.empty() || line[0] == ';') { continue; }
+					std::string key = line.substr(0, eq);
+					key.erase(0, key.find_first_not_of(" 	"));
+					key.erase(key.find_last_not_of(" 	") + 1);
+					std::string val = line.substr(eq + 1);
+					val.erase(0, val.find_first_not_of(" 	"));
+					val.erase(val.find_last_not_of(" 	") + 1);
+					try
+					{
+						const auto v = static_cast<std::uint32_t>(std::stoull(val, nullptr, 0));
+						if (key == "uFrameColor") { tc.frameTint = v; any = true; }
+					}
+					catch (...) {}
+				}
+				if (any) { g_themes.push_back(std::move(tc)); }
+			}
+			std::sort(g_themes.begin(), g_themes.end(), [](const ThemeChoice& a, const ThemeChoice& b) { return a.label < b.label; });
+			logger::info("minimap themes: {} file(s) available", g_themes.size());
+		}
+
 		void RenderDisplaySection()
 		{
 			using namespace settings;
 
 			ImGuiMCP::SeparatorText("Display");
+
+			if (!g_themesScanned) { g_themesScanned = true; ScanThemes(); }
+			if (!g_themes.empty())
+			{
+				int current = static_cast<int>(g_themes.size());  // "Default" entry
+				for (std::size_t i = 0; i < g_themes.size(); ++i)
+				{
+					if (g_themes[i].label == display::theme) { current = static_cast<int>(i); break; }
+				}
+				std::vector<const char*> labels;
+				labels.reserve(g_themes.size() + 1);
+				for (const auto& th : g_themes) { labels.push_back(th.label.c_str()); }
+				labels.push_back("Default (untinted)");
+				if (ImGuiMCP::Combo("Theme", &current, labels.data(), static_cast<int>(labels.size())))
+				{
+					if (current >= 0 && current < static_cast<int>(g_themes.size()))
+					{
+						display::theme = g_themes[static_cast<std::size_t>(current)].label;
+					}
+					else
+					{
+						display::theme.clear();
+						display::frameTint = 0xFFFFFF;
+					}
+					ApplyMinimapTheme();
+					statusMessage = "Theme selected. Press Save to keep it.";
+				}
+				HelpMarker("Recolours the minimap frame. Themes are files in Data/SKSE/Plugins/DragonsEyeMinimap/themes - drop one in and it appears here on the next game start. Four ship with the mod.");
+			}
 
 			bool changed = false;
 
@@ -783,64 +864,6 @@ namespace UI
 			HelpMarker("How far the minimap is zoomed in, right now. The game applies its own limits, so the value can settle somewhere other than where you left it.");
 		}
 
-		// Compass themes (author request, 2026-09-01: the AMF-style theme dropdown, in DEM,
-		// shipped with a few options). A theme file is a tiny INI in
-		// Data/SKSE/Plugins/DragonsEyeMinimap/themes/ carrying the four compass colours. The
-		// dropdown APPLIES a theme by copying its values into the ordinary colour settings -
-		// nothing new is persisted; Save keeps the colours like any other change, and on the
-		// next visit the dropdown shows whichever theme matches the current colours ("Custom"
-		// when none does). Drop a file in, never overwrite: new files are picked up on the
-		// next game start.
-		struct ThemeChoice
-		{
-			std::string label;
-			std::uint32_t ring = 0xE0E0E0;
-			std::uint32_t north = 0xFF3030;
-			std::uint32_t pointer = 0xFFE040;
-			std::uint32_t discAlpha = 90;
-		};
-		std::vector<ThemeChoice> g_themes;
-		bool g_themesScanned = false;
-
-		void ScanThemes()
-		{
-			g_themes.clear();
-			const std::filesystem::path dir{ "Data/SKSE/Plugins/DragonsEyeMinimap/themes" };
-			std::error_code ec;
-			for (const auto& e : std::filesystem::directory_iterator(dir, ec))
-			{
-				if (!e.is_regular_file() || e.path().extension() != ".ini") { continue; }
-				ThemeChoice tc;
-				tc.label = e.path().stem().string();
-				std::ifstream in(e.path());
-				std::string line;
-				bool any = false;
-				while (std::getline(in, line))
-				{
-					const auto eq = line.find('=');
-					if (eq == std::string::npos || line.empty() || line[0] == ';') { continue; }
-					std::string key = line.substr(0, eq);
-					key.erase(0, key.find_first_not_of(" 	"));
-					key.erase(key.find_last_not_of(" 	") + 1);
-					std::string val = line.substr(eq + 1);
-					val.erase(0, val.find_first_not_of(" 	"));
-					val.erase(val.find_last_not_of(" 	") + 1);
-					try
-					{
-						const auto v = static_cast<std::uint32_t>(std::stoull(val, nullptr, 0));
-						if (key == "uRingColor") { tc.ring = v; any = true; }
-						else if (key == "uNorthColor") { tc.north = v; any = true; }
-						else if (key == "uPointerColor") { tc.pointer = v; any = true; }
-						else if (key == "uDiscAlpha") { tc.discAlpha = v; any = true; }
-					}
-					catch (...) {}
-				}
-				if (any) { g_themes.push_back(std::move(tc)); }
-			}
-			std::sort(g_themes.begin(), g_themes.end(), [](const ThemeChoice& a, const ThemeChoice& b) { return a.label < b.label; });
-			logger::info("compass themes: {} file(s) available", g_themes.size());
-		}
-
 		// The built-in compass (author request, 2026-08-31: players must be able to switch the
 		// compass off entirely, not only have it appear whenever the minimap is hidden).
 		void RenderCompassSection()
@@ -857,30 +880,6 @@ namespace UI
 
 			ImGuiMCP::Toggle("Metric units", &compass::metricUnits);
 			HelpMarker("Distance readout in metres instead of feet.");
-
-			if (!g_themesScanned) { g_themesScanned = true; ScanThemes(); }
-			if (!g_themes.empty())
-			{
-				using namespace settings;
-				int current = static_cast<int>(g_themes.size());  // "Default" entry
-				for (std::size_t i = 0; i < g_themes.size(); ++i)
-				{
-					if (g_themes[i].label == compass::theme) { current = static_cast<int>(i); break; }
-				}
-				std::vector<const char*> labels;
-				labels.reserve(g_themes.size() + 1);
-				for (const auto& th : g_themes) { labels.push_back(th.label.c_str()); }
-				labels.push_back("Default (built-in colours)");
-				if (ImGuiMCP::Combo("Theme", &current, labels.data(), static_cast<int>(labels.size())))
-				{
-					compass::theme = (current >= 0 && current < static_cast<int>(g_themes.size()))
-						? g_themes[static_cast<std::size_t>(current)].label
-						: std::string{};
-					ApplyCompassTheme();
-					statusMessage = "Theme selected. Press Save to keep it.";
-				}
-				HelpMarker("Themes are files in Data/SKSE/Plugins/DragonsEyeMinimap/themes - drop one in and it appears here on the next game start. Four ship with the mod.");
-			}
 		}
 
 		void RenderControlsSection()
@@ -966,7 +965,7 @@ namespace UI
 					if (settings::Reload())
 					{
 						ApplyLiveSettings();
-						ApplyCompassTheme();
+						ApplyMinimapTheme();
 
 						statusMessage = "Settings reloaded from the INI.";
 					}
@@ -1007,24 +1006,21 @@ namespace UI
 		}
 	}
 
-	void ApplyCompassTheme()
+	void ApplyMinimapTheme()
 	{
 		using namespace settings;
-		if (compass::theme.empty()) { return; }
+		if (display::theme.empty()) { return; }
 		if (!g_themesScanned) { g_themesScanned = true; ScanThemes(); }
 		for (const auto& th : g_themes)
 		{
-			if (th.label == compass::theme)
+			if (th.label == display::theme)
 			{
-				compass::ringColor = th.ring;
-				compass::northColor = th.north;
-				compass::pointerColor = th.pointer;
-				compass::discAlpha = th.discAlpha;
-				logger::info("compass theme applied: {}", th.label);
+				display::frameTint = th.frameTint;
+				logger::info("minimap theme applied: {} (frame tint 0x{:06X})", th.label, th.frameTint);
 				return;
 			}
 		}
-		logger::warn("compass theme \"{}\" is selected but no such file is installed; keeping the INI colours", compass::theme);
+		logger::warn("minimap theme {} is selected but no such file is installed; keeping uFrameTint", display::theme);
 	}
 
 	void Register()

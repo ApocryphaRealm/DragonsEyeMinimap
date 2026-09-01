@@ -19,16 +19,18 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   `rules-version.ps1 -Action bump`. If a number was typed by hand, it is wrong until the tool
 >   agrees.
 
-## 1.6.0 - 2026-09-01 - untested
+## 1.6.0 - 2026-09-01 - working
 
 ### Added
-- COMPASS THEMES (author request, 2026-09-01: the AMF-style theme dropdown, in DEM, shipped
-  with a few options): a Theme dropdown in the settings page's Compass section, fed from
+- MINIMAP THEMES (author, 2026-09-01: a theme folder for the mod and a dropdown to select
+  from installed themes - themes recolour the MINIMAP frame, not the compass): a Theme
+  dropdown in the settings page's Display section, fed from
   Data/SKSE/Plugins/DragonsEyeMinimap/themes/*.ini (drop a file in, never overwrite; new
-  files picked up on the next game start). Ships four themes: Vanilla White, Untarnished
-  Ivory, Ebony Gold, Njord Ice. Choosing a theme copies its colours into the ordinary
-  colour settings - Save persists them like any other change, and the dropdown shows
-  whichever theme matches the current colours ("Custom" when none does).
+  files picked up on the next game start). A theme carries uFrameColor, applied to the
+  frame art as an AS2 Color.setTransform MULTIPLY so the art's shading survives,
+  change-detected per frame and re-applied across shape switches. The selection (sTheme)
+  and the tint (uFrameTint) persist under [Display]. Ships four themes: Vanilla White
+  (untinted), Untarnished Ivory, Ebony Gold, Njord Ice.
 
 ## 1.5.9 - 2026-09-01 - working
 

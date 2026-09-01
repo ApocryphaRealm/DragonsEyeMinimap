@@ -76,6 +76,14 @@ namespace settings
 		inline constexpr float kScaleSliderMax = 3.0F;
 		inline std::uint32_t shape = 0;
 		inline bool showOnGameStart = true;
+
+		// MINIMAP THEMES (author, 2026-09-01: a theme folder and a dropdown - the selection IS
+		// the setting; themes recolour the MINIMAP frame, never the compass). sTheme:Display is
+		// the selected file name (stem) from Data/SKSE/Plugins/DragonsEyeMinimap/themes/;
+		// uFrameTint:Display is the multiply tint the theme applies to the frame art
+		// (0xFFFFFF = untinted; kept as its own key so the INI alone reproduces the look).
+		inline std::string theme;
+		inline std::uint32_t frameTint = 0xFFFFFF;
 	}
 
 	namespace controls
@@ -130,12 +138,6 @@ namespace settings
 		inline bool compassRing = true;        // bCompassRing:Compass
 		inline bool questPointer = true;       // bQuestPointer:Compass
 		inline bool metricUnits = false;       // bMetricUnits:Compass - feet by default, like the vanilla compass
-		// sTheme:Compass - the selected theme file's name (stem) from
-		// Data/SKSE/Plugins/DragonsEyeMinimap/themes/. Empty = the built-in colours below.
-		// The SELECTION is the setting (author, 2026-09-01: a theme folder and a dropdown,
-		// nothing cleverer); the file's colours are applied over the colour values at load,
-		// on Reload and when picked from the dropdown.
-		inline std::string theme;
 		// Stage-pixel conversions of the old separate widget's SCREEN-pixel defaults (the HUD
 		// movie scales ~2.5x onto a 3200-wide screen), so the built-in compass keeps its look.
 		inline float ringGap = 2.4F;           // fRingGap:Compass - inward of the map frame's inscribed circle
