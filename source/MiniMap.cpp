@@ -1290,10 +1290,18 @@ namespace DEM
 				cameraContext->defaultState->initialPosition.x = playerPos.x;
 				cameraContext->defaultState->initialPosition.y = playerPos.y;
 
-				// Nothing writes this any more - panning was the only thing that did - but
-				// zeroing it here still matters: it is what recenters the camera on the player
-				// on the frame after a cell change, before Update() runs.
-				cameraContext->defaultState->translation = RE::NiPoint3::Zero();
+				// Recenter on the player - EXCEPT while hold-to-pan is active. Advance() sets
+				// isCameraUpdatePending every frame, so this ran every frame and wiped the pan
+				// offsets ProcessThumbstick/ProcessMouseMove had just written: panning was dead
+				// from the moment 1.5.8 reintroduced it (the old comment above this line even
+				// said "nothing writes this any more" - hold-to-pan does again). While the
+				// player is panning, their offset IS the camera position; the zeroing returns
+				// the moment the button is released, which also gives the vanilla-style
+				// recenter-on-release for free (author pad report, 2026-09-01).
+				if (!inputControlledMode)
+				{
+					cameraContext->defaultState->translation = RE::NiPoint3::Zero();
+				}
 
 				cameraContext->Update();
 

@@ -98,10 +98,11 @@ namespace settings
 		// wheel zooms it, and the camera ignores both. A shorter press still toggles hide/show.
 		inline float holdToPanSecs = 0.25F;
 
-		// Controller equivalent of the hide key (XInput button mask, DirectInput gamepad codes):
-		// tap = hide/show, hold = pan with the RIGHT stick (design decision, 2026-08-30). Default R3 (right
-		// stick click, 0x0080); 0 disables. Looking is handed to the map while held.
-		inline std::int32_t panHoldGamepadButton = 0x0080;
+		// Controller equivalent of the hide key (XInput button mask): tap = hide/show, hold =
+		// pan with the RIGHT stick. Default LEFT BUMPER (0x0100) - the author, 2026-09-01:
+		// holding a shoulder button while steering the right stick is natural, holding the
+		// stick's own click (the old R3 default) is not. 0 disables.
+		inline std::int32_t panHoldGamepadButton = 0x0100;
 
 		// The controller button is OFF unless switched on (design decision, 2026-08-30): every gamepad button is
 		// already used for something, and PC players remap through Steam Input anyway.

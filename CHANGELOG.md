@@ -27,6 +27,11 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   quest pointer and metric units, saved to the INI with the rest.
 
 ### Fixed
+- HOLD-TO-PAN NEVER PANNED (author pad report, 2026-09-01) - mouse and controller both:
+  Advance() marks a camera update every frame, and the update path zeroed the camera
+  translation "to recenter after a cell change" before consuming it - wiping the pan offsets
+  the input handlers had just written. The recenter now skips while hold-to-pan is active,
+  which also recenters on release, vanilla-style.
 - ALL KEYBINDS AND CONTROLLER BINDS DEAD (author playtest, 2026-08-31: "the hide and zoom are
   not working anymore", "none of the controller binds actually work"): RE::MenuEventHandler's
   `registered` field is engine-managed and carries NO initializer, so a freshly constructed
@@ -37,6 +42,9 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   key-splice gate: hide toggles on every tap, also after menus; zoom cycles presets.
 
 ### Changed
+- Controller hold-to-pan default button is now LEFT BUMPER (0x0100), replacing R3: holding a
+  shoulder button while steering the right stick is natural; clicking-and-holding the stick
+  you are steering is not (the author, 2026-09-01).
 - COMPASS RESTYLED to match the original separate-widget design (design decision, 2026-08-31:
   the built-in compass must look like the old add-on's screenshots). The old widget drew in
   SCREEN pixels while the built-in ring draws in stage pixels (~2.5x on a 3200-wide screen),
