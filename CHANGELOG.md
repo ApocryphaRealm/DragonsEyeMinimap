@@ -19,7 +19,7 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   `rules-version.ps1 -Action bump`. If a number was typed by hand, it is wrong until the tool
 >   agrees.
 
-## 1.5.9 - 2026-08-31 - untested
+## 1.5.9 - 2026-09-01 - working
 
 ### Added
 - COMPASS SETTINGS on the settings page (author request, 2026-08-31: players must be able to
