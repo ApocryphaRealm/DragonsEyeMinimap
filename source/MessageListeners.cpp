@@ -25,6 +25,7 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 	{
 		logger::debug("kPostPostLoad received; registering settings page with SKSE Menu Framework");
 		UI::Register();
+		UI::ApplyCompassTheme();
 
 		// Rule-17 retry: a real launch showed devbench's own server can still be finishing
 		// startup a moment after kPostLoad fires, which is early enough to lose the race even

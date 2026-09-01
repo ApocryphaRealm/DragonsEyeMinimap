@@ -16,6 +16,12 @@ namespace UI
 	// Scaleform are queued onto the main thread and skipped while the minimap does not exist.
 	void ApplyLiveSettings();
 
+	// Applies the compass theme named by settings::compass::theme (a file in
+	// Data/SKSE/Plugins/DragonsEyeMinimap/themes/), copying its colours over the compass
+	// colour settings. Safe when the setting is empty or the file is gone: does nothing.
+	// Call at kDataLoaded and after settings::Reload().
+	void ApplyCompassTheme();
+
 	namespace SettingsPanel
 	{
 		void __stdcall Render();

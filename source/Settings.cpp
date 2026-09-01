@@ -611,6 +611,11 @@ namespace settings
 				compass::northColor = Read<std::uint32_t>(c, "uNorthColor:Compass", compass::northColor);
 				compass::pointerColor = Read<std::uint32_t>(c, "uPointerColor:Compass", compass::pointerColor);
 				compass::discAlpha = Read<std::uint32_t>(c, "uDiscAlpha:Compass", compass::discAlpha);
+				compass::theme = ReadString(c, "sTheme:Compass", compass::theme);
+				if (compass::theme.size() >= 2 && compass::theme.front() == '"' && compass::theme.back() == '"')
+				{
+					compass::theme = compass::theme.substr(1, compass::theme.size() - 2);
+				}
 
 				logger::debug("Key bindings resolved: hideKey={}, zoomToggleKey={}", hideKeyCode, zoomToggleKeyCode);
 				logger::debug("Zoom presets resolved: default={:.2f}, zoomedIn={:.2f}, followPlayerCameraRotation={}",
@@ -664,6 +669,22 @@ namespace settings
 			add("fZoomDefault:Controls", zoomDefault);
 			add("fZoomZoomedIn:Controls", zoomZoomedIn);
 			add("bFollowPlayerCameraRotation:Controls", followPlayerCameraRotation);
+		}
+
+		{
+			using namespace compass;
+			add("bCompassRing:Compass", compassRing);
+			add("bQuestPointer:Compass", questPointer);
+			add("bMetricUnits:Compass", metricUnits);
+			add("fRingGap:Compass", ringGap);
+			add("fRingThickness:Compass", ringThickness);
+			add("fPointerSize:Compass", pointerSize);
+			add("fLabelSize:Compass", labelSize);
+			add("uRingColor:Compass", ringColor);
+			add("uNorthColor:Compass", northColor);
+			add("uPointerColor:Compass", pointerColor);
+			add("uDiscAlpha:Compass", discAlpha);
+			add("sTheme:Compass", "");
 		}
 
 		// DELIBERATELY NOT calling iniSettingCollection->ReadFromFile here.
@@ -765,6 +786,7 @@ namespace settings
 		ok &= WriteBool(kCompassSection, "bCompassRing", compass::compassRing);
 		ok &= WriteBool(kCompassSection, "bQuestPointer", compass::questPointer);
 		ok &= WriteBool(kCompassSection, "bMetricUnits", compass::metricUnits);
+		ok &= WriteString(kCompassSection, "sTheme", compass::theme);
 
 		// Write the file once, with every queued key applied. Until this succeeds nothing has
 		// reached disk, so its result - not the queueing above - decides whether Save() worked.

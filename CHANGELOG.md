@@ -19,6 +19,17 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   `rules-version.ps1 -Action bump`. If a number was typed by hand, it is wrong until the tool
 >   agrees.
 
+## 1.6.0 - 2026-09-01 - untested
+
+### Added
+- COMPASS THEMES (author request, 2026-09-01: the AMF-style theme dropdown, in DEM, shipped
+  with a few options): a Theme dropdown in the settings page's Compass section, fed from
+  Data/SKSE/Plugins/DragonsEyeMinimap/themes/*.ini (drop a file in, never overwrite; new
+  files picked up on the next game start). Ships four themes: Vanilla White, Untarnished
+  Ivory, Ebony Gold, Njord Ice. Choosing a theme copies its colours into the ordinary
+  colour settings - Save persists them like any other change, and the dropdown shows
+  whichever theme matches the current colours ("Custom" when none does).
+
 ## 1.5.9 - 2026-09-01 - working
 
 ### Added
