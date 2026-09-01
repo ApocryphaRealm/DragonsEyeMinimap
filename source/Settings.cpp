@@ -19,6 +19,7 @@ namespace settings
 		constexpr const char* kDebugSection = "Debug";
 		constexpr const char* kDisplaySection = "Display";
 		constexpr const char* kControlsSection = "Controls";
+		constexpr const char* kCompassSection = "Compass";
 
 		// One offset pair per corner, so the INI names say which corner they belong to rather
 		// than making the reader count indices.
@@ -760,6 +761,10 @@ namespace settings
 		ok &= WriteFloat(kControlsSection, "fZoomDefault", controls::zoomDefault);
 		ok &= WriteFloat(kControlsSection, "fZoomZoomedIn", controls::zoomZoomedIn);
 		ok &= WriteBool(kControlsSection, "bFollowPlayerCameraRotation", controls::followPlayerCameraRotation);
+
+		ok &= WriteBool(kCompassSection, "bCompassRing", compass::compassRing);
+		ok &= WriteBool(kCompassSection, "bQuestPointer", compass::questPointer);
+		ok &= WriteBool(kCompassSection, "bMetricUnits", compass::metricUnits);
 
 		// Write the file once, with every queued key applied. Until this succeeds nothing has
 		// reached disk, so its result - not the queueing above - decides whether Save() worked.

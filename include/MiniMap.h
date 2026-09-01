@@ -58,7 +58,16 @@ namespace DEM
 		public:
 			InputHandler(Minimap* a_miniMap)
 			: miniMap{ a_miniMap }
-			{}
+			{
+				// RE::MenuEventHandler's `registered` is an ENGINE-managed field with no
+				// initializer: MenuControls::AddHandler/RemoveHandler maintain it, but a
+				// freshly constructed handler holds uninitialized memory there. When the
+				// garbage read as true, ProcessMessage's `!registered` guard skipped
+				// AddHandler forever and every key/controller input was dead - the author's
+				// 2026-08-31 report ("hide and zoom are not working anymore"), a heisenbug
+				// that flipped with the 1.5.8 binary layout. Start it FALSE explicitly.
+				registered = false;
+			}
 
 			~InputHandler() final{};  // 00
 

@@ -21,6 +21,21 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 
 ## 1.5.9 - 2026-08-31 - untested
 
+### Added
+- COMPASS SETTINGS on the settings page (author request, 2026-08-31: players must be able to
+  switch the compass off entirely): a Compass section with live toggles for the ring, the
+  quest pointer and metric units, saved to the INI with the rest.
+
+### Fixed
+- ALL KEYBINDS AND CONTROLLER BINDS DEAD (author playtest, 2026-08-31: "the hide and zoom are
+  not working anymore", "none of the controller binds actually work"): RE::MenuEventHandler's
+  `registered` field is engine-managed and carries NO initializer, so a freshly constructed
+  input handler held uninitialized memory there. When the garbage read as true, the
+  registration guard skipped MenuControls::AddHandler forever and every key and controller
+  input was stillborn - a heisenbug that flipped with the 1.5.8 binary layout (1.5.7 in the
+  field happened to read false). The constructor now starts it false explicitly. Verified by
+  key-splice gate: hide toggles on every tap, also after menus; zoom cycles presets.
+
 ### Changed
 - COMPASS RESTYLED to match the original separate-widget design (design decision, 2026-08-31:
   the built-in compass must look like the old add-on's screenshots). The old widget drew in

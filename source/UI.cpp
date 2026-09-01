@@ -781,6 +781,24 @@ namespace UI
 			HelpMarker("How far the minimap is zoomed in, right now. The game applies its own limits, so the value can settle somewhere other than where you left it.");
 		}
 
+		// The built-in compass (author request, 2026-08-31: players must be able to switch the
+		// compass off entirely, not only have it appear whenever the minimap is hidden).
+		void RenderCompassSection()
+		{
+			using namespace settings;
+
+			ImGuiMCP::SeparatorText("Compass");
+
+			ImGuiMCP::Toggle("Compass ring", &compass::compassRing);
+			HelpMarker("The compass ring that takes the minimap's corner while the map is hidden. Off = nothing is drawn there when the map is hidden.");
+
+			ImGuiMCP::Toggle("Quest pointer", &compass::questPointer);
+			HelpMarker("The vanilla-style quest marker with the distance readout, riding the ring or the visible map. Off = never drawn.");
+
+			ImGuiMCP::Toggle("Metric units", &compass::metricUnits);
+			HelpMarker("Distance readout in metres instead of feet.");
+		}
+
 		void RenderControlsSection()
 		{
 			using namespace settings;
@@ -982,6 +1000,9 @@ namespace UI
 		ImGuiMCP::Spacing();
 
 		RenderZoomSection();
+		ImGuiMCP::Spacing();
+
+		RenderCompassSection();
 		ImGuiMCP::Spacing();
 
 		RenderControlsSection();
