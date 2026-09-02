@@ -32,16 +32,59 @@ namespace DEM
 		if (RE::UI__IsInMenuMode())
 		{
 			if (miniMap->inputControlledMode) { miniMap->LeaveInputControlledMode(); }
-			if (registered)
-			{
-				logger::debug("Minimap no longer eligible to process input (menu open); deregistering input handler");
-				menuControls->RemoveHandler(this);
-			}
 
+			// Do NOT call menuControls->RemoveHandler(this) here. CanProcess is invoked BY
+			// MenuControls while it walks its own handler list, so removing this handler from
+			// inside that callback mutates the container mid-iteration. Returning false is all
+			// that is needed to decline the input; the handler stays registered and simply says
+			// no while a menu is open.
 			return false;
 		}
 
-		return true;
+		// Claim ONLY the events this mod actually acts on.
+		//
+		// THE TWEEN MENU FLICKER (2026-09-02). This used to `return true` for every input while
+		// no menu was open, which put this handler into MenuControls' dispatch for keys it has no
+		// interest in - Tab among them. Tapping Tab then opened the tween menu and closed it again
+		// one frame later, a steady 13.8ms cycle, and the minimap appeared to flicker because it
+		// was faithfully following a menu that was itself opening and closing.
+		//
+		// Established by bisect against real keypresses:
+		//   handler not registered at all       -> no flicker (gaps 366-812ms)
+		//   registered, CanProcess always false -> no flicker (gaps 463-2028ms)
+		//   registered, CanProcess broadly true -> flicker    (gaps 13.8ms)
+		// Presence in the handler list is harmless; claiming events we do not own is not.
+		auto* button = a_event ? a_event->AsButtonEvent() : nullptr;
+
+		if (!button)
+		{
+			// Mouse-move and thumbstick only matter while the map is being held for panning.
+			return miniMap->inputControlledMode;
+		}
+
+		const auto device = button->GetDevice();
+		const auto idCode = static_cast<std::int32_t>(button->GetIDCode());
+
+		if (device == RE::INPUT_DEVICE::kKeyboard)
+		{
+			return (settings::controls::hideKeyCode > 0 && idCode == settings::controls::hideKeyCode) ||
+				   (settings::controls::zoomToggleKeyCode > 0 && idCode == settings::controls::zoomToggleKeyCode);
+		}
+
+		if (device == RE::INPUT_DEVICE::kGamepad)
+		{
+			return settings::controls::gamepadHideButtonEnabled &&
+				   settings::controls::panHoldGamepadButton > 0 &&
+				   idCode == settings::controls::panHoldGamepadButton;
+		}
+
+		if (device == RE::INPUT_DEVICE::kMouse)
+		{
+			// The wheel is the map's zoom channel only while hold-to-pan is active.
+			return miniMap->inputControlledMode;
+		}
+
+		return false;
 	}
 
 	bool Minimap::InputHandler::ProcessButton(RE::ButtonEvent* a_event)

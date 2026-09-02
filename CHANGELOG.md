@@ -19,6 +19,38 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   `rules-version.ps1 -Action bump`. If a number was typed by hand, it is wrong until the tool
 >   agrees.
 
+## 1.6.1 - 2026-09-02 - untested (awaiting one confirmation launch)
+
+### Fixed
+- TWEEN MENU FLICKER. Tapping Tab made the tween menu open and close again one frame later, a
+  steady 13.8ms cycle, and the minimap appeared to flicker because it was faithfully following a
+  menu that was itself opening and closing. `Minimap::InputHandler::CanProcess` returned true for
+  EVERY input event whenever no menu was open, which put this handler into MenuControls' dispatch
+  for keys the mod has no interest in, Tab among them. It now claims only the hide key, the zoom
+  key, the configured gamepad button, and mouse/thumbstick input while hold-to-pan is active.
+  Every keybind is unchanged.
+- `CanProcess` no longer calls `MenuControls::RemoveHandler(this)`. That ran from inside a
+  callback MenuControls invokes while walking its own handler list, mutating the container
+  mid-iteration. Returning false is all that is needed to decline input.
+
+### How it was found
+Five earlier attempts failed because each assumed a VISIBILITY bug - HUD mode flags, forced
+_visible in the SWF's ActionScript, making menu mode authoritative, an entire rebuild from HUD
+element to standalone menu, and removing the mid-dispatch RemoveHandler. It was input throughout.
+A bisect against real keypresses settled it:
+
+    handler not registered at all        no flicker   gaps 366-812ms
+    registered, CanProcess always false  no flicker   gaps 463-2028ms
+    registered, CanProcess broadly true  FLICKER      gaps 13.8ms
+
+So presence in the handler list is harmless; claiming events the mod does not own is not.
+
+### Scope
+This release is v1.6.0 plus ONE changed file, `source/Controls.cpp`. The standalone-menu rebuild
+explored during the same session is NOT included: it caused off-axis rendering and lost the
+compass, and it was never needed for this bug. It is preserved on a git stash and in
+`_dem-standalone-rebuild-backup-20260902`, with its plan in `4. plans/dem-standalone-menu/`.
+
 ## 1.6.0 - 2026-09-01 - working
 
 ### Added
