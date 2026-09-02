@@ -87,13 +87,14 @@ namespace settings
 		// off and keep the map.
 		inline bool showLocationName = true;   // bShowLocationName:Display
 
-		// MINIMAP THEMES (author, 2026-09-01: a theme folder and a dropdown - the selection IS
-		// the setting; themes recolour the MINIMAP frame, never the compass). sTheme:Display is
-		// the selected file name (stem) from Data/SKSE/Plugins/DragonsEyeMinimap/themes/;
-		// uFrameTint:Display is the multiply tint the theme applies to the frame art
-		// (0xFFFFFF = untinted; kept as its own key so the INI alone reproduces the look).
+		// MINIMAP FRAME THEMES. sTheme:Display is the file name (stem) of a SWF in
+		// Data/Interface/DragonsEyeMinimapThemes/; empty means the built-in frame.
+		//
+		// A theme REPLACES the frame artwork - it does not recolour it. The 1.6.0 system carried
+		// a colour per theme and applied it as a multiply tint, so a "theme" could only ever be a
+		// recolour of the one frame; corrected by the project owner on 2026-09-02. Themes live
+		// under Data/Interface because that is where Scaleform resolves loadMovie paths from.
 		inline std::string theme;
-		inline std::uint32_t frameTint = 0xFFFFFF;
 	}
 
 	namespace controls

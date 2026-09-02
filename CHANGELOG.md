@@ -19,6 +19,37 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   `rules-version.ps1 -Action bump`. If a number was typed by hand, it is wrong until the tool
 >   agrees.
 
+## 1.6.3 - 2026-09-02 - untested
+
+### Changed
+- THEME SYSTEM REWORKED: a theme now REPLACES the minimap's frame artwork instead of recolouring
+  it. The project owner's correction, 2026-09-02: "it's not supposed to change the color of the
+  frame it's supposed to be used for introducing new frames to replace the current one." The 1.6.0
+  system gave each theme a uFrameColor and applied it as an AS2 Color.setTransform MULTIPLY, so a
+  theme could only ever be a recolour of the one frame - four colours of the same shape rather
+  than four frames.
+- A theme is now a SWF that draws the frame, loaded into the art clip with loadMovie. Themes live
+  in Data/Interface/DragonsEyeMinimapThemes, because that is where Scaleform's file opener
+  resolves loadMovie paths - the old SKSE/Plugins/DragonsEyeMinimap/themes location is not
+  reachable from ActionScript.
+- A theme file and a frame-reskin mod are now the same artifact delivered two ways: drop the SWF
+  in the themes folder to switch it in game, or overwrite MinimapArt.swf to change the built-in
+  frame outright. EXISTING RESKINS ARE UNAFFECTED and keep working exactly as before - they
+  replace the default art, which is what "Built-in frame" shows.
+- loadMovie is asynchronous, so selecting a theme re-runs the artwork measurement that positions
+  and scales the map, using the existing pendingReapplyFrames mechanism.
+
+### Removed
+- uFrameTint:Display and the tint code path, along with the four colour-only themes that shipped
+  in 1.6.0 (Vanilla White, Untarnished Ivory, Ebony Gold, Njord Ice). They cannot be converted:
+  they carried a colour, and a theme is now artwork. An INI still naming one of them falls back
+  to the built-in frame and says so in the log.
+
+### Note for theme authors
+- The SWF's ROOT TIMELINE must draw the frame. A SWF that only exports symbols to a library will
+  load and show nothing. Authored size and registration decide how the map is positioned and
+  scaled, since the mod measures the loaded artwork. Documented in the shipped themes folder.
+
 ## 1.6.2 - 2026-09-02 - working
 
 ### Added

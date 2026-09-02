@@ -856,33 +856,48 @@ namespace DEM
 			lastLoggedAlpha = static_cast<float>(alpha);
 		}
 
-		// MINIMAP THEME frame tint (1.6.0): an AS2 Color.setTransform MULTIPLY, so the art's
-		// own shading survives (setRGB would flatten it to a solid). Change-detected on
-		// (tint, shape) - SetShape swaps in a fresh duplicate of the art, so a shape switch
-		// must re-tint the new clip; everything else re-applies only when the value changes.
-		static std::uint32_t lastTintKey = 0xFFFFFFFF;
-		const std::uint32_t tint = settings::display::frameTint & 0xFFFFFFu;
-		const std::uint32_t tintKey = tint | (shape == Shape::kRound ? 0x1000000u : 0u);
-		if (tintKey != lastTintKey)
+		// MINIMAP THEME art swap (1.6.3). Replaces the frame ARTWORK, rather than tinting it.
+		//
+		// The 1.6.0 theme system was the wrong shape: each theme carried a uFrameColor applied as
+		// an AS2 Color.setTransform MULTIPLY, so a "theme" could only ever be a recolour of the one
+		// frame. The project owner's correction, 2026-09-02: "it's not supposed to change the color
+		// of the frame it's supposed to be used for introducing new frames to replace the current
+		// one." So a theme is now a SWF that draws a frame, and selecting one loads it into the art
+		// clip in place of the built-in artwork.
+		//
+		// Themes live under Data/Interface because that is where Scaleform's file opener resolves
+		// loadMovie paths - the old SKSE/Plugins location is not reachable from ActionScript.
+		//
+		// Change-detected on (theme, shape): SetShape swaps in a fresh duplicate of the art, so a
+		// shape switch has to re-load the theme onto the new clip.
 		{
-			if (auto* view = GetHudMovieView())
+			static std::string lastThemeKey = "";  // impossible value, so the first pass always applies
+			const std::string themeKey = settings::display::theme + (shape == Shape::kRound ? "|round" : "|square");
+
+			if (themeKey != lastThemeKey)
 			{
-				RE::GFxValue color;
-				std::array<RE::GFxValue, 1> colorArg{ art };
-				view->CreateObject(&color, "Color", colorArg.data(), colorArg.size());
-				RE::GFxValue xform;
-				view->CreateObject(&xform);
-				if (color.IsObject() && xform.IsObject())
+				lastThemeKey = themeKey;
+
+				if (settings::display::theme.empty())
 				{
-					xform.SetMember("ra", RE::GFxValue{ ((tint >> 16) & 0xFF) / 255.0 * 100.0 });
-					xform.SetMember("ga", RE::GFxValue{ ((tint >> 8) & 0xFF) / 255.0 * 100.0 });
-					xform.SetMember("ba", RE::GFxValue{ (tint & 0xFF) / 255.0 * 100.0 });
-					std::array<RE::GFxValue, 1> xformArg{ xform };
-					if (color.Invoke("setTransform", nullptr, xformArg.data(), xformArg.size()))
-					{
-						lastTintKey = tintKey;
-						logger::debug("frame tint applied: 0x{:06X} on {}", tint, artName);
-					}
+					// No theme: nothing to do. The built-in artwork is whatever MinimapArt.swf
+					// provides, which is also what a file-overwrite reskin replaces - so those
+					// keep working untouched.
+					logger::debug("theme: none selected; using the built-in frame art on {}", artName);
+				}
+				else
+				{
+					const std::string path = "Interface/DragonsEyeMinimapThemes/" + settings::display::theme + ".swf";
+					std::array<RE::GFxValue, 1> arg{ RE::GFxValue{ path.c_str() } };
+
+					// loadMovie is ASYNCHRONOUS - the art arrives a frame or two later, so the
+					// measurement that positions and scales the map has to run again once it has.
+					// pendingReapplyFrames is the existing mechanism for exactly that.
+					art.Invoke("loadMovie", nullptr, arg.data(), arg.size());
+					pendingReapplyFrames = kPendingReapplyFrames;
+
+					logger::info("theme: loading \"{}\" into {} (re-measuring for {} frames)",
+						path, artName, pendingReapplyFrames);
 				}
 			}
 		}

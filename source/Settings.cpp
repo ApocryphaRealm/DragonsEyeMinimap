@@ -614,7 +614,6 @@ namespace settings
 				compass::northColor = Read<std::uint32_t>(c, "uNorthColor:Compass", compass::northColor);
 				compass::pointerColor = Read<std::uint32_t>(c, "uPointerColor:Compass", compass::pointerColor);
 				compass::discAlpha = Read<std::uint32_t>(c, "uDiscAlpha:Compass", compass::discAlpha);
-				display::frameTint = Read<std::uint32_t>(c, "uFrameTint:Display", display::frameTint);
 				display::theme = ReadString(c, "sTheme:Display", display::theme);
 				if (display::theme.size() >= 2 && display::theme.front() == '"' && display::theme.back() == '"')
 				{
@@ -662,7 +661,6 @@ namespace settings
 			add("uShape:Display", shape);
 			add("bShowOnGameStart:Display", showOnGameStart);
 			add("bShowLocationName:Display", showLocationName);
-			add("uFrameTint:Display", frameTint);
 			add("sTheme:Display", "");
 		}
 
@@ -780,7 +778,6 @@ namespace settings
 		ok &= WriteUInt(kDisplaySection, "uShape", display::shape);
 		ok &= WriteBool(kDisplaySection, "bShowOnGameStart", display::showOnGameStart);
 		ok &= WriteBool(kDisplaySection, "bShowLocationName", display::showLocationName);
-		ok &= WriteUInt(kDisplaySection, "uFrameTint", display::frameTint);
 		ok &= WriteString(kDisplaySection, "sTheme", display::theme);
 
 		ok &= WriteInt(kControlsSection, "iHideKeyCode", controls::hideKeyCode);
