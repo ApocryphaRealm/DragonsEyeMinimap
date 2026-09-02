@@ -19,7 +19,7 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   `rules-version.ps1 -Action bump`. If a number was typed by hand, it is wrong until the tool
 >   agrees.
 
-## 1.6.1 - 2026-09-02 - untested (awaiting one confirmation launch)
+## 1.6.1 - 2026-09-02 - working
 
 ### Fixed
 - TWEEN MENU FLICKER. Tapping Tab made the tween menu open and close again one frame later, a
