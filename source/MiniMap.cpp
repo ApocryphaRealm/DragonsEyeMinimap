@@ -55,6 +55,24 @@ namespace DEM
 			RE::NiPoint3 playerPos = RE::PlayerCharacter::GetSingleton()->GetPosition();
 			cameraContext->SetDefaultStateInitialPosition(playerPos);
 
+			// Open at the zoomed-in preset (request, 2026-09-02: "have it default to the zoomed
+			// in position").
+			//
+			// Until now the mod never set a zoom at all - SetMapZoom was only ever called from
+			// the toggle key - so the map opened at whatever the game's own camera happened to
+			// be at, and the first press of the zoom key jumped it to fZoomZoomedIn. Applying
+			// that preset here makes the opening view the one the player chose, and marking
+			// zoomedIn true keeps the toggle honest: the next press goes to the OTHER preset
+			// rather than appearing to do nothing.
+			//
+			// No new setting: fZoomZoomedIn is already the configurable value, so the starting
+			// zoom is tunable through the same slider that was always there.
+			SetMapZoom(settings::controls::zoomZoomedIn);
+			zoomedIn = true;
+
+			logger::debug("InitLocalMap: opening at the zoomed-in preset ({})",
+				settings::controls::zoomZoomedIn);
+
 			// Init scaleform /////////////////////////////////////////////////////////////////////////
 
 			// Set to reuse game logic
@@ -1243,7 +1261,19 @@ namespace DEM
 					logger::debug("Advance: player has no parentCell; title left unset");
 				}
 
-				localMap_->root.Invoke("SetTitle", nullptr, title);
+				// Blank the title rather than skipping the call: SetTitle is what the SWF uses to
+				// clear the previous location too, so skipping it would freeze whatever text was
+				// last shown on screen.
+				if (!settings::display::showLocationName)
+				{
+					std::array<RE::GFxValue, 2> blank{};
+					blank[0] = "";
+					localMap_->root.Invoke("SetTitle", nullptr, blank);
+				}
+				else
+				{
+					localMap_->root.Invoke("SetTitle", nullptr, title);
+				}
 				
 				localMap->PopulateData();
 

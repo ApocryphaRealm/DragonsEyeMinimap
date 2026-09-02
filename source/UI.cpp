@@ -917,6 +917,12 @@ namespace UI
 
 			ImGuiMCP::Spacing();
 
+			if (ImGuiMCP::Toggle("Show location name", &display::showLocationName))
+			{
+				logger::debug("Show location name set to {}", display::showLocationName);
+			}
+			HelpMarker("The location name under the map. Turn this off if your game's language shows missing characters or text running past the frame - the title uses the game's own interface font, which this mod cannot change.");
+
 			if (ImGuiMCP::Toggle("Rotate with the player", &controls::followPlayerCameraRotation))
 			{
 				logger::debug("Rotate with player camera set to {}", controls::followPlayerCameraRotation);

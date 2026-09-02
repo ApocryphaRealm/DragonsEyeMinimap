@@ -76,6 +76,16 @@ namespace settings
 		inline constexpr float kScaleSliderMax = 3.0F;
 		inline std::uint32_t shape = 0;
 		inline bool showOnGameStart = true;
+		// Show the location name (and its "cleared" hint) under the map. ON by default, since
+		// that is how the mod has always looked.
+		//
+		// A compatibility switch for non-English games (request, 2026-09-02). The title is drawn
+		// with the interface font the game supplies; in localisations whose glyphs that font does
+		// not carry, or whose names are longer than the space allows, the result can be missing
+		// characters or text running past the frame. There is nothing the mod can do about
+		// another language's font, so the honest remedy is to let those players switch the title
+		// off and keep the map.
+		inline bool showLocationName = true;   // bShowLocationName:Display
 
 		// MINIMAP THEMES (author, 2026-09-01: a theme folder and a dropdown - the selection IS
 		// the setting; themes recolour the MINIMAP frame, never the compass). sTheme:Display is
@@ -124,10 +134,11 @@ namespace settings
 		// from where the camera happens to be", which behaves oddly once the player has
 		// manually scrolled the map to a third value. Which of the two is currently active is
 		// tracked at runtime by Minimap, not here, since it is not something to save.
-		inline float zoomDefault = 0.25F;
-		inline float zoomZoomedIn = 0.75F;
+		inline float zoomDefault = 0.0F;
+		inline float zoomZoomedIn = 1.0F;
 
 		inline bool followPlayerCameraRotation = true;
+
 	}
 
 	// Built-in compass ring + quest pointer (design decision, 2026-08-30) - INI-only for now

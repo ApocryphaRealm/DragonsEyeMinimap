@@ -47,6 +47,7 @@ namespace settings
 			float scale;
 			std::uint32_t shape;
 			bool showOnGameStart;
+			bool showLocationName;
 
 			std::int32_t hideKeyCode;
 			std::int32_t zoomToggleKeyCode;
@@ -68,6 +69,7 @@ namespace settings
 			defaults.scale = display::scale;
 			defaults.shape = display::shape;
 			defaults.showOnGameStart = display::showOnGameStart;
+			defaults.showLocationName = display::showLocationName;
 
 			defaults.hideKeyCode = controls::hideKeyCode;
 			defaults.zoomToggleKeyCode = controls::zoomToggleKeyCode;
@@ -582,6 +584,7 @@ namespace settings
 				scale = Read<float>(c, "fScale:Display", scale);
 				shape = Read<std::uint32_t>(c, "uShape:Display", shape);
 				showOnGameStart = Read<bool>(c, "bShowOnGameStart:Display", showOnGameStart);
+				showLocationName = Read<bool>(c, "bShowLocationName:Display", showLocationName);
 
 				const std::uint32_t safeAnchor = anchor < kAnchorCount ? anchor : 0;
 				logger::debug("Display settings resolved: anchor={} ({}), scale={:.2f}, shape={}, showOnGameStart={}",
@@ -658,6 +661,7 @@ namespace settings
 			add("fScale:Display", scale);
 			add("uShape:Display", shape);
 			add("bShowOnGameStart:Display", showOnGameStart);
+			add("bShowLocationName:Display", showLocationName);
 			add("uFrameTint:Display", frameTint);
 			add("sTheme:Display", "");
 		}
@@ -775,6 +779,7 @@ namespace settings
 		ok &= WriteFloat(kDisplaySection, "fScale", display::scale);
 		ok &= WriteUInt(kDisplaySection, "uShape", display::shape);
 		ok &= WriteBool(kDisplaySection, "bShowOnGameStart", display::showOnGameStart);
+		ok &= WriteBool(kDisplaySection, "bShowLocationName", display::showLocationName);
 		ok &= WriteUInt(kDisplaySection, "uFrameTint", display::frameTint);
 		ok &= WriteString(kDisplaySection, "sTheme", display::theme);
 
@@ -863,6 +868,7 @@ namespace settings
 		display::scale = defaults.scale;
 		display::shape = defaults.shape;
 		display::showOnGameStart = defaults.showOnGameStart;
+		display::showLocationName = defaults.showLocationName;
 
 		controls::hideKeyCode = defaults.hideKeyCode;
 		controls::zoomToggleKeyCode = defaults.zoomToggleKeyCode;

@@ -19,6 +19,31 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   `rules-version.ps1 -Action bump`. If a number was typed by hand, it is wrong until the tool
 >   agrees.
 
+## 1.6.2 - 2026-09-02 - working
+
+### Added
+- SHOW LOCATION NAME toggle (`bShowLocationName:Display`, on by default), with a checkbox on the
+  settings page. A compatibility switch for non-English games, requested 2026-09-02: the title
+  under the map is drawn with the game's own interface font, so a localisation whose glyphs that
+  font does not carry, or whose location names are longer than the space allows, can show missing
+  characters or text running past the frame. The mod cannot change another language's font, so it
+  lets those players switch the title off and keep the map. Turning it off blanks the title rather
+  than skipping the update, because the same call is what clears the PREVIOUS location - skipping
+  it would freeze whatever text was last on screen.
+
+### Changed
+- The map now OPENS at the zoomed-in preset. It never applied a zoom at startup at all: SetMapZoom
+  was only ever called from the toggle key, so the map opened at whatever the game's camera
+  happened to be at and the first key press jumped it. The toggle state is marked accordingly, so
+  the next press goes to the other preset instead of appearing to do nothing. No new setting -
+  fZoomZoomedIn was already the configurable value.
+- New default zoom presets: 0 and 1, the two extremes, replacing 0.25 and 0.75.
+
+### Internal
+- `dist/DragonsEyeMinimap.ini` is now the version-controlled source of truth for the shipped INI.
+  It had only ever been carried forward from the previous package, with nothing tying it to the
+  compiled defaults - a fragile way to satisfy rule 16. All 27 registered settings verified present.
+
 ## 1.6.1 - 2026-09-02 - working
 
 ### Fixed
