@@ -1290,6 +1290,15 @@ namespace DEM
 					localMap_->root.Invoke("SetTitle", nullptr, title);
 				}
 				
+				// The markers below are placed by the engine from the local-map camera, so the
+				// camera has to hold THIS frame's position and rotation before they are placed.
+				// It used to be updated later in the frame, in PreRender, which left the marker
+				// layer running exactly one frame behind the picture under it: invisible at
+				// walking pace, plainly visible when spinning on the spot, where the markers
+				// detach from the map and snap back into place when the turn stops (author
+				// report, 2026-09-02).
+				UpdateCamera();
+
 				localMap->PopulateData();
 
 				// Re-resolves IconDisplay if the one-shot lookup in InitLocalMap() was too early.
@@ -1354,44 +1363,55 @@ namespace DEM
 		}
 	}
 
+	void Minimap::UpdateCamera()
+	{
+		RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+
+		RE::NiPoint3 playerPos = player->GetPosition();
+		cameraContext->defaultState->initialPosition.x = playerPos.x;
+		cameraContext->defaultState->initialPosition.y = playerPos.y;
+
+		// Recenter on the player - EXCEPT while hold-to-pan is active. This runs every frame, so
+		// it used to wipe the pan offsets ProcessThumbstick/ProcessMouseMove had just written:
+		// panning was dead from the moment 1.5.8 reintroduced it. While the player is panning,
+		// their offset IS the camera position; the zeroing returns the moment the button is
+		// released, which also gives the vanilla-style recenter-on-release for free (author pad
+		// report, 2026-09-01).
+		if (!inputControlledMode)
+		{
+			cameraContext->defaultState->translation = RE::NiPoint3::Zero();
+		}
+
+		cameraContext->Update();
+
+		RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->GetRuntimeData2().loadedAreaBound;
+		cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
+	}
+
 	void Minimap::PreRender()
 	{
 		if (IsVisible() && IsShown())
 		{
+			// Set by Advance, so the world is drawn once per frame the HUD advanced - and only
+			// after the camera it is drawn through has been updated for this frame.
 			if (isCameraUpdatePending)
 			{
-				RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
-
-				RE::NiPoint3 playerPos = player->GetPosition();
-				cameraContext->defaultState->initialPosition.x = playerPos.x;
-				cameraContext->defaultState->initialPosition.y = playerPos.y;
-
-				// Recenter on the player - EXCEPT while hold-to-pan is active. Advance() sets
-				// isCameraUpdatePending every frame, so this ran every frame and wiped the pan
-				// offsets ProcessThumbstick/ProcessMouseMove had just written: panning was dead
-				// from the moment 1.5.8 reintroduced it (the old comment above this line even
-				// said "nothing writes this any more" - hold-to-pan does again). While the
-				// player is panning, their offset IS the camera position; the zeroing returns
-				// the moment the button is released, which also gives the vanilla-style
-				// recenter-on-release for free (author pad report, 2026-09-01).
-				if (!inputControlledMode)
-				{
-					cameraContext->defaultState->translation = RE::NiPoint3::Zero();
-				}
-
-				cameraContext->Update();
-
 				isCameraUpdatePending = false;
 
-				RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->GetRuntimeData2().loadedAreaBound;
-				cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
-
-				if (isFogOfWarEnabled)
+				// The two calls below are the only things the minimap does to the GAME'S OWN
+				// scene graph, and neither is safe to do while a cell is streaming in: the fog
+				// overlay attaches to live cells, and the off-screen render culls them. Skipping
+				// them leaves the last drawn picture in the local-map render target, which is
+				// what the player keeps seeing until the world has settled.
+				if (ShouldRedrawWorld())
 				{
-					UpdateFogOfWar();
-				}
+					if (isFogOfWarEnabled)
+					{
+						UpdateFogOfWar();
+					}
 
-				RenderOffScreen();
+					RenderOffScreen();
+				}
 			}
 		}
 	}

@@ -142,6 +142,41 @@ namespace settings
 
 	}
 
+	// WHEN THE WORLD IMAGE UNDER THE MINIMAP IS REDRAWN.
+	//
+	// The minimap is not an overlay: the picture inside the frame is the world, drawn through the
+	// game's own local-map path (WorldRendering.cpp). That draw runs the engine's cull jobs over
+	// the live scene graph, and to do it it briefly unhides the object-LOD root, turns node fade
+	// off and clears terrain render passes - global state that belongs to the frame the player is
+	// looking at. Doing that WHILE the engine is streaming a new cell in is asking for trouble,
+	// and a report of trees rendering deformed straight after coc/cow (2026-09-02) is exactly the
+	// shape of trouble it would cause.
+	//
+	// There is no way to draw a live local map without this path - it is the same code the
+	// vanilla local map uses - so the answer is to not run it at the moments it can do harm, and
+	// to let anyone who suspects it turn the rate right down.
+	namespace rendering
+	{
+		// Hold the redraw off while the world is not steady: during a loading screen, and for
+		// iSettleMs after the player's cell or worldspace changes. The map keeps showing the
+		// last picture it drew for that fraction of a second, which is what the vanilla local
+		// map does anyway. ON by default - this is the safeguard, not an option to tune.
+		inline bool skipWhileWorldSettles = true;   // bSkipWhileWorldSettles:Rendering
+
+		// How long after a cell or worldspace change counts as "still settling", in
+		// milliseconds. Long enough that the objects have attached, short enough not to be
+		// noticed: a coc lands the player in a loading screen anyway.
+		inline std::int32_t settleMs = 1500;        // iSettleMs:Rendering
+
+		// Minimum gap between redraws, in milliseconds. 0 means redraw every frame, which is
+		// how the minimap has always worked and what makes it track the player smoothly. Raise
+		// it to trade smoothness for a world image that is touched far less often - at 250 the
+		// engine's scene graph is walked four times a second instead of sixty, and the map
+		// steps rather than glides. Nothing else about the minimap changes: the frame, the
+		// markers, the compass ring and the player arrow all still update every frame.
+		inline std::int32_t redrawIntervalMs = 0;   // iRedrawIntervalMs:Rendering
+	}
+
 	// Built-in compass ring + quest pointer (design decision, 2026-08-30) - INI-only for now
 	// ([Compass]); every piece individually toggleable, and the ring only exists while the
 	// minimap is deliberately hidden, so the defaults can ship ON.

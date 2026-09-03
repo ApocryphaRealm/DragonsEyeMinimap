@@ -20,6 +20,7 @@ namespace settings
 		constexpr const char* kDisplaySection = "Display";
 		constexpr const char* kControlsSection = "Controls";
 		constexpr const char* kCompassSection = "Compass";
+		constexpr const char* kRenderingSection = "Rendering";
 
 		// One offset pair per corner, so the INI names say which corner they belong to rather
 		// than making the reader count indices.
@@ -614,6 +615,17 @@ namespace settings
 				compass::northColor = Read<std::uint32_t>(c, "uNorthColor:Compass", compass::northColor);
 				compass::pointerColor = Read<std::uint32_t>(c, "uPointerColor:Compass", compass::pointerColor);
 				compass::discAlpha = Read<std::uint32_t>(c, "uDiscAlpha:Compass", compass::discAlpha);
+				rendering::skipWhileWorldSettles = Read<bool>(c, "bSkipWhileWorldSettles:Rendering", rendering::skipWhileWorldSettles);
+				rendering::settleMs = Read<std::int32_t>(c, "iSettleMs:Rendering", rendering::settleMs);
+				rendering::redrawIntervalMs = Read<std::int32_t>(c, "iRedrawIntervalMs:Rendering", rendering::redrawIntervalMs);
+
+				// A hand-edited negative would make the comparisons below meaningless rather
+				// than fail visibly, so clamp both to something a person could have meant.
+				rendering::settleMs = std::clamp(rendering::settleMs, 0, 10000);
+				rendering::redrawIntervalMs = std::clamp(rendering::redrawIntervalMs, 0, 10000);
+
+				logger::debug("World redraw policy resolved: skipWhileWorldSettles={}, settleMs={}, redrawIntervalMs={}",
+					rendering::skipWhileWorldSettles, rendering::settleMs, rendering::redrawIntervalMs);
 				display::theme = ReadString(c, "sTheme:Display", display::theme);
 				if (display::theme.size() >= 2 && display::theme.front() == '"' && display::theme.back() == '"')
 				{
@@ -689,6 +701,13 @@ namespace settings
 			add("uNorthColor:Compass", northColor);
 			add("uPointerColor:Compass", pointerColor);
 			add("uDiscAlpha:Compass", discAlpha);
+		}
+
+		{
+			using namespace rendering;
+			add("bSkipWhileWorldSettles:Rendering", skipWhileWorldSettles);
+			add("iSettleMs:Rendering", static_cast<int>(settleMs));
+			add("iRedrawIntervalMs:Rendering", static_cast<int>(redrawIntervalMs));
 		}
 
 		// DELIBERATELY NOT calling iniSettingCollection->ReadFromFile here.
@@ -792,6 +811,10 @@ namespace settings
 		ok &= WriteBool(kCompassSection, "bCompassRing", compass::compassRing);
 		ok &= WriteBool(kCompassSection, "bQuestPointer", compass::questPointer);
 		ok &= WriteBool(kCompassSection, "bMetricUnits", compass::metricUnits);
+
+		ok &= WriteBool(kRenderingSection, "bSkipWhileWorldSettles", rendering::skipWhileWorldSettles);
+		ok &= WriteInt(kRenderingSection, "iSettleMs", rendering::settleMs);
+		ok &= WriteInt(kRenderingSection, "iRedrawIntervalMs", rendering::redrawIntervalMs);
 
 		// Write the file once, with every queued key applied. Until this succeeds nothing has
 		// reached disk, so its result - not the queueing above - decides whether Save() worked.

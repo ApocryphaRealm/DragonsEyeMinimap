@@ -19,7 +19,64 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   `rules-version.ps1 -Action bump`. If a number was typed by hand, it is wrong until the tool
 >   agrees.
 
-## 1.6.3 - 2026-09-02 - untested
+## 1.6.3 - 2026-09-02 - working
+
+> Observed running on the full Apostasy list (SE 1.5.97) on 2026-09-02: the map drew in Solitude,
+> Riverwood and Falkreath, the markers sat correctly on it, the redraw gate held on loads and only
+> on loads, and the author confirmed in play that the fast-motion lag is gone - **with ENB frame
+> generation still enabled**, which rules the interpolation layer out as the cause and puts
+> both defects squarely on this mod. **The theme
+> replacement path below was NOT exercised** - no theme SWF was installed, so the mod ran on its
+> built-in frame throughout.
+
+
+### Added
+- WHEN THE WORLD PICTURE IS REDRAWN is now under the player's control, in a new `[Rendering]`
+  section. The picture inside the frame is the world, drawn through the game's own local-map
+  path, and drawing it walks the engine's live scene graph - so the mod now decides when that is
+  allowed to happen instead of doing it on every single frame no matter what the game is doing.
+- `bSkipWhileWorldSettles` (ON by default) holds the redraw off while the world is not steady:
+  during a loading screen, and for `iSettleMs` (default 1500) after a LOAD - a worldspace change,
+  a move between an interior and an exterior, or the player being moved further in one frame than
+  anything can travel. The map keeps showing the last picture it drew for that fraction of a
+  second, which is what the vanilla local map does anyway.
+- Deliberately NOT the player's parent cell. The first cut of this used it, and in an exterior
+  that pointer changes every time the player crosses a cell boundary at a run - so the picture
+  froze for a second and a half every few seconds of running while the markers kept moving.
+  Caught in play immediately: "there definitely seems to be some kind of lag going on with the map
+  when fast motion happens though it's not every time" (2026-09-02). Verified after the fix: six
+  cell-boundary crossings produced no hold at all, and a `coc` to another worldspace produced
+  exactly one.
+- `iRedrawIntervalMs` (default 0, meaning every frame) sets a minimum gap between redraws. Raise
+  it to have the engine's scene graph walked far less often - at 250 that is four times a second
+  instead of sixty, and the picture steps rather than glides. The frame, the markers, the compass
+  ring and the player arrow keep updating every frame either way.
+
+### Fixed
+- MARKERS NO LONGER LAG THE MAP WHEN THE PLAYER TURNS QUICKLY. Reported 2026-09-02: "if you walk
+  around in circles quickly the markers on the map seem to detach from the map rotation and then
+  they resync and start turning at the same time again."
+- The cause was an ordering one, not a rotation one. The engine places the markers from the
+  local-map camera, and the mod placed them in `AdvanceMovie` while the camera was only updated
+  later in the same frame, in `PreDisplay` - so every marker was positioned with the PREVIOUS
+  frame's camera while the picture underneath it was drawn with the current one. A fixed
+  one-frame lag is invisible at walking pace and obvious when spinning on the spot, and it
+  vanishes the moment the turn stops, which is exactly what was described.
+- The camera update now happens in `AdvanceMovie`, immediately before the markers are placed;
+  `PreDisplay` only draws. Nothing about panning, zoom or the rotation maths changed.
+
+### Why
+- A user reported trees rendering deformed straight after `coc` / `cow` (2026-09-02). The
+  off-screen render is the one thing this mod does to the game's own scene graph, and to do it
+  it briefly unhides the object-LOD root, turns node fade off and clears terrain render passes -
+  state that belongs to the frame the player is looking at. Doing that on the frames when the
+  engine is streaming a cell in is the worst possible moment, and it was happening on every
+  frame with no guard at all. The deformation has NOT been reproduced here (see
+  `2. Mod Types/bug reports/.../2026-09-02 - trees deformed after coc-cow/findings.md`), so this
+  ships as a safeguard on a plausible mechanism, not as a confirmed fix.
+- There is no way to draw a live local map without that path - it is the same code the vanilla
+  local map runs - so the honest remedy is to not run it at the moments it can do harm, and to
+  let anyone who suspects it turn the rate right down.
 
 ### Changed
 - THEME SYSTEM REWORKED: a theme now REPLACES the minimap's frame artwork instead of recolouring

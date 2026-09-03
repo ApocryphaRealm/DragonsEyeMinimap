@@ -6,6 +6,7 @@
 
 #include "Settings.h"
 
+#include <chrono>
 #include <mutex>
 
 #include "LMU/API.h"
@@ -262,7 +263,21 @@ namespace DEM
 		// is not ready yet.
 		void ApplyBackgroundOpacity();
 
+		// Points the local-map camera at the player and applies the rotation Advance() just
+		// chose. Called from Advance BEFORE the markers are placed, because the engine places
+		// them from this camera: until 1.6.3 it was only called later in the frame, from
+		// PreRender, so every marker was positioned with the PREVIOUS frame's camera while the
+		// picture underneath it was drawn with the current one.
+		void UpdateCamera();
+
 		void UpdateFogOfWar();
+
+		// Whether the world image inside the frame may be redrawn on this frame - see the
+		// [Rendering] settings. Returns false while the world is still streaming in after a
+		// cell change, and while the configured redraw interval has not elapsed. It keeps its
+		// own state, so it is called exactly once per frame, from PreRender.
+		bool ShouldRedrawWorld();
+
 		void RenderOffScreen();
 		void ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object);
 		void CullTerrain(const RE::GridCellArray* a_gridCells, RE::LocalMapMenu::LocalMapCullingProcess::UnkData& a_unkData,
@@ -326,6 +341,30 @@ namespace DEM
 		RE::BSTSmartPointer<InputHandler> inputHandler = RE::make_smart<InputHandler>(this);
 
 		bool isCameraUpdatePending = true;
+
+		// ShouldRedrawWorld's state.
+		//
+		// What counts as "the world changed" is deliberately NOT the player's parent cell. In an
+		// exterior that pointer changes every time the player crosses a cell boundary at a run,
+		// which is ordinary streaming, not a load - keying off it froze the map for the settle
+		// time every few seconds of running (author report, 2026-09-02: "some kind of lag when
+		// fast motion happens, though it's not every time"). What is held for is a LOAD: a
+		// loading screen, a worldspace change, crossing between an interior and an exterior, or
+		// the player being moved further in one frame than anything can travel.
+		//
+		// The worldspace is compared by pointer only and never dereferenced, so a stale one is
+		// harmless; all that matters is that it differs.
+		const void* lastSeenWorldSpace = nullptr;
+		bool lastSeenInterior = false;
+		bool hasLastPlayerPos = false;
+		RE::NiPoint3 lastPlayerPos{};
+
+		// One frame's worth of movement can never be a whole cell (4096 units) - a sprint is
+		// about twenty. Anything beyond it is a coc, a cow, a fast travel or a script moving
+		// the player, all of which mean the engine is about to stream a new area in.
+		static constexpr float kTeleportDistance = 4096.0F;
+		std::chrono::steady_clock::time_point worldChangedAt = std::chrono::steady_clock::now();
+		std::chrono::steady_clock::time_point lastWorldRedrawAt{};
 
 		// ApplyDisplaySettings() runs twice during setup - once from the constructor, before
 		// the map's children exist at all, and once from InitLocalMap(), in the same frame as

@@ -141,6 +141,80 @@ namespace DEM
 		}
 	}
 
+	bool Minimap::ShouldRedrawWorld()
+	{
+		using clock = std::chrono::steady_clock;
+
+		const clock::time_point now = clock::now();
+
+		const RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+		const RE::TES* tes = RE::TES::GetSingleton();
+
+		const void* worldSpace = tes ? static_cast<const void*>(tes->GetRuntimeData2().worldSpace) : nullptr;
+		const bool interior = tes && tes->interiorCell != nullptr;
+		const RE::NiPoint3 playerPos = player ? player->GetPosition() : RE::NiPoint3{};
+
+		// A load, not ordinary movement - see the members these compare against for why the
+		// parent cell is deliberately not one of these tests.
+		const char* reason = nullptr;
+
+		if (worldSpace != lastSeenWorldSpace)
+		{
+			reason = "worldspace changed";
+		}
+		else if (interior != lastSeenInterior)
+		{
+			reason = "moved between an interior and an exterior";
+		}
+		else if (hasLastPlayerPos && lastPlayerPos.GetDistance(playerPos) > kTeleportDistance)
+		{
+			reason = "the player was moved further than one frame of travel";
+		}
+
+		lastSeenWorldSpace = worldSpace;
+		lastSeenInterior = interior;
+		lastPlayerPos = playerPos;
+		hasLastPlayerPos = true;
+
+		if (reason)
+		{
+			worldChangedAt = now;
+
+			logger::debug("World changed ({}); holding the map redraw for {} ms while it settles",
+				reason, settings::rendering::settleMs);
+		}
+
+		if (settings::rendering::skipWhileWorldSettles)
+		{
+			// A loading screen is the clearest "not steady" signal there is, and the settle
+			// window has to start when it ENDS, not when the change behind it was noticed.
+			RE::UI* ui = RE::UI::GetSingleton();
+			if (ui && ui->IsMenuOpen(RE::LoadingMenu::MENU_NAME))
+			{
+				worldChangedAt = now;
+				return false;
+			}
+
+			const auto sinceChange = std::chrono::duration_cast<std::chrono::milliseconds>(now - worldChangedAt).count();
+			if (sinceChange < settings::rendering::settleMs)
+			{
+				return false;
+			}
+		}
+
+		if (settings::rendering::redrawIntervalMs > 0)
+		{
+			const auto sinceRedraw = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastWorldRedrawAt).count();
+			if (sinceRedraw < settings::rendering::redrawIntervalMs)
+			{
+				return false;
+			}
+		}
+
+		lastWorldRedrawAt = now;
+		return true;
+	}
+
 	void Minimap::RenderOffScreen()
 	{
 		LMU::PixelShaderProperty::Shape prevShaderShape;
