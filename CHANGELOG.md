@@ -19,7 +19,13 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   `rules-version.ps1 -Action bump`. If a number was typed by hand, it is wrong until the tool
 >   agrees.
 
-## 1.6.4 - 2026-09-04 - untested
+## 1.6.4 - 2026-09-04 - working
+
+> Observed on Apostasy Test Build (SE 1.5.97) 2026-09-04 23:53: "Loading DragonsEyeMinimap
+> 1.6.4.0", HUD patches loaded, the minimap drew in Whiterun after a `coc` from the main menu, no
+> crash log. The AE 1.6.1130+ fix below is by construction (the reference is gone); it has not
+> been run on an AE game yet because every AE instance on the test rig currently dies inside
+> SSE Engine Fixes before any of our code runs.
 
 ### Fixed
 - AE 1.6.1130 / 1.6.1170 / 1.6.1179 COULD NOT START THE GAME WITH THIS MOD INSTALLED. The
