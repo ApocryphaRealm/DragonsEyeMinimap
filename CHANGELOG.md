@@ -19,6 +19,26 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   `rules-version.ps1 -Action bump`. If a number was typed by hand, it is wrong until the tool
 >   agrees.
 
+## 1.6.4 - 2026-09-04 - untested
+
+### Fixed
+- AE 1.6.1130 / 1.6.1170 / 1.6.1179 COULD NOT START THE GAME WITH THIS MOD INSTALLED. The
+  minimap object carried a reference to the engine's `localMapMargin` float through Address
+  Library ID 189820, and that ID does not exist in any database from 1.6.1130 on - so on those
+  games CommonLib stopped the game at startup with "Failed to find the id within the address
+  library: 189820". The value was never read anywhere in the mod; the reference is gone. SE
+  1.5.97 was never affected (its ID 234438 exists).
+- THE WORLD PICTURE IS NO LONGER DRAWN OFF A HALF-BUILT SCENE. Two identical crashes on
+  2026-09-04 (`RenderOffScreen -> CullJobDescriptor::Cull`, 1.5-3 s after a console `coc` from
+  the main menu) came from culling a scene-graph child that did not exist yet: the settle timer
+  had expired while cells were still streaming in. The redraw is now also gated on the world
+  itself - the current interior or every loaded exterior grid cell attached with its 3D built,
+  the sky cell attached, and the shadow-scene children the off-screen render walks being real
+  pointers. Anything short of that keeps the last picture and restarts the settle window from
+  the moment the world became whole; the off-screen render also refuses to hand the culler a
+  portal-shared node that is not a real pointer. Logged once per transition ("World not steady:
+  <reason>" / "steady again").
+
 ## 1.6.3 - 2026-09-02 - working
 
 > Observed running on the full Apostasy list (SE 1.5.97) on 2026-09-02: the map drew in Solitude,

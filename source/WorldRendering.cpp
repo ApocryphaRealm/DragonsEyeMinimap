@@ -141,6 +141,72 @@ namespace DEM
 		}
 	}
 
+	// ----------------------------------------------------------------------------------------
+	// WORLD STEADINESS (1.6.4). The settle window in ShouldRedrawWorld is a TIMER - 1500 ms after
+	// the loading screen closes - and a timer is a guess about how long the engine needs. Two
+	// crashes on 2026-09-04 (crash-2026-09-05-00-26-54 / -00-41-48, identical stacks) came from
+	// RenderOffScreen -> CullJobDescriptor::Cull reading a garbage NiAVObject 1.5-3 s after a
+	// `coc` from the main menu, i.e. AFTER the window had expired and while cells were still
+	// streaming in. So ask the world itself, every frame, before touching its scene graph:
+	// every grid cell must be attached with its 3D built, and the shadow scene children this
+	// render walks must be real pointers. Anything short of that skips the redraw and keeps the
+	// last picture - the player sees nothing change, and nothing is culled that is not there.
+	// ----------------------------------------------------------------------------------------
+	namespace
+	{
+		bool LooksLikePointer(const void* a_p)
+		{
+			return reinterpret_cast<std::uintptr_t>(a_p) > 0x10000;
+		}
+	}
+
+	bool Minimap::WorldIsSteady(const char*& a_reason)
+	{
+		a_reason = nullptr;
+
+		RE::TES* tes = RE::TES::GetSingleton();
+		if (!tes) { a_reason = "no TES singleton"; return false; }
+
+		if (RE::TESObjectCELL* interior = tes->interiorCell)
+		{
+			if (!interior->IsAttached()) { a_reason = "interior cell not attached"; return false; }
+			const auto* loaded = interior->GetRuntimeData().loadedData;
+			if (!loaded || !loaded->cell3D) { a_reason = "interior cell has no 3D yet"; return false; }
+		}
+		else
+		{
+			RE::TESWorldSpace* ws = tes->GetRuntimeData2().worldSpace;
+			if (!ws) { a_reason = "no worldspace"; return false; }
+			RE::TESObjectCELL* sky = ws->GetSkyCell();
+			if (!sky || !sky->IsAttached()) { a_reason = "sky cell not attached"; return false; }
+
+			const RE::GridCellArray* grid = tes->gridCells;
+			if (!grid) { a_reason = "no cell grid"; return false; }
+			for (int x = 0; x < static_cast<int>(grid->length); ++x)
+			{
+				for (int y = 0; y < static_cast<int>(grid->length); ++y)
+				{
+					RE::TESObjectCELL* cell = grid->GetCell(x, y);
+					if (!cell) { continue; }                       // an empty slot is fine
+					if (!cell->IsAttached()) { a_reason = "a grid cell is still attaching"; return false; }
+					const auto* loaded = cell->GetRuntimeData().loadedData;
+					if (!loaded || !loaded->cell3D) { a_reason = "a grid cell has no 3D yet"; return false; }
+				}
+			}
+		}
+
+		RE::ShadowSceneNode* shadow = RE::ShadowSceneNode::GetMain();
+		if (!shadow) { a_reason = "no main shadow scene node"; return false; }
+		auto& children = shadow->GetChildren();
+		if (children.capacity() <= 9) { a_reason = "shadow scene not fully built"; return false; }
+		for (int idx : { 3, 8, 9 })
+		{
+			if (!LooksLikePointer(children[idx].get())) { a_reason = "a shadow scene child is not a valid object yet"; return false; }
+		}
+
+		return true;
+	}
+
 	bool Minimap::ShouldRedrawWorld()
 	{
 		using clock = std::chrono::steady_clock;
@@ -198,6 +264,24 @@ namespace DEM
 			const auto sinceChange = std::chrono::duration_cast<std::chrono::milliseconds>(now - worldChangedAt).count();
 			if (sinceChange < settings::rendering::settleMs)
 			{
+				return false;
+			}
+		}
+
+		// Structural gate - the timer above says "probably settled"; this says "actually built".
+		{
+			const char* why = nullptr;
+			const bool steady = WorldIsSteady(why);
+			static bool s_lastSteady = true;
+			if (steady != s_lastSteady)
+			{
+				if (steady) { logger::debug("World is steady again; map redraws resume"); }
+				else { logger::debug("World not steady ({}); holding the map redraw and restarting the settle window", why ? why : "?"); }
+				s_lastSteady = steady;
+			}
+			if (!steady)
+			{
+				worldChangedAt = now;   // the settle window restarts from the moment the world is whole
 				return false;
 			}
 		}
@@ -394,7 +478,7 @@ namespace DEM
 			s_portalCullingDegraded = true;
 		}
 
-        if (mainShadowSceneChildren.capacity() > 9)
+        if (mainShadowSceneChildren.capacity() > 9 && LooksLikePointer(mainShadowSceneChildren[9].get()))
         {
 			RE::NiPointer<RE::NiAVObject>& portalSharedNode = mainShadowSceneChildren[9];
 			cullJobDesc.scene = portalSharedNode;

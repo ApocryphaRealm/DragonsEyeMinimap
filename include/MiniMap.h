@@ -278,6 +278,11 @@ namespace DEM
 		// own state, so it is called exactly once per frame, from PreRender.
 		bool ShouldRedrawWorld();
 
+		// True when every cell this frame would cull is attached with its 3D built and the shadow
+		// scene children the off-screen render walks are real objects. a_reason names the first
+		// thing that is not, for the log.
+		bool WorldIsSteady(const char*& a_reason);
+
 		void RenderOffScreen();
 		void ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object);
 		void CullTerrain(const RE::GridCellArray* a_gridCells, RE::LocalMapMenu::LocalMapCullingProcess::UnkData& a_unkData,
@@ -448,7 +453,9 @@ namespace DEM
 		// has, so the next log answers the question instead of prompting another guess.
 		static RE::Setting* GetHUDOpacitySetting();
 
-		const float& localMapMargin = *REL::Relocation<float*>{ RELOCATION_ID(234438, 189820) }.get();
+		// localMapMargin (RELOCATION_ID(234438, 189820)) removed in 1.6.4: never read anywhere in this plugin, and
+		// AE ID 189820 is absent from every Address Library database from 1.6.1130 on, so the member
+		// initializer alone made CommonLib refuse to start the game on AE 1.6.1130/1170/1179.
 		const bool& isFogOfWarEnabled = *REL::Relocation<bool*>{ REL::VariantID{ 501260, 359696, 0x1E70DFC } }.get();
 
 		bool& useMapBrightnessAndContrastBoost = *REL::Relocation<bool*>{ RELOCATION_ID(528107, 415052) }.get();
