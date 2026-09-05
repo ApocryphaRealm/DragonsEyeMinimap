@@ -24,8 +24,11 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 > Observed on Apostasy Test Build (SE 1.5.97) 2026-09-04 23:53: "Loading DragonsEyeMinimap
 > 1.6.4.0", HUD patches loaded, the minimap drew in Whiterun after a `coc` from the main menu, no
 > crash log. The AE 1.6.1130+ fix below is by construction (the reference is gone); it has not
-> been run on an AE game yet because every AE instance on the test rig currently dies inside
-> SSE Engine Fixes before any of our code runs.
+> been run on an AE game at the time of writing. **Run on SME (AE 1.6.1170, SKSE 2.2.6) 2026-09-05
+> 00:2x:** loaded, HUD patches applied, local map allocated, registered in Apocrypha Menu Framework
+> next to Local Map Upgrade, `coc whiterun` from the main menu, zero crash logs - the first AE
+> 1.6.1130+ run of this mod that gets past start-up. (The AE-instance crashes that had blocked
+> this were the 1.7-format ContentCatalog.txt, not Engine Fixes.)
 
 ### Fixed
 - AE 1.6.1130 / 1.6.1170 / 1.6.1179 COULD NOT START THE GAME WITH THIS MOD INSTALLED. The
