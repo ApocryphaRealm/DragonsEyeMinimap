@@ -6,6 +6,7 @@
 #include "Settings.h"
 
 #include "utils/Logger.h"
+#include "utils/Strings.h"
 #include "utils/Toggle.h"
 
 #include <algorithm>
@@ -16,6 +17,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <string>
 #include <vector>
 
 namespace UI
@@ -38,14 +40,61 @@ namespace UI
 		std::atomic<BindTarget> bindTarget{ BindTarget::kNone };
 		SKSEMenuFramework::Model::InputEvent* inputHook = nullptr;
 
-		constexpr const char* kShapeNames[] = { "Squared", "Round" };
+		// Every list of drawn options is a parallel key/label pair: the key array names the
+		// translation key, the label array holds the compiled English fallback. ComboTR() below
+		// pairs them by index and rebuilds the option list from TR'd entries every frame
+		// (translation rollout plan, section 2.2). The labels stay the log's vocabulary.
+		constexpr const char* const kShapeKeys[] = { "DEM_Shape_Squared", "DEM_Shape_Round" };
+		constexpr const char* const kShapeLabels[] = { "Squared", "Round" };
 		constexpr int kShapeCount = 2;
 
-		constexpr const char* kAnchorNames[] = { "Top left", "Top right", "Bottom left", "Bottom right" };
+		constexpr const char* const kAnchorKeys[] = { "DEM_Corner_TopLeft", "DEM_Corner_TopRight", "DEM_Corner_BottomLeft", "DEM_Corner_BottomRight" };
+		constexpr const char* const kAnchorLabels[] = { "Top left", "Top right", "Bottom left", "Bottom right" };
 		constexpr int kAnchorCount = 4;
 
-		constexpr const char* kLogLevelNames[] = { "Trace", "Debug", "Info", "Warning", "Error", "Critical", "Off" };
+		constexpr const char* const kLogLevelKeys[] = { "DEM_Log_Trace", "DEM_Log_Debug", "DEM_Log_Info", "DEM_Log_Warning", "DEM_Log_Error", "DEM_Log_Critical", "DEM_Log_Off" };
+		constexpr const char* const kLogLevelLabels[] = { "Trace", "Debug", "Info", "Warning", "Error", "Critical", "Off" };
 		constexpr int kLogLevelCount = 7;
+
+		// Why a key cannot be bound. ReservedKeyReason() returns an INDEX into these rather than
+		// a string, so one answer serves both the English log line and the translated status
+		// line the player reads.
+		constexpr const char* const kReservedKeys[] = { "DEM_Res_Framework", "DEM_Res_Tab", "DEM_Res_Escape", "DEM_Res_MenuKey", "DEM_Res_Arrows", "DEM_Res_Enter", "DEM_Res_Space" };
+		constexpr const char* const kReservedLabels[] = {
+			"the menu framework uses it",
+			"Tab opens the Tween menu",
+			"Escape closes menus",
+			"it opens the mod configuration menu",
+			"arrow keys drive menu navigation",
+			"Enter activates the focused control",
+			"Space activates the focused control"
+		};
+		constexpr int kReservedNone = -1;
+
+		// A Combo whose option list is rebuilt from TR'd entries every frame: store owns the
+		// translated bytes for the duration of the call, so the pointers stay valid.
+		bool ComboTR(const char* a_label, int* a_current,
+					 const char* const* a_keys, const char* const* a_labels, int a_count)
+		{
+			std::vector<std::string> store;
+			store.reserve(static_cast<std::size_t>(a_count));
+			for (int i = 0; i < a_count; ++i) { store.emplace_back(strings::TR(a_keys[i], a_labels[i])); }
+			std::vector<const char*> items;
+			items.reserve(store.size());
+			for (const auto& s : store) { items.push_back(s.c_str()); }
+			return ImGuiMCP::Combo(a_label, a_current, items.data(), a_count);
+		}
+
+		// Substitutes one already-translated word into an already-translated sentence carrying a
+		// single %s. Done by find-and-replace rather than snprintf so no runtime format string is
+		// ever handed to a printf, and a translation that drops the %s truncates nothing.
+		std::string FormatOne(const char* a_format, const char* a_arg)
+		{
+			std::string out = a_format ? a_format : "";
+			const auto at = out.find("%s");
+			if (at != std::string::npos) { out.replace(at, 2, a_arg ? a_arg : ""); }
+			return out;
+		}
 
 		// The framework renders from the renderer's present hook, which is not the thread
 		// Scaleform and the rest of the game expect to be talked to. Anything that reaches into
@@ -357,9 +406,11 @@ namespace UI
 			return true;
 		}
 
-		// nullptr means the key is fine to bind; anything else is the reason it is not, phrased
-		// for the player rather than for the log.
-		const char* ReservedKeyReason(std::int32_t a_code)
+		// kReservedNone means the key is fine to bind; anything else is an index into
+		// kReservedKeys / kReservedLabels - the reason it is not, phrased for the player rather
+		// than for the log. An index rather than a string so the caller can log the English and
+		// show the player the translation from the one answer.
+		int ReservedKeyReason(std::int32_t a_code)
 		{
 			// Preferred path once the remake ships - ask the framework instead of inferring.
 			std::vector<std::int32_t> reported;
@@ -368,22 +419,22 @@ namespace UI
 			{
 				if (std::find(reported.begin(), reported.end(), a_code) != reported.end())
 				{
-					return "the menu framework uses it";
+					return 0;
 				}
 
-				return nullptr;
+				return kReservedNone;
 			}
 
 			// Always off limits regardless of framework configuration: these are the game's own
 			// menu keys, and binding one costs the player that key everywhere.
 			if (a_code == kScanTab)
 			{
-				return "Tab opens the Tween menu";
+				return 1;
 			}
 
 			if (a_code == kScanEscape)
 			{
-				return "Escape closes menus";
+				return 2;
 			}
 
 			// The framework's own menu key, read from its INI at runtime rather than assumed.
@@ -391,7 +442,7 @@ namespace UI
 			// menu and toggled the minimap.
 			if (a_code != 0 && a_code == FrameworkToggleKeyCode())
 			{
-				return "it opens the mod configuration menu";
+				return 3;
 			}
 
 			// Conditional: only reserved while the framework actually drives ImGui navigation
@@ -405,17 +456,17 @@ namespace UI
 				case kScanDown:
 				case kScanLeft:
 				case kScanRight:
-					return "arrow keys drive menu navigation";
+					return 4;
 				case kScanEnter:
-					return "Enter activates the focused control";
+					return 5;
 				case kScanSpace:
-					return "Space activates the focused control";
+					return 6;
 				default:
 					break;
 				}
 			}
 
-			return nullptr;
+			return kReservedNone;
 		}
 
 		// Runs on the framework's input thread. Only ever writes the scan code and clears the
@@ -463,11 +514,11 @@ namespace UI
 				// the minimap every time the Tween menu opened (2026-08-26 report). Leave the bind
 				// ARMED so a different key can just be pressed, and do NOT swallow - the key still
 				// has to do its normal job.
-				if (const char* reason = ReservedKeyReason(code))
+				if (const int reason = ReservedKeyReason(code); reason != kReservedNone)
 				{
-					logger::info("Refusing to bind key code {} - {}", code, reason);
-					statusMessage = std::string{ "That key is reserved (" } + reason +
-									"). Press a different key.";
+					logger::info("Refusing to bind key code {} - {}", code, kReservedLabels[reason]);
+					statusMessage = FormatOne(strings::TR("DEM_StatusKeyReserved", "That key is reserved (%s). Press a different key."),
+											  strings::TR(kReservedKeys[reason], kReservedLabels[reason]));
 					return false;
 				}
 
@@ -476,13 +527,16 @@ namespace UI
 				const std::int32_t otherCode = (target == BindTarget::kHide)
 												   ? settings::controls::zoomToggleKeyCode
 												   : settings::controls::hideKeyCode;
+				// The English name goes to the log; the translated one goes to the player.
 				const char* otherName = (target == BindTarget::kHide) ? "zoom toggle" : "hide";
+				const char* otherNameText = (target == BindTarget::kHide)
+												? strings::TR("DEM_KeyRoleZoomToggle", "zoom toggle")
+												: strings::TR("DEM_KeyRoleHide", "hide");
 
 				if (code != 0 && code == otherCode)
 				{
 					logger::info("Refusing to bind key code {} - already the {} key", code, otherName);
-					statusMessage = std::string{ "That key is already the " } + otherName +
-									" key. Press a different key.";
+					statusMessage = FormatOne(strings::TR("DEM_StatusKeyTaken", "That key is already the %s key. Press a different key."), otherNameText);
 					return false;
 				}
 
@@ -584,29 +638,39 @@ namespace UI
 
 		// A key-code box plus a Bind button that captures the next keypress into it. Shared by
 		// the hide key and the zoom key so the two behave identically.
-		void KeyBindRow(const char* a_label, std::int32_t* a_keyCode, BindTarget a_target, const char* a_bindButtonId)
+		// a_label arrives ALREADY translated (its key is at the call site); a_logName is the
+		// English name the log keeps; a_idSuffix ("##hide", "##zoom") is the ImGui id
+		// disambiguator and is never part of the translated text.
+		void KeyBindRow(const char* a_label, const char* a_logName, std::int32_t* a_keyCode, BindTarget a_target, const char* a_idSuffix)
 		{
+			const std::string inputLabel = std::string(a_label) + a_idSuffix;
+
 			int keyCode = *a_keyCode;
-			if (ImGuiMCP::InputInt(a_label, &keyCode))
+			if (ImGuiMCP::InputInt(inputLabel.c_str(), &keyCode))
 			{
 				*a_keyCode = keyCode < 0 ? 0 : keyCode;
-				logger::debug("{} set to {} (typed)", a_label, *a_keyCode);
+				logger::debug("{} set to {} (typed)", a_logName, *a_keyCode);
 			}
 
 			ImGuiMCP::SameLine();
 
 			if (bindTarget.load() == a_target)
 			{
-				if (ImGuiMCP::Button("Press a key... (cancel)"))
+				const std::string cancelLabel = std::string(strings::TR("DEM_PressAKey", "Press a key... (cancel)")) + a_idSuffix;
+				if (ImGuiMCP::Button(cancelLabel.c_str()))
 				{
 					bindTarget.store(BindTarget::kNone);
-					logger::debug("{} bind cancelled", a_label);
+					logger::debug("{} bind cancelled", a_logName);
 				}
 			}
-			else if (ImGuiMCP::Button(a_bindButtonId))
+			else
 			{
-				bindTarget.store(a_target);
-				logger::debug("{} bind started; waiting for a keypress", a_label);
+				const std::string bindLabel = std::string(strings::TR("DEM_Bind", "Bind")) + a_idSuffix;
+				if (ImGuiMCP::Button(bindLabel.c_str()))
+				{
+					bindTarget.store(a_target);
+					logger::debug("{} bind started; waiting for a keypress", a_logName);
+				}
 			}
 		}
 
@@ -654,7 +718,7 @@ namespace UI
 		{
 			using namespace settings;
 
-			ImGuiMCP::SeparatorText("Display");
+			ImGuiMCP::SeparatorText(strings::TR("DEM_SecDisplay", "Display"));
 
 			if (!g_themesScanned) { g_themesScanned = true; ScanThemes(); }
 			if (!g_themes.empty())
@@ -667,40 +731,44 @@ namespace UI
 				std::vector<const char*> labels;
 				labels.reserve(g_themes.size() + 1);
 				for (const auto& th : g_themes) { labels.push_back(th.c_str()); }
-				labels.push_back("Built-in frame");
-				if (ImGuiMCP::Combo("Frame theme", &current, labels.data(), static_cast<int>(labels.size())))
+				// The theme entries above are SWF FILE STEMS from the themes folder - data, not
+				// text, and never translated. Only this mod's own "built-in" entry and the combo's
+				// label are.
+				labels.push_back(strings::TR("DEM_BuiltInFrame", "Built-in frame"));
+				if (ImGuiMCP::Combo(strings::TR("DEM_FrameTheme", "Frame theme"), &current, labels.data(), static_cast<int>(labels.size())))
 				{
 					display::theme = (current >= 0 && current < static_cast<int>(g_themes.size()))
 						? g_themes[static_cast<std::size_t>(current)]
 						: std::string{};
 					ApplyMinimapTheme();
-					statusMessage = "Frame theme selected. Press Save to keep it.";
+					statusMessage = strings::TR("DEM_StatusThemeSelected", "Frame theme selected. Press Save to keep it.");
 				}
-				HelpMarker("Replaces the minimap's frame artwork. Themes are SWF files in Data/Interface/DragonsEyeMinimapThemes - drop one in and it appears here on the next game start. \"Built-in frame\" uses the artwork the mod ships, which is also what a frame-reskin mod replaces.");
+				HelpMarker(strings::TR("DEM_HelpFrameTheme", "Replaces the minimap's frame artwork. Themes are SWF files in Data/Interface/DragonsEyeMinimapThemes - drop one in and it appears here on the next game start. \"Built-in frame\" uses the artwork the mod ships, which is also what a frame-reskin mod replaces."));
 			}
 
 			bool changed = false;
 
 			// Everything below feeds `changed`, which is acted on at the end of the section.
 			int anchor = static_cast<int>(display::anchor);
-			if (ImGuiMCP::Combo("Corner", &anchor, kAnchorNames, kAnchorCount))
+			if (ComboTR(strings::TR("DEM_Corner", "Corner"), &anchor, kAnchorKeys, kAnchorLabels, kAnchorCount))
 			{
 				display::anchor = static_cast<std::uint32_t>(anchor);
 				changed = true;
 			}
-			HelpMarker("Which screen corner the minimap sits in. With both offsets at 0 the artwork lines up flush with that corner.");
+			HelpMarker(strings::TR("DEM_HelpCorner", "Which screen corner the minimap sits in. With both offsets at 0 the artwork lines up flush with that corner."));
 
 			// Each corner keeps its own nudge, so switching corners does not lose the
 			// adjustment made to the one you were on.
 			const int offsetCorner = display::AnchorIndex();
 
-			changed |= NudgeableSlider("Offset X", &display::offsetX[offsetCorner], -600.0F, 600.0F, "%.0f px", 1.0F);
-			HelpMarker("Nudge from the corner, in screen pixels. Positive is always rightwards, whichever corner is anchored. Each corner remembers its own pair.");
+			changed |= NudgeableSlider(strings::TR("DEM_OffsetX", "Offset X"), &display::offsetX[offsetCorner], -600.0F, 600.0F, "%.0f px", 1.0F);
+			HelpMarker(strings::TR("DEM_HelpOffsetX", "Nudge from the corner, in screen pixels. Positive is always rightwards, whichever corner is anchored. Each corner remembers its own pair."));
 
-			changed |= NudgeableSlider("Offset Y", &display::offsetY[offsetCorner], -600.0F, 600.0F, "%.0f px", 1.0F);
-			HelpMarker("Nudge from the corner, in screen pixels. Positive is always downwards, whichever corner is anchored. Each corner remembers its own pair.");
+			changed |= NudgeableSlider(strings::TR("DEM_OffsetY", "Offset Y"), &display::offsetY[offsetCorner], -600.0F, 600.0F, "%.0f px", 1.0F);
+			HelpMarker(strings::TR("DEM_HelpOffsetY", "Nudge from the corner, in screen pixels. Positive is always downwards, whichever corner is anchored. Each corner remembers its own pair."));
 
-			ImGuiMCP::Text("Editing the %s offset.", kAnchorNames[offsetCorner]);
+			ImGuiMCP::Text(strings::TR("DEM_EditingOffset", "Editing the %s offset."),
+						   strings::TR(kAnchorKeys[offsetCorner], kAnchorLabels[offsetCorner]));
 
 			// The upper end is whatever keeps the minimap within a quarter of the screen, so
 			// the slider cannot ask for a size the plugin will refuse to apply.
@@ -709,10 +777,10 @@ namespace UI
 
 			display::scale = std::clamp(display::scale, display::kScaleSliderMin, maxScale);
 
-			changed |= NudgeableSlider("Scale", &display::scale, display::kScaleSliderMin, maxScale, "%.2f", 0.01F);
-			HelpMarker("Size of the minimap. 1.00 is the size the artwork was drawn at. The top of the range is capped so the minimap stays within a quarter of the screen.");
+			changed |= NudgeableSlider(strings::TR("DEM_Scale", "Scale"), &display::scale, display::kScaleSliderMin, maxScale, "%.2f", 0.01F);
+			HelpMarker(strings::TR("DEM_HelpScale", "Size of the minimap. 1.00 is the size the artwork was drawn at. The top of the range is capped so the minimap stays within a quarter of the screen."));
 
-			ImGuiMCP::Text("Largest allowed: %.2f (a quarter of the screen)", maxScale);
+			ImGuiMCP::Text(strings::TR("DEM_LargestAllowed", "Largest allowed: %.2f (a quarter of the screen)"), maxScale);
 
 			if (changed)
 			{
@@ -725,7 +793,7 @@ namespace UI
 			}
 
 			int shape = static_cast<int>(display::shape);
-			if (ImGuiMCP::Combo("Shape", &shape, kShapeNames, kShapeCount))
+			if (ComboTR(strings::TR("DEM_Shape", "Shape"), &shape, kShapeKeys, kShapeLabels, kShapeCount))
 			{
 				display::shape = static_cast<std::uint32_t>(shape);
 
@@ -736,14 +804,14 @@ namespace UI
 					}
 				});
 			}
-			HelpMarker("Whether the minimap is drawn as a square or as a circle.");
+			HelpMarker(strings::TR("DEM_HelpShape", "Whether the minimap is drawn as a square or as a circle."));
 
 			auto* minimap = DEM::Minimap::GetSingleton();
 
 			if (minimap && minimap->IsReady())
 			{
 				bool shown = minimap->IsShown();
-				if (ImGuiMCP::Toggle("Show minimap", &shown))
+				if (ImGuiMCP::Toggle(strings::TR("DEM_ShowMinimap", "Show minimap"), &shown))
 				{
 					// This is the deliberate choice, so it persists (default a_persist = true)
 					// and doubles as the on-start setting. The hide KEY deliberately does not -
@@ -755,15 +823,15 @@ namespace UI
 						}
 					});
 				}
-				HelpMarker("Hides or shows the minimap right now, and remembers the choice for the next time you play.");
+				HelpMarker(strings::TR("DEM_HelpShowMinimap", "Hides or shows the minimap right now, and remembers the choice for the next time you play."));
 			}
 			else
 			{
-				if (ImGuiMCP::Toggle("Show minimap on game start", &display::showOnGameStart))
+				if (ImGuiMCP::Toggle(strings::TR("DEM_ShowOnStart", "Show minimap on game start"), &display::showOnGameStart))
 				{
 					logger::debug("Show on game start set to {}", display::showOnGameStart);
 				}
-				HelpMarker("The minimap has not been built yet, so this only sets what happens once it is.");
+				HelpMarker(strings::TR("DEM_HelpShowOnStart", "The minimap has not been built yet, so this only sets what happens once it is."));
 			}
 		}
 
@@ -771,18 +839,18 @@ namespace UI
 		{
 			using namespace settings;
 
-			ImGuiMCP::SeparatorText("Map zoom");
+			ImGuiMCP::SeparatorText(strings::TR("DEM_SecMapZoom", "Map zoom"));
 
 			// The key, and the two levels it alternates between, do not need the minimap to
 			// exist - only the live slider and "Set to current" do, since those talk to the
 			// camera. Keeping the key controls out from behind that gate is what makes it
 			// possible to bind or type the zoom key before the minimap has loaded.
-			KeyBindRow("Zoom toggle key", &controls::zoomToggleKeyCode, BindTarget::kZoom, "Bind##zoom");
-			HelpMarker("Press this key to jump between the two zoom levels below, instead of holding the control key and scrolling. 0 disables it.");
+			KeyBindRow(strings::TR("DEM_ZoomToggleKey", "Zoom toggle key"), "Zoom toggle key", &controls::zoomToggleKeyCode, BindTarget::kZoom, "##zoom");
+			HelpMarker(strings::TR("DEM_HelpZoomToggleKey", "Press this key to jump between the two zoom levels below, instead of holding the control key and scrolling. 0 disables it."));
 
 			if (controls::zoomToggleKeyCode == 0)
 			{
-				ImGuiMCP::Text("No zoom key set.");
+				ImGuiMCP::Text("%s", strings::TR("DEM_NoZoomKey", "No zoom key set."));
 			}
 
 			ImGuiMCP::Spacing();
@@ -790,39 +858,38 @@ namespace UI
 			auto* minimap = DEM::Minimap::GetSingleton();
 			const bool ready = minimap && minimap->IsReady();
 
-			if (NudgeableSlider("Default zoom", &controls::zoomDefault, 0.0F, 1.0F, "%.3f", 0.01F))
+			if (NudgeableSlider(strings::TR("DEM_DefaultZoom", "Default zoom"), &controls::zoomDefault, 0.0F, 1.0F, "%.3f", 0.01F))
 			{
 				logger::debug("Default zoom set to {:.3f}", controls::zoomDefault);
 			}
 			if (ready)
 			{
 				ImGuiMCP::SameLine();
-				if (ImGuiMCP::Button("Set to current##default"))
+				if (ImGuiMCP::Button((std::string(strings::TR("DEM_SetToCurrent", "Set to current")) + "##default").c_str()))
 				{
 					controls::zoomDefault = minimap->GetMapZoom();
 					logger::debug("Default zoom set to current camera zoom {:.3f}", controls::zoomDefault);
 				}
 			}
 
-			if (NudgeableSlider("Zoomed in", &controls::zoomZoomedIn, 0.0F, 1.0F, "%.3f", 0.01F))
+			if (NudgeableSlider(strings::TR("DEM_ZoomedIn", "Zoomed in"), &controls::zoomZoomedIn, 0.0F, 1.0F, "%.3f", 0.01F))
 			{
 				logger::debug("Zoomed-in zoom set to {:.3f}", controls::zoomZoomedIn);
 			}
 			if (ready)
 			{
 				ImGuiMCP::SameLine();
-				if (ImGuiMCP::Button("Set to current##zoomedin"))
+				if (ImGuiMCP::Button((std::string(strings::TR("DEM_SetToCurrent", "Set to current")) + "##zoomedin").c_str()))
 				{
 					controls::zoomZoomedIn = minimap->GetMapZoom();
 					logger::debug("Zoomed-in zoom set to current camera zoom {:.3f}", controls::zoomZoomedIn);
 				}
 			}
-			HelpMarker("The zoom toggle key alternates between these two. Zoom the map where you want it, then press \"Set to current\" to store that level rather than typing a number in units the game does not document.");
+			HelpMarker(strings::TR("DEM_HelpZoomLevels", "The zoom toggle key alternates between these two. Zoom the map where you want it, then press \"Set to current\" to store that level rather than typing a number in units the game does not document."));
 
 			if (!ready)
 			{
-				ImGuiMCP::TextWrapped("Zoom the map in game and use \"Set to current\" once the minimap is running - "
-									  "the numbers above are in the camera's own units, which are not documented.");
+				ImGuiMCP::TextWrapped("%s", strings::TR("DEM_ZoomNotReady", "Zoom the map in game and use \"Set to current\" once the minimap is running - the numbers above are in the camera's own units, which are not documented."));
 
 				return;
 			}
@@ -832,7 +899,7 @@ namespace UI
 			// Read back from the camera every frame rather than keeping our own copy, so the
 			// slider shows where the zoom actually ended up after the game clamped it.
 			float live = minimap->GetMapZoom();
-			if (NudgeableSlider("Live zoom", &live, 0.0F, 1.0F, "%.3f", 0.01F))
+			if (NudgeableSlider(strings::TR("DEM_LiveZoom", "Live zoom"), &live, 0.0F, 1.0F, "%.3f", 0.01F))
 			{
 				logger::debug("Live zoom set to {:.3f}", live);
 
@@ -843,7 +910,7 @@ namespace UI
 					}
 				});
 			}
-			HelpMarker("How far the minimap is zoomed in, right now. The game applies its own limits, so the value can settle somewhere other than where you left it.");
+			HelpMarker(strings::TR("DEM_HelpLiveZoom", "How far the minimap is zoomed in, right now. The game applies its own limits, so the value can settle somewhere other than where you left it."));
 		}
 
 		// The built-in compass (author request, 2026-08-31: players must be able to switch the
@@ -852,80 +919,80 @@ namespace UI
 		{
 			using namespace settings;
 
-			ImGuiMCP::SeparatorText("Compass");
+			ImGuiMCP::SeparatorText(strings::TR("DEM_SecCompass", "Compass"));
 
-			ImGuiMCP::Toggle("Compass ring", &compass::compassRing);
-			HelpMarker("The compass ring that takes the minimap's corner while the map is hidden. Off = nothing is drawn there when the map is hidden.");
+			ImGuiMCP::Toggle(strings::TR("DEM_CompassRing", "Compass ring"), &compass::compassRing);
+			HelpMarker(strings::TR("DEM_HelpCompassRing", "The compass ring that takes the minimap's corner while the map is hidden. Off = nothing is drawn there when the map is hidden."));
 
-			ImGuiMCP::Toggle("Quest pointer", &compass::questPointer);
-			HelpMarker("The vanilla-style quest marker with the distance readout, riding the ring or the visible map. Off = never drawn.");
+			ImGuiMCP::Toggle(strings::TR("DEM_QuestPointer", "Quest pointer"), &compass::questPointer);
+			HelpMarker(strings::TR("DEM_HelpQuestPointer", "The vanilla-style quest marker with the distance readout, riding the ring or the visible map. Off = never drawn."));
 
-			ImGuiMCP::Toggle("Metric units", &compass::metricUnits);
-			HelpMarker("Distance readout in metres instead of feet.");
+			ImGuiMCP::Toggle(strings::TR("DEM_MetricUnits", "Metric units"), &compass::metricUnits);
+			HelpMarker(strings::TR("DEM_HelpMetricUnits", "Distance readout in metres instead of feet."));
 		}
 
 		void RenderControlsSection()
 		{
 			using namespace settings;
 
-			ImGuiMCP::SeparatorText("Controls");
+			ImGuiMCP::SeparatorText(strings::TR("DEM_SecControls", "Controls"));
 
-			KeyBindRow("Hide key", &controls::hideKeyCode, BindTarget::kHide, "Bind##hide");
-			HelpMarker("Press this key to show or hide the minimap immediately. 0 disables it.");
+			KeyBindRow(strings::TR("DEM_HideKey", "Hide key"), "Hide key", &controls::hideKeyCode, BindTarget::kHide, "##hide");
+			HelpMarker(strings::TR("DEM_HelpHideKey", "Press this key to show or hide the minimap immediately. 0 disables it."));
 
 			if (controls::hideKeyCode == 0)
 			{
-				ImGuiMCP::Text("No hide key set.");
+				ImGuiMCP::Text("%s", strings::TR("DEM_NoHideKey", "No hide key set."));
 			}
 
 			ImGuiMCP::Spacing();
 
 			// Controller (design decision, 2026-08-30): off by default, and the button is the player's choice - every
 			// gamepad button already does something, and Steam Input remaps them anyway.
-			if (ImGuiMCP::Toggle("Controller: tap to hide, hold to pan", &controls::gamepadHideButtonEnabled))
+			if (ImGuiMCP::Toggle(strings::TR("DEM_ControllerButton", "Controller: tap to hide, hold to pan"), &controls::gamepadHideButtonEnabled))
 			{
 				logger::debug("Controller hide/pan button {}", controls::gamepadHideButtonEnabled ? "enabled" : "disabled");
 			}
-			HelpMarker("Off by default. On: tapping the controller button below hides/shows the minimap, holding it pans the map with the RIGHT stick. Pick a button that is free in your layout.");
+			HelpMarker(strings::TR("DEM_HelpControllerButton", "Off by default. On: tapping the controller button below hides/shows the minimap, holding it pans the map with the RIGHT stick. Pick a button that is free in your layout."));
 			if (controls::gamepadHideButtonEnabled)
 			{
 				int code = controls::panHoldGamepadButton;
-				if (ImGuiMCP::InputInt("Controller button (XInput mask)", &code))
+				if (ImGuiMCP::InputInt(strings::TR("DEM_ControllerMask", "Controller button (XInput mask)"), &code))
 				{
 					controls::panHoldGamepadButton = std::max(0, code);
 				}
-				HelpMarker("XInput button masks: 128 = R3 (right stick click), 64 = L3, 256 = LB, 512 = RB, 16 = Start, 32 = Back, 4096 A, 8192 B, 16384 X, 32768 Y.");
+				HelpMarker(strings::TR("DEM_HelpControllerMask", "XInput button masks: 128 = R3 (right stick click), 64 = L3, 256 = LB, 512 = RB, 16 = Start, 32 = Back, 4096 A, 8192 B, 16384 X, 32768 Y."));
 			}
 
 			ImGuiMCP::Spacing();
 
-			if (ImGuiMCP::Toggle("Show location name", &display::showLocationName))
+			if (ImGuiMCP::Toggle(strings::TR("DEM_ShowLocationName", "Show location name"), &display::showLocationName))
 			{
 				logger::debug("Show location name set to {}", display::showLocationName);
 			}
-			HelpMarker("The location name under the map. Turn this off if your game's language shows missing characters or text running past the frame - the title uses the game's own interface font, which this mod cannot change.");
+			HelpMarker(strings::TR("DEM_HelpShowLocationName", "The location name under the map. Turn this off if your game's language shows missing characters or text running past the frame - the title uses the game's own interface font, which this mod cannot change."));
 
-			if (ImGuiMCP::Toggle("Rotate with the player", &controls::followPlayerCameraRotation))
+			if (ImGuiMCP::Toggle(strings::TR("DEM_RotateWithPlayer", "Rotate with the player"), &controls::followPlayerCameraRotation))
 			{
 				logger::debug("Rotate with player camera set to {}", controls::followPlayerCameraRotation);
 			}
-			HelpMarker("On: the minimap turns to face where the player is looking. Off: north is always up, like the local map.");
+			HelpMarker(strings::TR("DEM_HelpRotateWithPlayer", "On: the minimap turns to face where the player is looking. Off: north is always up, like the local map."));
 		}
 
 		void RenderDebugSection()
 		{
 			using namespace settings;
 
-			ImGuiMCP::SeparatorText("Debug");
+			ImGuiMCP::SeparatorText(strings::TR("DEM_SecDebug", "Debug"));
 
 			int logLevel = static_cast<int>(debug::logLevel);
-			if (ImGuiMCP::Combo("Log level", &logLevel, kLogLevelNames, kLogLevelCount))
+			if (ComboTR(strings::TR("DEM_LogLevel", "Log level"), &logLevel, kLogLevelKeys, kLogLevelLabels, kLogLevelCount))
 			{
 				debug::logLevel = static_cast<logger::level>(logLevel);
 				logger::set_level(debug::logLevel, debug::logLevel);
-				logger::debug("Log level set to {}", kLogLevelNames[logLevel]);
+				logger::debug("Log level set to {}", kLogLevelLabels[logLevel]);
 			}
-			HelpMarker("How much detail the plugin writes to its log. Leave this on Info unless you are chasing a problem.");
+			HelpMarker(strings::TR("DEM_HelpLogLevel", "How much detail the plugin writes to its log. Leave this on Info unless you are chasing a problem."));
 		}
 
 		void RenderButtons()
@@ -935,39 +1002,40 @@ namespace UI
 			// Save and Reload drive the game's own INISettingCollection, whose handle and
 			// Setting objects the main thread also touches through Minimap::Show()/Hide().
 			// Queue them rather than racing it from the render thread.
-			if (ImGuiMCP::Button("Save"))
+			if (ImGuiMCP::Button(strings::TR("DEM_Save", "Save")))
 			{
-				statusMessage = "Saving...";
+				statusMessage = strings::TR("DEM_StatusSaving", "Saving...");
 				OnMainThread([]() {
-					statusMessage = settings::Save() ? "Settings saved." : "Could not write the INI. See the log for why.";
+					statusMessage = settings::Save() ? strings::TR("DEM_StatusSaved", "Settings saved.")
+													 : strings::TR("DEM_StatusSaveFailed", "Could not write the INI. See the log for why.");
 				});
 			}
-			HelpMarker("Writes every setting on this page to the plugin's INI so it survives a restart.");
+			HelpMarker(strings::TR("DEM_HelpSave", "Writes every setting on this page to the plugin's INI so it survives a restart."));
 
 			ImGuiMCP::SameLine();
 
-			if (ImGuiMCP::Button("Reload from INI"))
+			if (ImGuiMCP::Button(strings::TR("DEM_ReloadFromIni", "Reload from INI")))
 			{
-				statusMessage = "Reloading...";
+				statusMessage = strings::TR("DEM_StatusReloading", "Reloading...");
 				OnMainThread([]() {
 					if (settings::Reload())
 					{
 						ApplyLiveSettings();
 						ApplyMinimapTheme();
 
-						statusMessage = "Settings reloaded from the INI.";
+						statusMessage = strings::TR("DEM_StatusReloaded", "Settings reloaded from the INI.");
 					}
 					else
 					{
-						statusMessage = "Could not read the INI. See the log for why.";
+						statusMessage = strings::TR("DEM_StatusReloadFailed", "Could not read the INI. See the log for why.");
 					}
 				});
 			}
-			HelpMarker("Throws away any change made here since the last save and re-reads the INI from disk. Also picks up edits made to the file by hand.");
+			HelpMarker(strings::TR("DEM_HelpReload", "Throws away any change made here since the last save and re-reads the INI from disk. Also picks up edits made to the file by hand."));
 
 			ImGuiMCP::SameLine();
 
-			if (ImGuiMCP::Button("Restore defaults"))
+			if (ImGuiMCP::Button(strings::TR("DEM_RestoreDefaults", "Restore defaults")))
 			{
 				OnMainThread([]() {
 					settings::RestoreDefaults();
@@ -976,9 +1044,9 @@ namespace UI
 					logger::debug("Restored default settings");
 				});
 
-				statusMessage = "Defaults restored. Press Save to keep them.";
+				statusMessage = strings::TR("DEM_StatusDefaultsRestored", "Defaults restored. Press Save to keep them.");
 			}
-			HelpMarker("Puts every setting back to the value it has on a fresh install. Nothing is written until you press Save.");
+			HelpMarker(strings::TR("DEM_HelpRestoreDefaults", "Puts every setting back to the value it has on a fresh install. Nothing is written until you press Save."));
 
 			if (!statusMessage.empty())
 			{
@@ -1088,7 +1156,11 @@ namespace UI
 		// keypress during play.
 		MarkPanelDrawn();
 
-		ImGuiMCP::TextWrapped("Changes apply as soon as you make them. Press Save to keep them for the next time you play.");
+		// Follows the Apocrypha Menu Framework's Language setting: a string compare per drawn
+		// frame, and a reload of this mod's translation file only when that language changed.
+		strings::Tick();
+
+		ImGuiMCP::TextWrapped("%s", strings::TR("DEM_Intro", "Changes apply as soon as you make them. Press Save to keep them for the next time you play."));
 		ImGuiMCP::Spacing();
 
 		ImGuiMCP::PushItemWidth(260.0F);

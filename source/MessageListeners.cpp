@@ -8,6 +8,8 @@
 
 #include "UI.h"
 
+#include "utils/Strings.h"
+
 #include "IUI/GFxLoggers.h"
 
 extern const SKSE::LoadInterface* skse;
@@ -37,6 +39,11 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 	// say so once, rather than staying silent about it forever.
 	if (a_msg->type == SKSE::MessagingInterface::kDataLoaded)
 	{
+		// Language first (translation rollout plan, section 2.1): the settings page reads its
+		// text from Data/Interface/Translations/DragonsEyeMinimap_<language>.txt for whatever
+		// language the Apocrypha Menu Framework reports, before anything is drawn.
+		strings::Configure("DragonsEyeMinimap");
+
 		DEM::devbench::Init(true);
 	}
 

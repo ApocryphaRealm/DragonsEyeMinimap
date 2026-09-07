@@ -19,6 +19,11 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   `rules-version.ps1 -Action bump`. If a number was typed by hand, it is wrong until the tool
 >   agrees.
 
+## 1.6.5 - 2026-09-07 - working
+
+### Added
+- The settings page is shown in the game's language: eleven translation files (Interface\Translations\DragonsEyeMinimap_<language>.txt) - Japanese, Korean, Chinese, Russian, German, French, Spanish, Italian, Polish, Czech and English - and the page follows the Apocrypha Menu Framework's Language setting (1.6.5 or newer; English on older versions). Theme and frame names are folder names and stay as they are. The framework is looked up by its sort-first name first. dem.control gained op=strings (active language, source and loaded count).
+
 ## 1.6.4 - 2026-09-04 - working
 
 > Observed on Apostasy Test Build (SE 1.5.97) 2026-09-04 23:53: "Loading DragonsEyeMinimap

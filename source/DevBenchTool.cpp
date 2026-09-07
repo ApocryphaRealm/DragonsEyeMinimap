@@ -4,6 +4,8 @@
 #include "MiniMap.h"
 #include "Settings.h"
 
+#include "utils/Strings.h"
+
 #include <string>
 
 namespace DEM::devbench
@@ -27,6 +29,17 @@ namespace DEM::devbench
 		{
 			const std::string args = a_argsJson ? a_argsJson : "{}";
 			const std::string op = JsonStr(args, "op");
+
+			// op=strings: which language the settings page is drawing in, where that came from
+			// and how many texts were read - the proof a translation file actually loaded,
+			// readable without a capture. Answered before the minimap guard below, because it
+			// does not depend on the minimap existing yet.
+			if (op == "strings")
+			{
+				const std::string reply = "{\"ok\":true,\"op\":\"strings\",\"strings\":" + strings::StatusJson() + "}";
+				a_write(a_sink, reply.c_str());
+				return;
+			}
 
 			auto* mini = Minimap::GetSingleton();
 			if (!mini)
@@ -83,7 +96,7 @@ namespace DEM::devbench
 				return;
 			}
 
-			a_write(a_sink, "{\"ok\":false,\"error\":\"op must be show|hide|state\"}");
+			a_write(a_sink, "{\"ok\":false,\"error\":\"op must be show|hide|state|strings\"}");
 		}
 	}
 
@@ -100,7 +113,9 @@ namespace DEM::devbench
 		constexpr const char* descriptor =
 			"{"
 			"\"description\":\"Drive Dragon's Eye Minimap for testing. op: show|hide (runtime toggle, "
-			"never persisted), state (ready/shown/visible, the stage rect, compass toggles).\","
+			"never persisted), state (ready/shown/visible, the stage rect, compass toggles), "
+			"strings (the language the settings page is drawn in, where it came from and how many "
+			"translated texts were loaded).\","
 			"\"inputSchema\":{\"type\":\"object\",\"properties\":{\"op\":{\"type\":\"string\"}}},"
 			"\"readOnly\":false"
 			"}";
