@@ -21,7 +21,18 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
-## 1.6.8 - 2026-09-16 - untested
+## 1.6.9 - 2026-09-16 - untested
+
+### Fixed
+- no frame theme could ever render correctly. Found the same night the first themes shipped, from the owner's log: every theme load emitted `[error] Could not measure the minimap artwork`, then `settled after 1 pass(es)`, then `Display settled ... after 1 re-applies` - out of a re-apply window of 300 frames. Two defects compounded, and either alone was enough to break it.
+- FIRST: a failed measurement reported success. `loadMovie` is asynchronous, so the art clip is necessarily empty when the first measurement runs - the normal case, and the whole reason the re-apply window exists. `ApplyDisplaySettingsOnce` logged the failure and returned `true` with the out-deltas untouched at zero, and the convergence loop reads zero movement as "the position settled". A measurement that failed was therefore indistinguishable from one that landed perfectly. It now returns false, and `ApplyDisplaySettings` returns false with it, so `Advance()` can tell the two apart.
+- SECOND: arming the window did not clear the run of quiet frames already counted. `displayStableFrames` kept whatever value it reached while the previous artwork sat still, so a display that had long since settled - which is any display by the time a player opens the settings page to pick a theme - reached `kRequiredStableFrames` on the very first tick after the load and closed the window immediately. Both arm sites now reset it: the theme load, and `InitLocalMap` on the startup path, which had the same latent flaw.
+- A failed measurement in `Advance()` now resets the stable-frame run and keeps the window open, rather than counting as a quiet frame.
+
+### Scope
+- this is not specific to the themes added in 1.6.8. It has been true of every theme since the system shipped in 1.6.3, and the reason it was never noticed is that the folder shipped empty until 1.6.8 - there was nothing to select. "Frameless" appeared to work only because it draws nothing, so failing to measure it had no visible consequence.
+
+## 1.6.8 - 2026-09-16 - working
 
 ### Added
 - two themes that actually show Norden UI's frame: "Norden UI" (square) and "Norden UI Round". The owner asked for this directly - "just take the map art from norden and use it for our theme" - after 1.6.7's bundled theme turned out to draw no frame at all.

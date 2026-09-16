@@ -155,6 +155,10 @@ namespace DEM
 			// pendingReapplyFrames.
 			pendingReapplyFrames = kPendingReapplyFrames;
 
+			// Same reset as the theme-load site: arming the window must also clear any run of
+			// quiet frames already counted, or the window can close on its first tick.
+			displayStableFrames = 0;
+
 			logger::debug("InitLocalMap: scaleform wired up, queued {} reapply frame(s), showOnGameStart {}",
 						  pendingReapplyFrames, settings::display::showOnGameStart);
 
@@ -424,7 +428,14 @@ namespace DEM
 		{
 			logger::error("Could not measure the minimap artwork; leaving it where it is");
 
-			return true;
+			// Bail rather than report success. Returning true here left a_outDeltaX/Y at zero,
+			// which the convergence loop read as "the position did not move" and treated as
+			// settled - so a measurement that FAILED was indistinguishable from one that landed
+			// perfectly. Right after a theme's loadMovie the clip is necessarily empty, so this
+			// is the normal first case, and calling it settled is what killed the re-apply
+			// window that exists to wait for exactly that (the owner, 2026-09-16: the theme
+			// loaded and drew unmeasured).
+			return false;
 		}
 
 		// Remember how big the artwork is at scale 1, so the quarter-screen cap has something
@@ -552,7 +563,7 @@ namespace DEM
 	// Bounded rather than looping until stable: if some future change makes this oscillate
 	// instead of converge, a capped loop degrades to the old visible drift rather than hanging
 	// the render thread.
-	void Minimap::ApplyDisplaySettings()
+	bool Minimap::ApplyDisplaySettings()
 	{
 		constexpr int kMaxPasses = 8;
 		constexpr float kSettledPixels = 0.5F;
@@ -567,8 +578,9 @@ namespace DEM
 
 			if (!ApplyDisplaySettingsOnce(deltaX, deltaY))
 			{
-				// The pass bailed out - it has already logged why. Nothing to converge on.
-				return;
+				// The pass bailed out - it has already logged why. Nothing to converge on, and
+				// the caller must not mistake this for a settled position.
+				return false;
 			}
 
 			if (std::abs(deltaX) < kSettledPixels && std::abs(deltaY) < kSettledPixels)
@@ -593,6 +605,8 @@ namespace DEM
 		lastAppliedY = static_cast<float>(displayObj.GetMember("_y").GetNumber());
 
 		ApplyTitlePosition();
+
+		return true;
 	}
 
 	void Minimap::ApplyTitlePosition()
@@ -896,6 +910,13 @@ namespace DEM
 					art.Invoke("loadMovie", nullptr, arg.data(), arg.size());
 					pendingReapplyFrames = kPendingReapplyFrames;
 
+					// Clear the run of quiet frames as well. Without this the counter kept the
+					// value it reached while the PREVIOUS artwork sat still, so a display that
+					// had long since settled hit kRequiredStableFrames on the first tick after
+					// the load and closed the window immediately - the log read "after 1
+					// re-applies" out of a window of 300.
+					displayStableFrames = 0;
+
 					logger::info("theme: loading \"{}\" into {} (re-measuring for {} frames)",
 						path, artName, pendingReapplyFrames);
 				}
@@ -1035,7 +1056,14 @@ namespace DEM
 			const float beforeX = lastAppliedX;
 			const float beforeY = lastAppliedY;
 
-			ApplyDisplaySettings();
+			if (!ApplyDisplaySettings())
+			{
+				// Could not measure yet - the artwork has not arrived. That is the whole reason
+				// this window exists, so keep it open instead of counting a quiet frame.
+				displayStableFrames = 0;
+
+				return;
+			}
 
 			constexpr float kStillPixels = 0.5F;
 

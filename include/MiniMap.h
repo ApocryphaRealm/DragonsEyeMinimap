@@ -174,7 +174,10 @@ namespace DEM
 
 		// Re-applies fPositionX / fPositionY / fScale to the Scaleform clip, and uShape to the
 		// local map. Both must run on the main thread; the settings menu queues them there.
-		void ApplyDisplaySettings();
+		// Returns false when the artwork could not be measured - which is NOT the same as
+		// "nothing moved". Advance() needs to tell those apart: a failed measurement must keep
+		// the re-apply window alive rather than end it (see 1.6.9).
+		bool ApplyDisplaySettings();
 
 		// One positioning pass. Returns false if it bailed out (nothing measurable to work with),
 		// true otherwise, reporting through the out-params how far it actually moved the clip.
