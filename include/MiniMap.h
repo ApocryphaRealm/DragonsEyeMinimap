@@ -414,6 +414,10 @@ namespace DEM
 		// without a restart. The holder leaves the original untouched, so clearing a theme is
 		// just "remove the holder and unhide the art".
 		static constexpr const char* kThemeHolderName = "demThemeFrame";
+		// Fixed, so a theme switch replaces the holder in place instead of creating a second
+		// clip of the same name at a new depth. Well above the timeline's own children, which
+		// occupy AS2's negative depth range.
+		static constexpr double kThemeHolderDepth = 9500.0;
 		bool  themeHolderLive = false;
 
 		// How long the visibility gate must stay OPEN before the mod accepts it and stops

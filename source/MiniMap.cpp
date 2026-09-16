@@ -910,10 +910,13 @@ namespace DEM
 			{
 				lastThemeKey = themeKey;
 
-				// Whatever happens next, the previous theme's holder must go and the built-in
-				// art must come back out of hiding first. Restoring is now possible at all
-				// because the built-in art was never destroyed - see kThemeHolderName.
+				if (settings::display::theme.empty())
 				{
+					// Clearing is the ONLY path that removes the holder. Doing it on every theme
+					// change was a bug: removeMovieClip then createEmptyMovieClip at a fresh depth
+					// left "demThemeFrame" briefly naming two clips, and GetMember measured the
+					// emptied one - so the first theme of a session worked (depth 1) and every
+					// switch after it failed all 300 attempts (depth 2). Observed 2026-09-16.
 					RE::GFxValue oldHolder;
 					if (localMap_->root.GetMember(kThemeHolderName, &oldHolder) && oldHolder.IsDisplayObject())
 					{
@@ -921,18 +924,23 @@ namespace DEM
 					}
 					themeHolderLive = false;
 
-					for (const char* name : { "BackgroundArtSquare", "BackgroundArtCircle" })
+					// Show ONLY the art for the current shape. Unhiding both put the round frame
+					// on screen alongside the square one - the owner, 2026-09-16: "when I activate
+					// the built-in frame you see both frames at the same time", and a square map
+					// that "appears round" because the circle frame was drawn over it. SetShape
+					// keeps the unused shape hidden and this must not undo that.
+					const char* const keepShown = shape == Shape::kRound ? "BackgroundArtCircle" : "BackgroundArtSquare";
+					const char* const keepHidden = shape == Shape::kRound ? "BackgroundArtSquare" : "BackgroundArtCircle";
+
+					for (const auto& [name, visible] : { std::pair{ keepShown, true }, std::pair{ keepHidden, false } })
 					{
 						RE::GFxValue builtIn;
 						if (localMap_->root.GetMember(name, &builtIn) && builtIn.IsDisplayObject())
 						{
-							builtIn.SetMember("_visible", RE::GFxValue{ true });
+							builtIn.SetMember("_visible", RE::GFxValue{ visible });
 						}
 					}
-				}
 
-				if (settings::display::theme.empty())
-				{
 					// The holder is gone and the art is visible again, so this is a real restore
 					// rather than the no-op it used to be. Before 1.7.0 selecting "Built-in frame"
 					// only stopped loading a new theme, which left the player with no frame at all
@@ -950,12 +958,11 @@ namespace DEM
 					// already works for the compass ring, then copy the art clip's placement onto
 					// it - those clips are positioned by a matrix in Minimap.swf, so a holder left
 					// at identity would draw the frame in the wrong place.
-					RE::GFxValue nextDepth;
-					double depth = 8000.0;
-					if (localMap_->root.Invoke("getNextHighestDepth", &nextDepth) && nextDepth.IsNumber())
-					{
-						depth = nextDepth.GetNumber();
-					}
+					// A FIXED depth, deliberately. createEmptyMovieClip at an occupied depth
+					// replaces what is there in one step, so switching themes can never leave two
+					// clips sharing the holder's name. getNextHighestDepth() handed out a new
+					// depth each time and caused exactly that.
+					const double depth = kThemeHolderDepth;
 
 					std::array<RE::GFxValue, 2> create{ RE::GFxValue{ kThemeHolderName }, RE::GFxValue{ depth } };
 					RE::GFxValue holder;
