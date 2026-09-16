@@ -21,7 +21,20 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
-## 1.6.9 - 2026-09-16 - untested
+## 1.7.0 - 2026-09-16 - untested
+
+### Fixed
+- a theme never drew its frame, and selecting "Built-in frame" afterwards left the minimap with no frame at all until the game was restarted (the owner, 2026-09-16: "after you select it you can't reselect the built-in frame"). Both came from the same mistake: the theme was loaded with `loadMovie` into `BackgroundArtSquare`/`BackgroundArtCircle`, and those are placed instances of symbols IMPORTED from MinimapArt.swf through `ImportAssets2`. `loadMovie` on such an instance destroys the imported artwork and never populates it, so the clip measured as empty forever and there was nothing left to restore.
+- a theme now loads into a SIBLING holder clip created with `createEmptyMovieClip` - the same pattern the compass ring already uses on the HUD root - with the art clip's `_x`, `_y`, `_xscale` and `_yscale` copied onto it, because those clips are positioned by a matrix in Minimap.swf and a holder left at identity would draw the frame in the wrong place. The built-in art is then HIDDEN rather than destroyed, and only after the holder is confirmed created, so a failed create leaves the original frame in place instead of nothing.
+- clearing a theme removes the holder, unhides both art clips and re-arms the measure window. That is a real restore; before this it only stopped loading a new theme.
+- the measurement follows the holder while one is live, so it never sizes the map to the hidden built-in clip.
+- an exhausted re-apply window now says so. 1.6.9's early return on a failed measurement skipped the never-settled warning, so 300 consecutive failures logged nothing but the raw error - the defect was diagnosed from the error COUNT rather than from the warning written for exactly this case.
+- the measurement error is rate-limited (first, then every 120th, then a line saying how many attempts it took). Unthrottled it wrote ~416 lines per theme switch, which buried everything else in the log.
+
+### Evidence the old mechanism could not work
+- two theme files, one with a space in the name and one without, each failed all 300 measurement attempts identically - which killed the filename hypothesis and pointed at the mechanism instead. Built-in art measured fine in the same session ("Display settled ... after 7 re-applies"), so the failure was specific to clips that had been loadMovie-d.
+
+## 1.6.9 - 2026-09-16 - working
 
 ### Fixed
 - no frame theme could ever render correctly. Found the same night the first themes shipped, from the owner's log: every theme load emitted `[error] Could not measure the minimap artwork`, then `settled after 1 pass(es)`, then `Display settled ... after 1 re-applies` - out of a re-apply window of 300 frames. Two defects compounded, and either alone was enough to break it.

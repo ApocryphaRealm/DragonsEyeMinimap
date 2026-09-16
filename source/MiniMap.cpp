@@ -354,8 +354,14 @@ namespace DEM
 			using Shape = LMU::PixelShaderProperty::Shape;
 			const char* artName = shape == Shape::kRound ? "BackgroundArtCircle" : "BackgroundArtSquare";
 
+			// With a theme active the frame lives in the holder, and the built-in art is hidden -
+			// measuring the hidden clip would size the map to artwork nobody can see.
 			RE::GFxValue art;
-			if (localMap_->root.GetMember(artName, &art) && art.IsDisplayObject())
+			const bool haveArt = themeHolderLive
+				? (localMap_->root.GetMember(kThemeHolderName, &art) && art.IsDisplayObject())
+				: (localMap_->root.GetMember(artName, &art) && art.IsDisplayObject());
+
+			if (haveArt)
 			{
 				measured = art.Invoke("getBounds", &bounds, std::array<RE::GFxValue, 1>{ parent }) && bounds.IsObject();
 			}
@@ -426,7 +432,13 @@ namespace DEM
 		float artLeft = 0.0F, artTop = 0.0F, artRight = 0.0F, artBottom = 0.0F;
 		if (!GetArtBoundsInParent(artLeft, artTop, artRight, artBottom))
 		{
-			logger::error("Could not measure the minimap artwork; leaving it where it is");
+			// Rate-limited: this fires every frame of a 300-frame window while the artwork is
+			// missing, and an unthrottled error there buries everything else in the log.
+			if (++measureFailStreak == 1 || measureFailStreak % 120 == 0)
+			{
+				logger::error("Could not measure the minimap artwork; leaving it where it is (attempt {})",
+							  measureFailStreak);
+			}
 
 			// Bail rather than report success. Returning true here left a_outDeltaX/Y at zero,
 			// which the convergence loop read as "the position did not move" and treated as
@@ -436,6 +448,12 @@ namespace DEM
 			// window that exists to wait for exactly that (the owner, 2026-09-16: the theme
 			// loaded and drew unmeasured).
 			return false;
+		}
+
+		if (measureFailStreak > 0)
+		{
+			logger::info("minimap artwork measured after {} failed attempt(s)", measureFailStreak);
+			measureFailStreak = 0;
 		}
 
 		// Remember how big the artwork is at scale 1, so the quarter-screen cap has something
@@ -892,33 +910,90 @@ namespace DEM
 			{
 				lastThemeKey = themeKey;
 
+				// Whatever happens next, the previous theme's holder must go and the built-in
+				// art must come back out of hiding first. Restoring is now possible at all
+				// because the built-in art was never destroyed - see kThemeHolderName.
+				{
+					RE::GFxValue oldHolder;
+					if (localMap_->root.GetMember(kThemeHolderName, &oldHolder) && oldHolder.IsDisplayObject())
+					{
+						oldHolder.Invoke("removeMovieClip");
+					}
+					themeHolderLive = false;
+
+					for (const char* name : { "BackgroundArtSquare", "BackgroundArtCircle" })
+					{
+						RE::GFxValue builtIn;
+						if (localMap_->root.GetMember(name, &builtIn) && builtIn.IsDisplayObject())
+						{
+							builtIn.SetMember("_visible", RE::GFxValue{ true });
+						}
+					}
+				}
+
 				if (settings::display::theme.empty())
 				{
-					// No theme: nothing to do. The built-in artwork is whatever MinimapArt.swf
-					// provides, which is also what a file-overwrite reskin replaces - so those
-					// keep working untouched.
-					logger::debug("theme: none selected; using the built-in frame art on {}", artName);
+					// The holder is gone and the art is visible again, so this is a real restore
+					// rather than the no-op it used to be. Before 1.7.0 selecting "Built-in frame"
+					// only stopped loading a new theme, which left the player with no frame at all
+					// and no way back without restarting (the owner, 2026-09-16).
+					logger::info("theme: cleared; the built-in frame art on {} is back", artName);
+
+					pendingReapplyFrames = kPendingReapplyFrames;
+					displayStableFrames = 0;
 				}
 				else
 				{
 					const std::string path = "Interface/DragonsEyeMinimapThemes/" + settings::display::theme + ".swf";
-					std::array<RE::GFxValue, 1> arg{ RE::GFxValue{ path.c_str() } };
 
-					// loadMovie is ASYNCHRONOUS - the art arrives a frame or two later, so the
-					// measurement that positions and scales the map has to run again once it has.
-					// pendingReapplyFrames is the existing mechanism for exactly that.
-					art.Invoke("loadMovie", nullptr, arg.data(), arg.size());
-					pendingReapplyFrames = kPendingReapplyFrames;
+					// Create the holder as a SIBLING of the art clip, matching the pattern that
+					// already works for the compass ring, then copy the art clip's placement onto
+					// it - those clips are positioned by a matrix in Minimap.swf, so a holder left
+					// at identity would draw the frame in the wrong place.
+					RE::GFxValue nextDepth;
+					double depth = 8000.0;
+					if (localMap_->root.Invoke("getNextHighestDepth", &nextDepth) && nextDepth.IsNumber())
+					{
+						depth = nextDepth.GetNumber();
+					}
 
-					// Clear the run of quiet frames as well. Without this the counter kept the
-					// value it reached while the PREVIOUS artwork sat still, so a display that
-					// had long since settled hit kRequiredStableFrames on the first tick after
-					// the load and closed the window immediately - the log read "after 1
-					// re-applies" out of a window of 300.
-					displayStableFrames = 0;
+					std::array<RE::GFxValue, 2> create{ RE::GFxValue{ kThemeHolderName }, RE::GFxValue{ depth } };
+					RE::GFxValue holder;
+					if (!localMap_->root.Invoke("createEmptyMovieClip", &holder, create.data(), create.size()) ||
+						!holder.IsDisplayObject())
+					{
+						logger::error("theme: could not create the holder clip; keeping the built-in frame");
+					}
+					else
+					{
+						for (const char* prop : { "_x", "_y", "_xscale", "_yscale" })
+						{
+							RE::GFxValue v;
+							if (art.GetMember(prop, &v) && v.IsNumber())
+							{
+								holder.SetMember(prop, v);
+							}
+						}
 
-					logger::info("theme: loading \"{}\" into {} (re-measuring for {} frames)",
-						path, artName, pendingReapplyFrames);
+						std::array<RE::GFxValue, 1> arg{ RE::GFxValue{ path.c_str() } };
+						holder.Invoke("loadMovie", nullptr, arg.data(), arg.size());
+						themeHolderLive = true;
+
+						// Hide the built-in art only once the holder exists, so a failed create
+						// never leaves the minimap with no frame at all.
+						art.SetMember("_visible", RE::GFxValue{ false });
+
+						// loadMovie is ASYNCHRONOUS - the art arrives a frame or two later, so the
+						// measurement that positions and scales the map has to run again once it has.
+						pendingReapplyFrames = kPendingReapplyFrames;
+
+						// Clear the run of quiet frames as well, or a display that had long since
+						// settled closes the window on its first tick ("after 1 re-applies").
+						displayStableFrames = 0;
+
+						logger::info("theme: loading \"{}\" into {} at depth {} (re-measuring for {} frames)",
+									 path, kThemeHolderName, depth, pendingReapplyFrames);
+					}
 				}
 			}
 		}
@@ -1061,6 +1136,17 @@ namespace DEM
 				// Could not measure yet - the artwork has not arrived. That is the whole reason
 				// this window exists, so keep it open instead of counting a quiet frame.
 				displayStableFrames = 0;
+
+				// Do NOT return here. 1.6.9 did, and that skipped the never-settled warning
+				// below, so a window that burned all 300 frames failing to measure said nothing
+				// at all - observed 2026-09-16, when a theme failed 300/300 times in silence and
+				// the only clue was the raw error count. A window that gives up must say so.
+				if (pendingReapplyFrames == 0)
+				{
+					logger::warn("Display never settled within {} re-applies: the artwork could not be "
+								 "measured at all ({} consecutive failures). Left at _x {}, _y {}",
+								 kPendingReapplyFrames, measureFailStreak, lastAppliedX, lastAppliedY);
+				}
 
 				return;
 			}
