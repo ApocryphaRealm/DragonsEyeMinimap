@@ -21,7 +21,26 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
-## 1.6.6 - 2026-09-15 - untested
+## 1.6.8 - 2026-09-16 - untested
+
+### Added
+- two themes that actually show Norden UI's frame: "Norden UI" (square) and "Norden UI Round". The owner asked for this directly - "just take the map art from norden and use it for our theme" - after 1.6.7's bundled theme turned out to draw no frame at all.
+- each is Norden UI's own `!assets/MinimapArt.swf` with exactly ONE tag added: a root-level `PlaceObject2` placing sprite 355 (`LocalMapBackgroundSquared`) or 357 (`LocalMapBackgroundRound`) at depth 1. No artwork is altered - 12,405 tags in, 12,406 out, with 273 shapes and 287 exports unchanged. Built through FFDec's XML round-trip, which was first proven lossless on the unmodified file so the toolchain could be trusted with the edit.
+
+### Changed
+- 1.6.7's bundled theme is renamed "Frameless" and kept deliberately. It renders the map and markers with no border, which is not what it was shipped to do but is what the owner wanted to keep once he saw it ("I actually kind of like the look of it").
+
+### Why the 1.6.7 theme showed no frame
+- `MinimapArt.swf` is not frame art. It is the shared asset library - markers, vision cone, and the frame exported as `LocalMapBackgroundSquared`/`LocalMapBackgroundRound`, which `Minimap.swf` pulls in by name with `ImportAssets2` (visible as tags 2 and 3 of that file). Symbols exported for import are never placed on their own root, the theme system loads a theme with `loadMovie`, and `loadMovie` draws only what the root draws. A properly parsed tag list confirms it: 1047 root tags, 374 sprites, 287 exports, and zero root-level `PlaceObject` of any kind.
+
+## 1.6.7 - 2026-09-15 - working
+
+### Added
+- a bundled theme, "Frameless" (shipped as "Norden UI" and renamed the same day - see the correction below). The theme system shipped in 1.6.3 with no themes in the folder, so the dropdown had nothing in it but "Built-in frame" unless the player went and found a theme themselves. This is the minimap frame from Norden UI by Nithog (Nexus 166086), included under that mod's stated asset-use permission - "You are allowed to use the assets in this file without permission as long as you credit me" - with the attribution and the full terms in THIRD_PARTY_NOTICES.md. It is included because Norden UI users previously had to let Norden overwrite this mod's Minimap.swf to get its frame, which silently cost them the HUD-mode visibility sync that Norden's older copy of that file does not implement; carrying the art as a theme means this mod's own Minimap.swf stays in place and the frame still changes.
+- CORRECTION, same day, after testing in game: the bundled file is Norden UI's `!assets/MinimapArt.swf`, and that is NOT frame artwork - it is the shared asset library (markers, vision cone) whose frame art is exported as `LocalMapBackgroundSquared`/`LocalMapBackgroundRound` for `Minimap.swf` to pull in with `ImportAssets2`. Symbols exported for import are never placed on the file's own root, and the theme system uses `loadMovie`, which draws only the root - so as a theme it shows markers and no border. The owner liked that frameless result and asked to keep it, so it ships renamed to "Frameless" rather than being withdrawn. A theme that actually looks like Norden UI needs a SWF that places those symbols on its own root, which this release does not contain.
+- THIRD_PARTY_NOTICES.md, which the repository did not have. It records the Norden UI permission, the date it was read, and the evidence that the bundled frame is not a repackage of this mod's own artwork (of 270 and 273 exported shapes, 2 were byte-identical).
+
+## 1.6.6 - 2026-09-15 - working
 
 ### Fixed
 - the map drew mangled, scaled or skewed in interiors (AuroraSake on Nexus, 2026-09-15: 'it just don't work for most interiors ... for the most of times it just show a mangled/scaled/skewed map'). minFrustumHalfHeight is the floor on how far the local-map camera may zoom in, and nothing ever set it - only the width was scaled from it - so whatever the engine last left there stood, about 1125 units. An exterior is larger than that so it never bites; an interior usually is not: his log shows Redwater Den spanning ~193 units framed by minFrustumHalf 1125x1125, a room in a view ten times its width. The floor is now clamped DOWN to the loaded area whenever the area is smaller, which cannot affect exteriors. It also explains why opening the map menu fixed it until the next world change - that menu builds its own camera with its own bounds.
