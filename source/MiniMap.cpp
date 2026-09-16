@@ -972,6 +972,40 @@ namespace DEM
 
 		float aspectRatio = (localMap->bottomRight.x - localMap->topLeft.x) / (localMap->bottomRight.y - localMap->topLeft.y);
 
+		// THE MINIMUM FRUSTUM MUST NOT BE LARGER THAN THE AREA IT IS FRAMING.
+		//
+		// minFrustumHalfHeight is a FLOOR on how far the local-map camera can zoom in, and until
+		// 1.6.6 nothing here ever set it - only the width was scaled from it. Whatever the engine
+		// last left there stood, which in practice is about 1125 units (2250 across).
+		//
+		// In an exterior that is smaller than the loaded area, so it never bites. In an INTERIOR it
+		// usually is not: AuroraSake's report (Nexus, 2026-09-15) logged Redwater Den with local
+		// extents spanning ~193 units against `minFrustumHalf 1125x1125` - a room framed by a view
+		// more than ten times its width. The picture cannot match the extents it is fitted to, which
+		// is what he described as a "mangled/scaled/skewed" map, and why opening the map menu fixed
+		// it until the next world change: that menu builds its own camera with its own bounds.
+		//
+		// So clamp the floor DOWN to the loaded area when the area is the smaller of the two. This
+		// cannot affect exteriors, where the loaded grid is far larger than the floor already.
+		if (RE::TES* tes = RE::TES::GetSingleton())
+		{
+			const RE::LoadedAreaBound* bound = tes->GetRuntimeData2().loadedAreaBound;
+			if (bound)
+			{
+				const float areaHalfHeight = (bound->maxExtent.y - bound->minExtent.y) * 0.5F;
+				const float currentHalfHeight = cameraContext->defaultState->minFrustumHalfHeight;
+
+				// > 1 unit guards a bound that is not built yet (both extents zero); only ever
+				// shrinks, so a large area keeps whatever the engine chose.
+				if (areaHalfHeight > 1.0F && areaHalfHeight < currentHalfHeight)
+				{
+					logger::debug("Frustum floor {} is larger than the loaded area ({} half-height); clamping to the area",
+								  currentHalfHeight, areaHalfHeight);
+					cameraContext->defaultState->minFrustumHalfHeight = areaHalfHeight;
+				}
+			}
+		}
+
 		cameraContext->defaultState->minFrustumHalfWidth = aspectRatio * cameraContext->defaultState->minFrustumHalfHeight;
 
 		minCamFrustumHalfWidth = cameraContext->defaultState->minFrustumHalfWidth;

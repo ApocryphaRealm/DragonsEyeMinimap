@@ -275,6 +275,20 @@ namespace DEM::compassring
 		(void)g_clip.Invoke("clear");
 
 		const bool ringNow = ringOn && gameplay && !mapVisible;
+
+		// 1.6.6: the owner asked whether the ring shows in the Tween menu, where the minimap is hidden -
+		// which is exactly the case the ring exists for. `gameplay` is !GameIsPaused(), and a paused
+		// menu would suppress the ring at the very moment it should appear. Log the gate's inputs the
+		// first time the minimap goes hidden, so the answer is read rather than inferred.
+		{
+			static bool s_loggedHidden = false;
+			if (!mapVisible && !s_loggedHidden)
+			{
+				s_loggedHidden = true;
+				logger::info("CompassRing gate with the map hidden: ringOn {}, gameplay {} (paused {}), mapVisible {} -> ring {}",
+							 ringOn, gameplay, !gameplay, mapVisible, ringNow ? "SHOWN" : "hidden");
+			}
+		}
 		const bool pointerNow = pointerOn && gameplay;
 		const char* labels[4] = { "labN", "labE", "labS", "labW" };
 		if (!ringNow)

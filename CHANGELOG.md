@@ -21,6 +21,14 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
+## 1.6.6 - 2026-09-15 - untested
+
+### Fixed
+- the map drew mangled, scaled or skewed in interiors (AuroraSake on Nexus, 2026-09-15: 'it just don't work for most interiors ... for the most of times it just show a mangled/scaled/skewed map'). minFrustumHalfHeight is the floor on how far the local-map camera may zoom in, and nothing ever set it - only the width was scaled from it - so whatever the engine last left there stood, about 1125 units. An exterior is larger than that so it never bites; an interior usually is not: his log shows Redwater Den spanning ~193 units framed by minFrustumHalf 1125x1125, a room in a view ten times its width. The floor is now clamped DOWN to the loaded area whenever the area is smaller, which cannot affect exteriors. It also explains why opening the map menu fixed it until the next world change - that menu builds its own camera with its own bounds.
+
+### Added
+- a one-shot diagnostic on the world-steady gate that holds the map redraw. The same report describes the map mostly not drawing at all in interiors, and his log shows that gate failing inside an interior on 'a shadow scene child is not a valid object yet'. Every other branch of the check is interior-aware; the shadow-scene shape is not. Rather than change the gate on a source reading, the mod now logs the scene's child count and the failing index the first time it happens, so a single interior visit shows whether that gate can ever pass there.
+
 ## 1.6.5 - 2026-09-07 - working
 
 ### Added

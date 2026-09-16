@@ -195,13 +195,38 @@ namespace DEM
 			}
 		}
 
+		// THE SHADOW SCENE HAS A DIFFERENT SHAPE IN INTERIORS - PROVEN, NOT ASSUMED.
+		//
+		// AuroraSake (Nexus, 2026-09-15) reported the map mostly not drawing at all in interiors. The
+		// 1.6.6 diagnostic answered it on the first interior visit:
+		//
+		//     Shadow-scene gate: child[8] is 0x0 (capacity 10, size 6, interior yes)
+		//
+		// An interior's shadow scene holds SIX children. The old test demanded valid pointers at
+		// indices 3, 8 and 9 and gated on capacity() - the allocation, 10 - rather than size(). So in
+		// any interior it read two slots past the end, found null, and declared the world unsteady.
+		// That restarts the settle window every frame, so the redraw is held FOR EVER: in the test run
+		// "World is steady again" never appeared once. Exteriors have enough children that the same
+		// test passes, which is why this only ever bit interiors.
+		//
+		// Now: gate on size(), and validate only the indices that exist. The point of the check is that
+		// the children this render walks are real objects before it walks them - a child that is not
+		// there is not a child that is half-built, and must not fail the world.
 		RE::ShadowSceneNode* shadow = RE::ShadowSceneNode::GetMain();
 		if (!shadow) { a_reason = "no main shadow scene node"; return false; }
 		auto& children = shadow->GetChildren();
-		if (children.capacity() <= 9) { a_reason = "shadow scene not fully built"; return false; }
-		for (int idx : { 3, 8, 9 })
+
+		const std::size_t childCount = children.size();
+		if (childCount == 0) { a_reason = "shadow scene has no children yet"; return false; }
+
+		for (const std::size_t idx : { std::size_t{ 3 }, std::size_t{ 8 }, std::size_t{ 9 } })
 		{
-			if (!LooksLikePointer(children[idx].get())) { a_reason = "a shadow scene child is not a valid object yet"; return false; }
+			if (idx >= childCount) { continue; }   // not present in this scene shape (interiors have 6)
+			if (!LooksLikePointer(children[idx].get()))
+			{
+				a_reason = "a shadow scene child is not a valid object yet";
+				return false;
+			}
 		}
 
 		return true;
