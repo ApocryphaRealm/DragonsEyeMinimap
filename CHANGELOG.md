@@ -21,6 +21,13 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
+## 1.7.2 - 2026-09-17 - untested
+
+### Fixed
+- **The compass widget now carries the HUD's own hide-in-menu flags** (the owner, 2026-09-17: *"make sure the compass widget has the proper hud hide in menu flags"*). The vanilla HUD hides and shows its parts through HUDMovieBaseInstance.ShowElements: every element in HudElements is made visible only when it owns the current mode (All, InventoryMode, WorldMapMode, TweenMode, DialogueMode, BarterMode, BookMode, StealthMode, Swimming, HorseMode ...). The compass ring, quest pointer and distance readout were drawn on the HUD root outside that list, gated only by whether the game was paused - hidden in the console where the vanilla compass stays, and not hidden by anything the HUD hides for. The clip now registers itself in HudElements and owns exactly the modes the vanilla compass owns (All, Favor, DialogueMode, StealthMode, Swimming, HorseMode, WarHorseMode), so it hides and shows with the compass in every menu, in dialogue, while sneaking, swimming or riding. The pause gate is gone.
+- **The Address Library guard** every mod of ours on CommonLibSSE-NG carries since today (see Wheeler - Refined 1.2.9): before any address is resolved the log names the game version detected, the exact Address Library file needed, the folder looked in and whether it is there; a missing file shows a message with those facts and the plugin loads inert.
+- The driving tool gained `op=hudvis`: the HUD's mode stack, the element count, whether the compass clip is registered, its `_visible` and the vanilla compass holder's - read on the game thread.
+
 ## 1.7.1 - 2026-09-17 - untested
 
 ### Removed

@@ -3,6 +3,7 @@
 #include "Settings.h"
 
 #include "utils/Logger.h"
+#include "AddressLibraryGuard.h"
 
 void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg);
 
@@ -26,6 +27,16 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 
 	SKSE::Init(a_skse);
 	logger::debug("SKSE core APIs initialized");
+
+	// 1.7.2: name the Address Library file this game version needs, and whether it is there, BEFORE
+	// any address is resolved; a missing file leaves the plugin inert with a message that names it
+	// instead of CommonLib's bare "failed to open the address library file" (the guard every mod of
+	// ours on CommonLibSSE-NG carries since oproso's Fluorine/SteamOS report, 2026-09-17).
+	if (!AddressLibraryGuard::Guard(std::string(plugin->GetName()).c_str()))
+	{
+		logger::critical("[AddressLibrary] loading inert: no hooks, no listeners, nothing resolved");
+		return true;
+	}
 
 	logger::debug("Loading settings from {}.ini", plugin->GetName());
 	settings::Init(std::string(plugin->GetName()) + ".ini");

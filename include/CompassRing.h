@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 // COMPASS RING + QUEST POINTER, built into the minimap (design decision, 2026-08-30: "DEM still
 // has the compass and should keep it while on AMF - the compass feature should be built in to
 // DEM not AMF"). No framework HUD API and no SWF recompile: everything is drawn at RUNTIME into
@@ -26,6 +28,9 @@ namespace DEM::compassring
 	// Called every frame from the AdvanceMovie hook, after Minimap::Advance(). Reads the
 	// minimap singleton's stage-rect statics itself; draws nothing until they are valid.
 	void Update();
+
+	// Driving-tool probe (main thread): the HUD's mode stack and this clip's registration/visibility.
+	std::string HudVisibilityJson(RE::GFxMovieView* a_view);
 
 	// Drops the cached clip references (UI reload / new movie). Cheap; safe to call any time.
 	void Reset();

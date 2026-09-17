@@ -1,4 +1,9 @@
 #include "DevBenchTool.h"
+#include "CompassRing.h"
+#include <thread>
+#include <memory>
+#include <chrono>
+#include <atomic>
 
 #include "DevBench/DevBenchAPI.h"
 #include "MiniMap.h"
@@ -70,6 +75,29 @@ namespace DEM::devbench
 				return;
 			}
 
+			if (op == "hudvis")
+			{
+				// 1.7.2: the HUD's mode stack and the compass clip's registration and _visible, read on
+				// the main thread (Scaleform), the result carried in a shared_ptr so a late task can
+				// never write into a dead frame.
+				auto* task = SKSE::GetTaskInterface();
+				if (!task) { a_write(a_sink, "{\"ok\":false,\"error\":\"no task interface\"}"); return; }
+				auto result = std::make_shared<std::string>();
+				auto done = std::make_shared<std::atomic<bool>>(false);
+				task->AddTask([result, done]() {
+					auto* m = Minimap::GetSingleton();
+					*result = compassring::HudVisibilityJson(m ? m->GetHudMovieView() : nullptr);
+					done->store(true);
+				});
+				for (int i = 0; i < 200 && !done->load(); ++i) { std::this_thread::sleep_for(std::chrono::milliseconds(10)); }
+				auto* ui = RE::UI::GetSingleton();
+				const std::string reply = done->load()
+					? "{\"ok\":true,\"op\":\"hudvis\",\"paused\":" + std::string(ui && ui->GameIsPaused() ? "true" : "false") + ",\"hud\":" + *result + "}"
+					: std::string("{\"ok\":false,\"op\":\"hudvis\",\"error\":\"the game thread did not answer within 2 s\"}");
+				a_write(a_sink, reply.c_str());
+				return;
+			}
+
 			if (op == "state" || op.empty())
 			{
 				float l = 0, t = 0, r = 0, b = 0, sw = 0, sh = 0;
@@ -96,7 +124,7 @@ namespace DEM::devbench
 				return;
 			}
 
-			a_write(a_sink, "{\"ok\":false,\"error\":\"op must be show|hide|state|strings\"}");
+			a_write(a_sink, "{\"ok\":false,\"error\":\"op must be show|hide|state|strings|hudvis\"}");
 		}
 	}
 

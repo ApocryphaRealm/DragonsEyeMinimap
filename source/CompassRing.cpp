@@ -17,6 +17,9 @@ namespace DEM::compassring
 		// display objects (movie reload).
 		RE::GFxValue g_clip;
 		bool g_fieldsMade = false;
+		// 1.7.2: whether the clip is in HUDMovieBaseInstance.HudElements with its mode flags set - see
+		// RegisterWithHud. Reset with the clip.
+		bool g_hudRegistered = false;
 		bool g_loggedFirstDraw = false;
 
 		constexpr const char* kClipName = "DEMCompassRing";
@@ -191,6 +194,74 @@ namespace DEM::compassring
 	{
 		g_clip = RE::GFxValue{};
 		g_fieldsMade = false;
+		g_hudRegistered = false;
+	}
+
+	// THE HUD'S OWN HIDE-IN-MENU FLAGS (the owner, 2026-09-17: "make sure the compass widget has the
+	// proper hud hide in menu flags"). HUDMovieBaseInstance.ShowElements(mode) walks HudElements and
+	// sets each one's _visible to hasOwnProperty(mode) - that is how the vanilla HUD hides its parts
+	// for the inventory, the world map, the journal, the tween menu, sleep/wait, barter, books and
+	// so on, and shows them again after. The compass clip was drawn on the HUD root outside that
+	// list, gated only by GameIsPaused(), so it followed no mode at all. It now registers itself
+	// in HudElements and owns exactly the modes the vanilla compass (CompassShoutMeterHolder) owns:
+	// All, Favor, DialogueMode, StealthMode, Swimming, HorseMode, WarHorseMode - visible in dialogue
+	// like the compass, hidden in every menu mode like the compass. A marker property keeps a clip
+	// adopted after Reset() from being pushed twice.
+	static constexpr const char* kHudModes[] = { "All", "Favor", "DialogueMode", "StealthMode", "Swimming", "HorseMode", "WarHorseMode" };
+	static constexpr const char* kRegisteredMarker = "demCompassInHudElements";
+
+	static void RegisterWithHud(RE::GFxMovieView* a_view)
+	{
+		if (g_hudRegistered || !a_view || !g_clip.IsDisplayObject()) { return; }
+		for (const char* mode : kHudModes) { g_clip.SetMember(mode, RE::GFxValue{ true }); }
+		RE::GFxValue hud;
+		if (!a_view->GetVariable(&hud, "_level0.HUDMovieBaseInstance") || !hud.IsObject())
+		{
+			static bool warned = false;
+			if (!warned) { warned = true; logger::warn("CompassRing: _level0.HUDMovieBaseInstance not found; the compass cannot follow the HUD's mode flags"); }
+			return;
+		}
+		RE::GFxValue elements;
+		if (!hud.GetMember("HudElements", &elements) || !elements.IsArray())
+		{
+			static bool warned = false;
+			if (!warned) { warned = true; logger::warn("CompassRing: HUDMovieBaseInstance.HudElements is not an array; the compass cannot follow the HUD's mode flags"); }
+			return;
+		}
+		if (!g_clip.HasMember(kRegisteredMarker))
+		{
+			elements.PushBack(g_clip);
+			g_clip.SetMember(kRegisteredMarker, RE::GFxValue{ true });
+		}
+		g_hudRegistered = true;
+		logger::info("CompassRing: registered in HudElements (now {} elements) with modes All, Favor, DialogueMode, StealthMode, Swimming, HorseMode, WarHorseMode", elements.GetArraySize());
+	}
+
+	// For the driving tool: the HUD's current mode stack, whether the clip is registered and what
+	// _visible the HUD left it at, beside the vanilla compass holder's. Main thread only.
+	std::string HudVisibilityJson(RE::GFxMovieView* a_view)
+	{
+		std::string modes; std::uint32_t count = 0; bool inList = false; int clipVisible = -1, holderVisible = -1;
+		RE::GFxValue hud;
+		if (a_view && a_view->GetVariable(&hud, "_level0.HUDMovieBaseInstance") && hud.IsObject())
+		{
+			RE::GFxValue arr;
+			if (hud.GetMember("HUDModes", &arr) && arr.IsArray())
+			{
+				for (std::uint32_t i = 0; i < arr.GetArraySize(); ++i) { RE::GFxValue m; if (arr.GetElement(i, &m) && m.IsString()) { modes += (modes.empty() ? "" : ","); modes += m.GetString(); } }
+			}
+			RE::GFxValue elements;
+			if (hud.GetMember("HudElements", &elements) && elements.IsArray()) { count = elements.GetArraySize(); }
+			RE::GFxValue holder, v;
+			if (hud.GetMember("CompassShoutMeterHolder", &holder) && holder.IsDisplayObject() && holder.GetMember("_visible", &v) && v.IsBool()) { holderVisible = v.GetBool() ? 1 : 0; }
+		}
+		if (g_clip.IsDisplayObject())
+		{
+			inList = g_clip.HasMember(kRegisteredMarker);
+			RE::GFxValue v; if (g_clip.GetMember("_visible", &v) && v.IsBool()) { clipVisible = v.GetBool() ? 1 : 0; }
+		}
+		return "{\"modes\":\"" + modes + "\",\"hudElements\":" + std::to_string(count) + ",\"registered\":" + (inList ? "true" : "false") +
+			",\"clipVisible\":" + std::to_string(clipVisible) + ",\"vanillaCompassVisible\":" + std::to_string(holderVisible) + "}";
 	}
 
 	void Update()
@@ -205,10 +276,11 @@ namespace DEM::compassring
 		auto* view = mini->GetHudMovieView();
 		if (!view) { return; }
 
-		// Draw only during real gameplay: paused covers every blocking menu (map, journal,
-		// inventory, tween ...); this runs on the main thread so RE::UI is safe here.
-		auto* ui = RE::UI::GetSingleton();
-		const bool gameplay = ui && !ui->GameIsPaused();
+		// Which menus hide the compass is the HUD's decision, through the mode flags this clip owns
+		// (RegisterWithHud) - the same ones the vanilla compass owns - not a pause check. 1.6.6's
+		// GameIsPaused() gate hid it in paused states where the vanilla compass stays (the console)
+		// and could not hide it in un-paused ones where the HUD does.
+		const bool gameplay = true;
 
 		// The stage-rect statics keep the last SHOWN measurement, exactly what the ring needs.
 		float l, t, r, b, sw, sh;
@@ -257,6 +329,8 @@ namespace DEM::compassring
 				logger::info("CompassRing: clip created on the HUD root at depth {}", depth);
 			}
 		}
+		RegisterWithHud(view);
+
 		if (!g_fieldsMade)
 		{
 			const auto labelRgb = settings::compass::ringColor;
