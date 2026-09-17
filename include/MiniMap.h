@@ -402,23 +402,10 @@ namespace DEM
 		float lastAppliedY = 0.0F;
 		int   displayStableFrames = 0;
 		// Consecutive failed measurements. The re-apply window retries every frame for 300
-		// frames, so logging each failure wrote ~400 identical error lines per theme switch
+		// frames, so logging each failure wrote ~400 identical error lines per art swap
 		// (observed 2026-09-16). Log the first, then sparsely, then say how many there were.
 		int   measureFailStreak = 0;
 
-		// A theme is loaded into a SIBLING clip, never into BackgroundArtSquare/Circle.
-		// Those two are placed instances of symbols IMPORTED from MinimapArt.swf via
-		// ImportAssets2, and loadMovie on such an instance destroys the imported artwork
-		// without ever populating it - proven 2026-09-16, when two different theme files each
-		// failed all 300 measurement attempts and the built-in frame could not be restored
-		// without a restart. The holder leaves the original untouched, so clearing a theme is
-		// just "remove the holder and unhide the art".
-		static constexpr const char* kThemeHolderName = "demThemeFrame";
-		// Fixed, so a theme switch replaces the holder in place instead of creating a second
-		// clip of the same name at a new depth. Well above the timeline's own children, which
-		// occupy AS2's negative depth range.
-		static constexpr double kThemeHolderDepth = 9500.0;
-		bool  themeHolderLive = false;
 
 		// How long the visibility gate must stay OPEN before the mod accepts it and stops
 		// re-asserting. Distinct from kRequiredStableFrames above, which is about the artwork's

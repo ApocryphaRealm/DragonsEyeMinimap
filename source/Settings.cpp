@@ -626,11 +626,6 @@ namespace settings
 
 				logger::debug("World redraw policy resolved: skipWhileWorldSettles={}, settleMs={}, redrawIntervalMs={}",
 					rendering::skipWhileWorldSettles, rendering::settleMs, rendering::redrawIntervalMs);
-				display::theme = ReadString(c, "sTheme:Display", display::theme);
-				if (display::theme.size() >= 2 && display::theme.front() == '"' && display::theme.back() == '"')
-				{
-					display::theme = display::theme.substr(1, display::theme.size() - 2);
-				}
 
 				logger::debug("Key bindings resolved: hideKey={}, zoomToggleKey={}", hideKeyCode, zoomToggleKeyCode);
 				logger::debug("Zoom presets resolved: default={:.2f}, zoomedIn={:.2f}, followPlayerCameraRotation={}",
@@ -673,7 +668,6 @@ namespace settings
 			add("uShape:Display", shape);
 			add("bShowOnGameStart:Display", showOnGameStart);
 			add("bShowLocationName:Display", showLocationName);
-			add("sTheme:Display", "");
 		}
 
 		{
@@ -797,7 +791,6 @@ namespace settings
 		ok &= WriteUInt(kDisplaySection, "uShape", display::shape);
 		ok &= WriteBool(kDisplaySection, "bShowOnGameStart", display::showOnGameStart);
 		ok &= WriteBool(kDisplaySection, "bShowLocationName", display::showLocationName);
-		ok &= WriteString(kDisplaySection, "sTheme", display::theme);
 
 		ok &= WriteInt(kControlsSection, "iHideKeyCode", controls::hideKeyCode);
 		ok &= WriteFloat(kControlsSection, "fHoldToPanSecs", controls::holdToPanSecs);

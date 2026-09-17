@@ -21,6 +21,12 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
+## 1.7.1 - 2026-09-17 - untested
+
+### Removed
+- **The frame theme system** (the owner, 2026-09-17: *"i want to get rid of the theme system and make it work with norden"*). The Frame theme dropdown, the `sTheme` setting, the `DragonsEyeMinimapThemes` folder with its five SWFs, the runtime holder clip that 1.7.0 loaded a theme into, and the theme strings in all eleven languages are gone. The minimap's look now comes from whatever `Minimap.swf` and `MinimapArt.swf` win in the load order: DEM's own base files by default, or a UI overhaul's restyled copies of them - Norden UI ships exactly that in its Dragon's Eye Minimap option - placed above this mod. One source of the look instead of two layers styling the same clip, and nothing of ours to keep in step with every DEM and Norden update.
+- Nothing else changes: the settings page loses one dropdown, the INI loses one key (an old `sTheme=` line is ignored), and the base artwork this mod ships is unchanged.
+
 ## 1.7.0 - 2026-09-16 - untested
 
 ### Fixed

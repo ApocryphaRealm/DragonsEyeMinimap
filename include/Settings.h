@@ -86,15 +86,6 @@ namespace settings
 		// another language's font, so the honest remedy is to let those players switch the title
 		// off and keep the map.
 		inline bool showLocationName = true;   // bShowLocationName:Display
-
-		// MINIMAP FRAME THEMES. sTheme:Display is the file name (stem) of a SWF in
-		// Data/Interface/DragonsEyeMinimapThemes/; empty means the built-in frame.
-		//
-		// A theme REPLACES the frame artwork - it does not recolour it. The 1.6.0 system carried
-		// a colour per theme and applied it as a multiply tint, so a "theme" could only ever be a
-		// recolour of the one frame; corrected by the project owner on 2026-09-02. Themes live
-		// under Data/Interface because that is where Scaleform resolves loadMovie paths from.
-		inline std::string theme;
 	}
 
 	namespace controls

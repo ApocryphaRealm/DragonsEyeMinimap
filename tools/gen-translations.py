@@ -17,8 +17,7 @@ Strings.cpp reads.
 
 Untranslated on purpose, in every language: product and mod names (Skyrim, Dragon's Eye Minimap,
 Local Map Upgrade, Apocrypha Menu Framework, Untarnished UI, SkyUI); folder and file names
-(Data/Interface/DragonsEyeMinimapThemes, SWF, INI); the frame-theme dropdown's own entries, which
-are the SWF file stems found in that folder and are data rather than text; the XInput button names
+(SWF, INI); the XInput button names
 and masks (R3, L3, LB, RB, Start, Back, A, B, X, Y); the log-level values as the INI writes them
 where a language has no established word for them; and every printf specifier, kept in the same
 order as the English.
@@ -128,34 +127,6 @@ TRANSLATIONS["DEM_Bind"] = T(
 TRANSLATIONS["DEM_SecDisplay"] = T(
     "表示", "표시", "显示", "Отображение", "Anzeige",
     "Affichage", "Visualización", "Visualizzazione", "Wyświetlanie", "Zobrazení")
-TRANSLATIONS["DEM_BuiltInFrame"] = T(
-    "内蔵フレーム", "기본 프레임", "内置边框", "Встроенная рамка", "Integrierter Rahmen",
-    "Cadre intégré", "Marco integrado", "Cornice integrata", "Wbudowana ramka", "Vestavěný rám")
-TRANSLATIONS["DEM_FrameTheme"] = T(
-    "フレームテーマ", "프레임 테마", "边框主题", "Тема рамки", "Rahmen-Thema",
-    "Thème de cadre", "Tema del marco", "Tema della cornice", "Motyw ramki", "Motiv rámu")
-TRANSLATIONS["DEM_StatusThemeSelected"] = T(
-    "フレームテーマを選択しました。保存を押すと維持されます。",
-    "프레임 테마를 선택했습니다. 유지하려면 저장을 누르세요.",
-    "已选择边框主题。按“保存”以保留。",
-    "Тема рамки выбрана. Нажмите «Сохранить», чтобы оставить её.",
-    "Rahmen-Thema ausgewählt. Drücke Speichern, um es zu behalten.",
-    "Thème de cadre sélectionné. Appuyez sur Enregistrer pour le conserver.",
-    "Tema del marco seleccionado. Pulsa Guardar para conservarlo.",
-    "Tema della cornice selezionato. Premi Salva per mantenerlo.",
-    "Wybrano motyw ramki. Naciśnij Zapisz, aby go zachować.",
-    "Motiv rámu vybrán. Stiskni Uložit, aby zůstal.")
-TRANSLATIONS["DEM_HelpFrameTheme"] = T(
-    "ミニマップのフレーム画像を差し替えます。テーマは Data/Interface/DragonsEyeMinimapThemes にある SWF ファイルで、そこに入れると次回のゲーム開始時にここへ表示されます。「内蔵フレーム」は本 MOD 同梱の画像を使います。フレーム差し替え MOD が置き換えるのもこの画像です。",
-    "미니맵의 프레임 아트를 교체합니다. 테마는 Data/Interface/DragonsEyeMinimapThemes 폴더의 SWF 파일이며, 넣어 두면 다음 게임 시작 시 여기에 나타납니다. \"기본 프레임\"은 이 모드가 포함한 아트를 사용하며, 프레임 리스킨 모드가 교체하는 것도 이 아트입니다.",
-    "替换小地图的边框图形。主题是位于 Data/Interface/DragonsEyeMinimapThemes 的 SWF 文件，放入后会在下次启动游戏时出现在这里。“内置边框”使用本模组自带的图形，也正是边框替换模组所替换的那一份。",
-    "Заменяет графику рамки миникарты. Темы - это файлы SWF в Data/Interface/DragonsEyeMinimapThemes: положите файл туда, и он появится здесь при следующем запуске игры. «Встроенная рамка» использует графику из состава мода - ту самую, которую заменяет мод-рескин рамки.",
-    "Ersetzt die Rahmengrafik der Minikarte. Themen sind SWF-Dateien in Data/Interface/DragonsEyeMinimapThemes - lege eine hinein, und sie erscheint beim nächsten Spielstart hier. \"Integrierter Rahmen\" verwendet die mitgelieferte Grafik, die auch ein Rahmen-Reskin-Mod ersetzt.",
-    "Remplace le graphisme du cadre de la minicarte. Les thèmes sont des fichiers SWF dans Data/Interface/DragonsEyeMinimapThemes - déposez-en un et il apparaîtra ici au prochain démarrage du jeu. \"Cadre intégré\" utilise le graphisme fourni avec le mod, celui-là même qu'un mod de refonte de cadre remplace.",
-    "Sustituye el gráfico del marco del minimapa. Los temas son archivos SWF en Data/Interface/DragonsEyeMinimapThemes: deja uno ahí y aparecerá aquí al iniciar el juego la próxima vez. \"Marco integrado\" usa el gráfico que incluye el mod, que es también el que sustituye un mod de reskin del marco.",
-    "Sostituisce la grafica della cornice della minimappa. I temi sono file SWF in Data/Interface/DragonsEyeMinimapThemes: mettine uno lì e comparirà qui al prossimo avvio del gioco. \"Cornice integrata\" usa la grafica inclusa nella mod, la stessa che una mod di reskin della cornice sostituisce.",
-    "Zastępuje grafikę ramki minimapy. Motywy to pliki SWF w Data/Interface/DragonsEyeMinimapThemes - wrzuć plik, a pojawi się tutaj przy następnym uruchomieniu gry. \"Wbudowana ramka\" używa grafiki dołączonej do moda, tej samej, którą podmienia mod zmieniający ramkę.",
-    "Nahradí grafiku rámu minimapy. Motivy jsou soubory SWF ve složce Data/Interface/DragonsEyeMinimapThemes - vlož tam soubor a objeví se zde při příštím spuštění hry. \"Vestavěný rám\" používá grafiku dodanou s modem, tutéž, kterou nahrazuje mod měnící rám.")
 TRANSLATIONS["DEM_Corner"] = T(
     "配置コーナー", "모서리", "屏幕角落", "Угол", "Ecke",
     "Coin", "Esquina", "Angolo", "Róg", "Roh")

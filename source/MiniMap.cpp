@@ -155,7 +155,7 @@ namespace DEM
 			// pendingReapplyFrames.
 			pendingReapplyFrames = kPendingReapplyFrames;
 
-			// Same reset as the theme-load site: arming the window must also clear any run of
+			// Same reset as the art-swap site: arming the window must also clear any run of
 			// quiet frames already counted, or the window can close on its first tick.
 			displayStableFrames = 0;
 
@@ -354,12 +354,8 @@ namespace DEM
 			using Shape = LMU::PixelShaderProperty::Shape;
 			const char* artName = shape == Shape::kRound ? "BackgroundArtCircle" : "BackgroundArtSquare";
 
-			// With a theme active the frame lives in the holder, and the built-in art is hidden -
-			// measuring the hidden clip would size the map to artwork nobody can see.
 			RE::GFxValue art;
-			const bool haveArt = themeHolderLive
-				? (localMap_->root.GetMember(kThemeHolderName, &art) && art.IsDisplayObject())
-				: (localMap_->root.GetMember(artName, &art) && art.IsDisplayObject());
+			const bool haveArt = localMap_->root.GetMember(artName, &art) && art.IsDisplayObject();
 
 			if (haveArt)
 			{
@@ -443,10 +439,9 @@ namespace DEM
 			// Bail rather than report success. Returning true here left a_outDeltaX/Y at zero,
 			// which the convergence loop read as "the position did not move" and treated as
 			// settled - so a measurement that FAILED was indistinguishable from one that landed
-			// perfectly. Right after a theme's loadMovie the clip is necessarily empty, so this
-			// is the normal first case, and calling it settled is what killed the re-apply
-			// window that exists to wait for exactly that (the owner, 2026-09-16: the theme
-			// loaded and drew unmeasured).
+			// perfectly. Right after the art is swapped in the clip can still be empty, so this
+			// is a normal first case, and calling it settled is what killed the re-apply
+			// window that exists to wait for exactly that (observed 2026-09-16).
 			return false;
 		}
 
@@ -888,122 +883,6 @@ namespace DEM
 			lastLoggedAlpha = static_cast<float>(alpha);
 		}
 
-		// MINIMAP THEME art swap (1.6.3). Replaces the frame ARTWORK, rather than tinting it.
-		//
-		// The 1.6.0 theme system was the wrong shape: each theme carried a uFrameColor applied as
-		// an AS2 Color.setTransform MULTIPLY, so a "theme" could only ever be a recolour of the one
-		// frame. The project owner's correction, 2026-09-02: "it's not supposed to change the color
-		// of the frame it's supposed to be used for introducing new frames to replace the current
-		// one." So a theme is now a SWF that draws a frame, and selecting one loads it into the art
-		// clip in place of the built-in artwork.
-		//
-		// Themes live under Data/Interface because that is where Scaleform's file opener resolves
-		// loadMovie paths - the old SKSE/Plugins location is not reachable from ActionScript.
-		//
-		// Change-detected on (theme, shape): SetShape swaps in a fresh duplicate of the art, so a
-		// shape switch has to re-load the theme onto the new clip.
-		{
-			static std::string lastThemeKey = "";  // impossible value, so the first pass always applies
-			const std::string themeKey = settings::display::theme + (shape == Shape::kRound ? "|round" : "|square");
-
-			if (themeKey != lastThemeKey)
-			{
-				lastThemeKey = themeKey;
-
-				if (settings::display::theme.empty())
-				{
-					// Clearing is the ONLY path that removes the holder. Doing it on every theme
-					// change was a bug: removeMovieClip then createEmptyMovieClip at a fresh depth
-					// left "demThemeFrame" briefly naming two clips, and GetMember measured the
-					// emptied one - so the first theme of a session worked (depth 1) and every
-					// switch after it failed all 300 attempts (depth 2). Observed 2026-09-16.
-					RE::GFxValue oldHolder;
-					if (localMap_->root.GetMember(kThemeHolderName, &oldHolder) && oldHolder.IsDisplayObject())
-					{
-						oldHolder.Invoke("removeMovieClip");
-					}
-					themeHolderLive = false;
-
-					// Show ONLY the art for the current shape. Unhiding both put the round frame
-					// on screen alongside the square one - the owner, 2026-09-16: "when I activate
-					// the built-in frame you see both frames at the same time", and a square map
-					// that "appears round" because the circle frame was drawn over it. SetShape
-					// keeps the unused shape hidden and this must not undo that.
-					const char* const keepShown = shape == Shape::kRound ? "BackgroundArtCircle" : "BackgroundArtSquare";
-					const char* const keepHidden = shape == Shape::kRound ? "BackgroundArtSquare" : "BackgroundArtCircle";
-
-					for (const auto& [name, visible] : { std::pair{ keepShown, true }, std::pair{ keepHidden, false } })
-					{
-						RE::GFxValue builtIn;
-						if (localMap_->root.GetMember(name, &builtIn) && builtIn.IsDisplayObject())
-						{
-							builtIn.SetMember("_visible", RE::GFxValue{ visible });
-						}
-					}
-
-					// The holder is gone and the art is visible again, so this is a real restore
-					// rather than the no-op it used to be. Before 1.7.0 selecting "Built-in frame"
-					// only stopped loading a new theme, which left the player with no frame at all
-					// and no way back without restarting (the owner, 2026-09-16).
-					logger::info("theme: cleared; the built-in frame art on {} is back", artName);
-
-					pendingReapplyFrames = kPendingReapplyFrames;
-					displayStableFrames = 0;
-				}
-				else
-				{
-					const std::string path = "Interface/DragonsEyeMinimapThemes/" + settings::display::theme + ".swf";
-
-					// Create the holder as a SIBLING of the art clip, matching the pattern that
-					// already works for the compass ring, then copy the art clip's placement onto
-					// it - those clips are positioned by a matrix in Minimap.swf, so a holder left
-					// at identity would draw the frame in the wrong place.
-					// A FIXED depth, deliberately. createEmptyMovieClip at an occupied depth
-					// replaces what is there in one step, so switching themes can never leave two
-					// clips sharing the holder's name. getNextHighestDepth() handed out a new
-					// depth each time and caused exactly that.
-					const double depth = kThemeHolderDepth;
-
-					std::array<RE::GFxValue, 2> create{ RE::GFxValue{ kThemeHolderName }, RE::GFxValue{ depth } };
-					RE::GFxValue holder;
-					if (!localMap_->root.Invoke("createEmptyMovieClip", &holder, create.data(), create.size()) ||
-						!holder.IsDisplayObject())
-					{
-						logger::error("theme: could not create the holder clip; keeping the built-in frame");
-					}
-					else
-					{
-						for (const char* prop : { "_x", "_y", "_xscale", "_yscale" })
-						{
-							RE::GFxValue v;
-							if (art.GetMember(prop, &v) && v.IsNumber())
-							{
-								holder.SetMember(prop, v);
-							}
-						}
-
-						std::array<RE::GFxValue, 1> arg{ RE::GFxValue{ path.c_str() } };
-						holder.Invoke("loadMovie", nullptr, arg.data(), arg.size());
-						themeHolderLive = true;
-
-						// Hide the built-in art only once the holder exists, so a failed create
-						// never leaves the minimap with no frame at all.
-						art.SetMember("_visible", RE::GFxValue{ false });
-
-						// loadMovie is ASYNCHRONOUS - the art arrives a frame or two later, so the
-						// measurement that positions and scales the map has to run again once it has.
-						pendingReapplyFrames = kPendingReapplyFrames;
-
-						// Clear the run of quiet frames as well, or a display that had long since
-						// settled closes the window on its first tick ("after 1 re-applies").
-						displayStableFrames = 0;
-
-						logger::info("theme: loading \"{}\" into {} at depth {} (re-measuring for {} frames)",
-									 path, kThemeHolderName, depth, pendingReapplyFrames);
-					}
-				}
-			}
-		}
 	}
 
 	void Minimap::SetMapZoom(float a_zoom)
@@ -1146,7 +1025,7 @@ namespace DEM
 
 				// Do NOT return here. 1.6.9 did, and that skipped the never-settled warning
 				// below, so a window that burned all 300 frames failing to measure said nothing
-				// at all - observed 2026-09-16, when a theme failed 300/300 times in silence and
+				// at all - observed 2026-09-16, when a swap failed 300/300 times in silence and
 				// the only clue was the raw error count. A window that gives up must say so.
 				if (pendingReapplyFrames == 0)
 				{

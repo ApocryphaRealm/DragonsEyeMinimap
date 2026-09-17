@@ -674,77 +674,12 @@ namespace UI
 			}
 		}
 
-		// Compass themes (author request, 2026-09-01: the AMF-style theme dropdown, in DEM,
-		// shipped with a few options). A theme file is a tiny INI in
-		// Data/SKSE/Plugins/DragonsEyeMinimap/themes/ carrying the four compass colours. The
-		// dropdown APPLIES a theme by copying its values into the ordinary colour settings -
-		// nothing new is persisted; Save keeps the colours like any other change, and on the
-		// next visit the dropdown shows whichever theme matches the current colours ("Custom"
-		// when none does). Drop a file in, never overwrite: new files are picked up on the
-		// next game start.
-		// A theme is a SWF that DRAWS A FRAME. Selecting one loads it into the minimap's art
-		// clip in place of the built-in artwork (see Minimap::ApplyBackgroundOpacity).
-		//
-		// The 1.6.0 system was the wrong shape - each theme carried a colour applied as a tint,
-		// so a "theme" could only be a recolour of the one frame. Corrected by the project owner
-		// on 2026-09-02: a theme introduces a NEW frame, it does not repaint the old one.
-		//
-		// Themes live in Data/Interface/DragonsEyeMinimapThemes because that is where
-		// Scaleform's file opener resolves loadMovie paths from. A theme file and a
-		// file-overwrite reskin are now the same artifact - a SWF drawing the frame - delivered
-		// two ways: drop it in that folder to switch in game, or overwrite MinimapArt.swf to
-		// change the default outright. Existing reskins keep working untouched.
-		std::vector<std::string> g_themes;
-		bool g_themesScanned = false;
-
-		void ScanThemes()
-		{
-			g_themes.clear();
-			const std::filesystem::path dir{ "Data/Interface/DragonsEyeMinimapThemes" };
-			std::error_code ec;
-			for (const auto& e : std::filesystem::directory_iterator(dir, ec))
-			{
-				if (!e.is_regular_file()) { continue; }
-				auto ext = e.path().extension().string();
-				std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-				if (ext != ".swf") { continue; }
-				g_themes.push_back(e.path().stem().string());
-			}
-			std::sort(g_themes.begin(), g_themes.end());
-			logger::info("minimap themes: {} frame file(s) available in Data/Interface/DragonsEyeMinimapThemes", g_themes.size());
-		}
-
 		void RenderDisplaySection()
 		{
 			using namespace settings;
 
 			ImGuiMCP::SeparatorText(strings::TR("DEM_SecDisplay", "Display"));
 
-			if (!g_themesScanned) { g_themesScanned = true; ScanThemes(); }
-			if (!g_themes.empty())
-			{
-				int current = static_cast<int>(g_themes.size());  // the "built-in" entry
-				for (std::size_t i = 0; i < g_themes.size(); ++i)
-				{
-					if (g_themes[i] == display::theme) { current = static_cast<int>(i); break; }
-				}
-				std::vector<const char*> labels;
-				labels.reserve(g_themes.size() + 1);
-				for (const auto& th : g_themes) { labels.push_back(th.c_str()); }
-				// The theme entries above are SWF FILE STEMS from the themes folder - data, not
-				// text, and never translated. Only this mod's own "built-in" entry and the combo's
-				// label are.
-				labels.push_back(strings::TR("DEM_BuiltInFrame", "Built-in frame"));
-				if (ImGuiMCP::Combo(strings::TR("DEM_FrameTheme", "Frame theme"), &current, labels.data(), static_cast<int>(labels.size())))
-				{
-					display::theme = (current >= 0 && current < static_cast<int>(g_themes.size()))
-						? g_themes[static_cast<std::size_t>(current)]
-						: std::string{};
-					ApplyMinimapTheme();
-					statusMessage = strings::TR("DEM_StatusThemeSelected", "Frame theme selected. Press Save to keep it.");
-				}
-				HelpMarker(strings::TR("DEM_HelpFrameTheme", "Replaces the minimap's frame artwork. Themes are SWF files in Data/Interface/DragonsEyeMinimapThemes - drop one in and it appears here on the next game start. \"Built-in frame\" uses the artwork the mod ships, which is also what a frame-reskin mod replaces."));
-			}
 
 			bool changed = false;
 
@@ -1021,7 +956,6 @@ namespace UI
 					if (settings::Reload())
 					{
 						ApplyLiveSettings();
-						ApplyMinimapTheme();
 
 						statusMessage = strings::TR("DEM_StatusReloaded", "Settings reloaded from the INI.");
 					}
@@ -1060,31 +994,6 @@ namespace UI
 			// (the "(?)" marker, the "<-->" separator) stays dim.
 			ImGuiMCP::Text("%s", settings::GetIniPath().c_str());
 		}
-	}
-
-	void ApplyMinimapTheme()
-	{
-		using namespace settings;
-
-		if (!g_themesScanned) { g_themesScanned = true; ScanThemes(); }
-
-		if (display::theme.empty())
-		{
-			logger::info("minimap theme: built-in frame");
-		}
-		else if (std::find(g_themes.begin(), g_themes.end(), display::theme) == g_themes.end())
-		{
-			logger::warn("minimap theme \"{}\" is selected but no such SWF is installed in "
-						 "Data/Interface/DragonsEyeMinimapThemes; the built-in frame will be used",
-				display::theme);
-		}
-		else
-		{
-			logger::info("minimap theme selected: {}", display::theme);
-		}
-
-		// The swap itself happens on the render side, which owns the art clip and knows which
-		// shape is current - see Minimap::ApplyBackgroundOpacity. Nothing to apply here.
 	}
 
 	void Register()
