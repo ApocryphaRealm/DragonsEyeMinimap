@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.21)
 
 ########################################################################################################################
 ## Define project
@@ -45,6 +45,11 @@ find_package(directxtk CONFIG REQUIRED)
 add_commonlibsse_plugin(${PROJECT_NAME} SOURCES ${headers} ${sources})
 add_library("${PROJECT_NAME}::${PROJECT_NAME}" ALIAS "${PROJECT_NAME}")
 
+
+# Build line: 1 (SE/AE 1.6, CommonLibSSE-NG 3.7) or 17 (Skyrim 1.7.x, CommonLibSSE-NG 7.2).
+# The build-relwithdebinfo-17 preset sets this to 17; source #if-branches the NG 3.7 -> 7.2 API renames.
+set(RUNTIME_LINE "1" CACHE STRING "Build line: 1 (SE/AE 1.6) or 17 (Skyrim 1.7.x)")
+target_compile_definitions(${PROJECT_NAME} PRIVATE RUNTIME_LINE=${RUNTIME_LINE})
 ########################################################################################################################
 ## Debug symbols (CLAUDE.md rule 43) - stated on the target, never left to a default
 ########################################################################################################################
@@ -102,6 +107,14 @@ target_link_libraries(
 		spdlog::spdlog_header_only
 		Microsoft::DirectXTK
 )
+
+# Line 17: CommonLibSSE-NG 7.2 ships 1.7-correct layouts for most of the engine types this repo carries its own copies
+# of (include/RE, written for 1.5.97 / 1.6). On this line each of our copies that 7.2 also has forwards to 7.2's by an
+# unambiguous path, <include/RE/...> under the vcpkg triplet root (CommonLib's own directory is a SYSTEM include,
+# searched after ours, so a plain <RE/...> would find our copy again). Ours stays in use where 7.2 has no equivalent.
+if (RUNTIME_LINE STREQUAL "17")
+	target_include_directories(${PROJECT_NAME} PRIVATE "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+endif()
 
 if (MSVC)
 	target_link_options(

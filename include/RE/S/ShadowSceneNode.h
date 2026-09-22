@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef KEEP_FOR_RE
+#	define KEEP_FOR_RE()  // CommonLibSSE-NG 3.7s marker; 7.2 (the Skyrim 1.7 line) has none
+#endif
+
 #include "RE/B/BSAtomic.h"
 #include "RE/B/BSTArray.h"
 #include "RE/N/NiNode.h"
