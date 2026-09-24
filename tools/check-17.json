@@ -143,6 +143,10 @@
   [
    16089,
    16330
+  ],
+  [
+   80274,
+   82297
   ]
  ],
  "calls": [],
@@ -257,6 +261,7 @@
   "ControlMap::ToggleControls (67245/68545): enabled/stored control words at +0x118/+0x11C on 1.5.97 and +0x120/+0x124 on 1.7.104; the third argument gates the stored-word update.",
   "CHK 'HUDObject Update': both slots are the same pure-virtual thunk (jmp [rip+disp]); only the displacement differs.",
   "CHK 'LocalMapCamera::DefaultState Begin': the same instructions (movss from a global into the state); only the RIP displacement differs.",
-  "CHK 'INISettingCollection CloseHandle': the 1.5.97 dump holds a patched jmp there (a plugin was loaded when it was taken); 1.7.104's slot 6 is 'mov qword [rcx+0x110], 0; mov al, 1; ret' - CloseHandle, clearing the handle at +0x110 as utils::INISettingCollection's layout has it."
+  "CHK 'INISettingCollection CloseHandle': the 1.5.97 dump holds a patched jmp there (a plugin was loaded when it was taken); 1.7.104's slot 6 is 'mov qword [rcx+0x110], 0; mov al, 1; ret' - CloseHandle, clearing the handle at +0x110 as utils::INISettingCollection's layout has it.",
+  "80274/82297 GFxValue::ToString (2026-09-24): called directly on line 17 by GFxPath.h - CommonLibSSE-NG 7.2's ToString returned an empty path for display objects on 1.7.104; Infinity UI's 1.7 build calls the same ID and logs correct paths."
  ]
 }

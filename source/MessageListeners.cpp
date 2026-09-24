@@ -1,3 +1,4 @@
+#include "GFxPath.h"
 #include "DevBenchTool.h"
 #include "Settings.h"
 
@@ -153,7 +154,7 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 			{
 				if (auto msg = API::TranslateAs<API::PreReplaceInstanceMessage>(a_msg))
 				{
-					logger::debug("kPreReplaceInstance: original instance \"{}\" about to be replaced", msg->originalInstance.ToString().c_str());
+					logger::debug("kPreReplaceInstance: original instance \"{}\" about to be replaced", dem::GFxPath(msg->originalInstance).c_str());
 				}
 				break;
 			}
@@ -161,7 +162,7 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 			{
 				if (auto msg = API::TranslateAs<API::PostPatchInstanceMessage>(a_msg))
 				{
-					std::string pathToNew = msg->newInstance.ToString().c_str();
+					std::string pathToNew = dem::GFxPath(msg->newInstance);
 					logger::debug("kPostPatchInstance: new instance patched at \"{}\"", pathToNew);
 
 					if (pathToNew == DEM::Minimap::path)
@@ -176,7 +177,7 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 			{
 				if (auto msg = API::TranslateAs<API::AbortPatchInstanceMessage>(a_msg))
 				{
-					logger::debug("kAbortPatchInstance: patch aborted for instance \"{}\"", msg->originalValue.ToString().c_str());
+					logger::debug("kAbortPatchInstance: patch aborted for instance \"{}\"", dem::GFxPath(msg->originalValue).c_str());
 				}
 				break;
 			}

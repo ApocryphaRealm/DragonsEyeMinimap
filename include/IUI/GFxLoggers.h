@@ -1,5 +1,7 @@
 #pragma once
 
+#include "GFxPath.h"
+
 #include "utils/Logger.h"
 
 #include "RE/G/GFxMovieView.h"
@@ -30,7 +32,7 @@ namespace IUI
 
 		void LogMembersOf(const RE::GFxValue& a_value)
 		{
-			logger::at_level(logLevel, "{}: {}", a_value.ToString().c_str(), GFxValueTypeToString(a_value.GetType()));
+			logger::at_level(logLevel, "{}: {}", dem::GFxPath(a_value).c_str(), GFxValueTypeToString(a_value.GetType()));
 			if (a_value.IsObject())
 			{
 				logger::at_level(logLevel, "{}", "{");
@@ -73,7 +75,7 @@ namespace IUI
 
 		void LogElementsOf(const RE::GFxValue& a_value)
 		{
-			logger::at_level(logLevel, "{}: {}", a_value.ToString().c_str(), GFxValueTypeToString(a_value.GetType()));
+			logger::at_level(logLevel, "{}: {}", dem::GFxPath(a_value).c_str(), GFxValueTypeToString(a_value.GetType()));
 			if (a_value.IsArray())
 			{
 				logger::at_level(logLevel, "{}", "{");
@@ -113,7 +115,7 @@ namespace IUI
 
 		void Visit(std::uint32_t a_idx, const RE::GFxValue& a_value) override
 		{
-			logger::at_level(logLevel, "\t[{}] {}: {}", a_idx, a_value.ToString().c_str(), GFxValueTypeToString(a_value.GetType()));
+			logger::at_level(logLevel, "\t[{}] {}: {}", a_idx, dem::GFxPath(a_value).c_str(), GFxValueTypeToString(a_value.GetType()));
 		}
 	};
 }
