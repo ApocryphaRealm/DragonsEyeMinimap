@@ -25,18 +25,20 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 
 	logger::info("Loading {} {}...", plugin->GetName(), plugin->GetVersion());
 
-	SKSE::Init(a_skse);
-	logger::debug("SKSE core APIs initialized");
-
 	// 1.7.2: name the Address Library file this game version needs, and whether it is there, BEFORE
 	// any address is resolved; a missing file leaves the plugin inert with a message that names it
 	// instead of CommonLib's bare "failed to open the address library file" (the guard every mod of
 	// ours on CommonLibSSE-NG carries since oproso's Fluorine/SteamOS report, 2026-09-17).
+	// 1.7.3: and BEFORE SKSE::Init - CommonLibSSE-NG's Init opens the Address Library itself, so a guard
+	// placed after it never ran when the file was missing (gate rule address-library-guard-runs-before-skse-init).
 	if (!AddressLibraryGuard::Guard(std::string(plugin->GetName()).c_str()))
 	{
 		logger::critical("[AddressLibrary] loading inert: no hooks, no listeners, nothing resolved");
 		return true;
 	}
+
+	SKSE::Init(a_skse);
+	logger::debug("SKSE core APIs initialized");
 
 	logger::debug("Loading settings from {}.ini", plugin->GetName());
 	settings::Init(std::string(plugin->GetName()) + ".ini");

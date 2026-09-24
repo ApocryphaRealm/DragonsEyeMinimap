@@ -1331,17 +1331,38 @@ namespace DEM
 				// walking pace, plainly visible when spinning on the spot, where the markers
 				// detach from the map and snap back into place when the turn stops (author
 				// report, 2026-09-02).
-				UpdateCamera();
-
-				localMap->PopulateData();
-
-				// Re-resolves IconDisplay if the one-shot lookup in InitLocalMap() was too early.
-				if (EnsureIconDisplay())
+				//
+				// NOT WHILE THE WORLD IS LOADING (1.7.3, AuroraSake, 2026-09-23: a rare CTD "during map
+				// load" in Advance, at the UpdateCamera / PopulateData calls). The redraw has been held
+				// through loads since 1.6.x, but this block kept running every frame: the camera reads the
+				// game's loaded-area bound and PopulateData walks the markers of cells that are being
+				// attached and detached. The same two tests the redraw uses decide it here - a loading
+				// screen is up, or WorldIsSteady() (read-only) finds a cell still attaching - and the
+				// markers simply keep last frame's positions until the world is whole again.
+				const char* notSteady = nullptr;
+				RE::UI* ui = RE::UI::GetSingleton();
+				const bool loading = ui && ui->IsMenuOpen(RE::LoadingMenu::MENU_NAME);
+				const bool markersSafe = !loading && WorldIsSteady(notSteady);
+				static bool s_lastMarkersSafe = true;
+				if (markersSafe != s_lastMarkersSafe)
 				{
-					localMap_->iconDisplay.Invoke("CreateMarkers");
+					if (markersSafe) { logger::debug("Advance: world steady again; camera and markers update"); }
+					else { logger::debug("Advance: holding the camera and marker update ({})", loading ? "a loading screen is up" : (notSteady ? notSteady : "?")); }
+					s_lastMarkersSafe = markersSafe;
 				}
 
-				localMap->RefreshMarkers();
+				if (markersSafe && UpdateCamera())
+				{
+					localMap->PopulateData();
+
+					// Re-resolves IconDisplay if the one-shot lookup in InitLocalMap() was too early.
+					if (EnsureIconDisplay())
+					{
+						localMap_->iconDisplay.Invoke("CreateMarkers");
+					}
+
+					localMap->RefreshMarkers();
+				}
 
 				if (settings::controls::followPlayerCameraRotation)
 				{
@@ -1397,9 +1418,25 @@ namespace DEM
 		}
 	}
 
-	void Minimap::UpdateCamera()
+	bool Minimap::UpdateCamera()
 	{
+		// Every pointer below belongs to the engine and can be absent for a frame around a load
+		// (1.7.3, rule 14): a missing one skips this frame's camera update rather than crashing it.
 		RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+		RE::TES* tes = RE::TES::GetSingleton();
+		RE::LoadedAreaBound* loadedAreaBound = tes ? tes->GetRuntimeData2().loadedAreaBound : nullptr;
+		if (!player || !cameraContext || !cameraContext->defaultState || !loadedAreaBound)
+		{
+			static bool s_warned = false;
+			if (!s_warned)
+			{
+				logger::warn("UpdateCamera: skipped - {} is not available yet (logged once)",
+					!player ? "the player" : !cameraContext ? "the local-map camera" :
+					!cameraContext->defaultState ? "the camera's default state" : "the loaded-area bound");
+				s_warned = true;
+			}
+			return false;
+		}
 
 		RE::NiPoint3 playerPos = player->GetPosition();
 		cameraContext->defaultState->initialPosition.x = playerPos.x;
@@ -1418,8 +1455,8 @@ namespace DEM
 
 		cameraContext->Update();
 
-		RE::LoadedAreaBound* loadedAreaBound = RE::TES::GetSingleton()->GetRuntimeData2().loadedAreaBound;
 		cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
+		return true;
 	}
 
 	void Minimap::PreRender()

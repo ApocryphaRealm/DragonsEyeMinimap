@@ -21,6 +21,26 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
+## 1.7.3 - 2026-09-23 - untested
+
+### Fixed
+- **A rare crash during map load** (reported by AuroraSake on Nexus, 2026-09-23: `DEM::Minimap::Advance()`, called
+  through the HUD's AdvanceMovie hook). Every frame, Advance updated the local-map camera and rebuilt the map markers -
+  the camera reads the game's loaded-area bound, and the marker rebuild walks the markers of the loaded cells - even
+  while a loading screen was up or cells were still attaching. The world redraw has been held through loads since
+  1.6.x; the camera and marker update now wait for the same conditions (no loading screen, and every loaded cell
+  attached with its 3D), keeping last frame's markers until the world is whole. `UpdateCamera` also checks every
+  engine pointer it reads (player, local-map camera and its default state, the loaded-area bound) and skips the frame
+  when one is absent, logging it once.
+- **The Address Library guard runs before `SKSE::Init`.** CommonLibSSE-NG's Init opens the Address Library itself, so
+  the guard 1.7.2 added after it never ran when the file was missing (package gate rule
+  `address-library-guard-runs-before-skse-init`).
+- **The shipped `DragonsEyeMinimap.ini` is the repo's again.** 1.7.1 and 1.7.2 shipped the 1.7.0 INI, still carrying
+  the `sTheme` line of the theme system 1.7.1 removed.
+- The Time Widget switch file (`DragonsEyeMinimap-TimeWidget.ini`) moved from the repo's `dist\` to `optional\`: no
+  release ever shipped it - its presence is what turns the widget on - and keeping it in `dist\` would have
+  installed it for everyone.
+
 ## 1.7.2 - 2026-09-17 - untested
 
 ### Fixed

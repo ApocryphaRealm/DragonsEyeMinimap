@@ -271,7 +271,7 @@ namespace DEM
 		// them from this camera: until 1.6.3 it was only called later in the frame, from
 		// PreRender, so every marker was positioned with the PREVIOUS frame's camera while the
 		// picture underneath it was drawn with the current one.
-		void UpdateCamera();
+		bool UpdateCamera();   // false: an engine pointer it needs is absent this frame (1.7.3)
 
 		void UpdateFogOfWar();
 
