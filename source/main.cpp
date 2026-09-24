@@ -25,6 +25,19 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 
 	logger::info("Loading {} {}...", plugin->GetName(), plugin->GetVersion());
 
+#if RUNTIME_LINE == 17
+	// The Skyrim 1.7 build line lays out its menu input handler's virtual table the way 1.7.99 and later have it (two
+	// virtuals were added to MenuEventHandler there - see MiniMap.h). On an older game that table would send every key,
+	// stick and mouse event to the wrong function, so this build loads inert instead and says which download fits.
+	logger::info("Build line: Skyrim 1.7.x (CommonLibSSE-NG 7.2); game {}", REL::Module::get().version().string("."));
+	if (!REL::Module::IsAtLeast(SKSE::RUNTIME_SSE_1_7_99))
+	{
+		logger::critical("This is the Skyrim 1.7 build and the game is {} - install the SE/AE (1.5.97 / 1.6) build instead. "
+						 "Loading inert: no hooks, no listeners, nothing resolved", REL::Module::get().version().string("."));
+		return true;
+	}
+#endif
+
 	// 1.7.2: name the Address Library file this game version needs, and whether it is there, BEFORE
 	// any address is resolved; a missing file leaves the plugin inert with a message that names it
 	// instead of CommonLib's bare "failed to open the address library file" (the guard every mod of

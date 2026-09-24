@@ -77,7 +77,20 @@ namespace IUI
 			if (a_value.IsArray())
 			{
 				logger::at_level(logLevel, "{}", "{");
+#if RUNTIME_LINE == 17
+				// CommonLibSSE-NG 7.2 has no GFxValue::VisitElements; walk the array element by element instead.
+				const std::uint32_t size = a_value.GetArraySize();
+				for (std::uint32_t i = 0; i < size; ++i)
+				{
+					RE::GFxValue element;
+					if (a_value.GetElement(i, &element))
+					{
+						Visit(i, element);
+					}
+				}
+#else
 				a_value.VisitElements(this);
+#endif
 				logger::at_level(logLevel, "{}", "}");
 			}
 			logger::flush();

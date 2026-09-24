@@ -1,0 +1,262 @@
+{
+ "ids": [
+  [
+   35607,
+   36617
+  ],
+  [
+   99789,
+   106436
+  ],
+  [
+   56476,
+   56833
+  ],
+  [
+   50718,
+   51612
+  ],
+  [
+   52076,
+   52964
+  ],
+  [
+   52081,
+   52971
+  ],
+  [
+   52090,
+   52980
+  ],
+  [
+   16094,
+   16335
+  ],
+  [
+   16095,
+   16336
+  ],
+  [
+   16100,
+   16343
+  ],
+  [
+   16101,
+   16344
+  ],
+  [
+   100213,
+   106921
+  ],
+  [
+   99964,
+   106610
+  ],
+  [
+   98987,
+   105641
+  ],
+  [
+   75646,
+   77453
+  ],
+  [
+   75647,
+   77454
+  ],
+  [
+   75650,
+   77457
+  ],
+  [
+   524970,
+   411451
+  ],
+  [
+   100198,
+   106905
+  ],
+  [
+   513211,
+   390951
+  ],
+  [
+   75463,
+   77249
+  ],
+  [
+   99025,
+   105676
+  ],
+  [
+   527731,
+   414660
+  ],
+  [
+   524773,
+   388819
+  ],
+  [
+   501260,
+   359696
+  ],
+  [
+   528107,
+   415052
+  ],
+  [
+   513141,
+   390865
+  ],
+  [
+   513142,
+   390866
+  ],
+  [
+   527629,
+   414558
+  ],
+  [
+   527793,
+   414746
+  ],
+  [
+   230108,
+   187074
+  ],
+  [
+   268816,
+   215362
+  ],
+  [
+   270662,
+   216412
+  ],
+  [
+   67245,
+   68545
+  ],
+  [
+   16084,
+   16325
+  ],
+  [
+   16089,
+   16330
+  ]
+ ],
+ "calls": [],
+ "vtables": [
+  [
+   268816,
+   215362,
+   1,
+   1,
+   "HUDMenu Accept"
+  ],
+  [
+   268816,
+   215362,
+   5,
+   5,
+   "HUDMenu AdvanceMovie"
+  ],
+  [
+   268816,
+   215362,
+   7,
+   7,
+   "HUDMenu PreDisplay"
+  ],
+  [
+   270662,
+   216412,
+   1,
+   1,
+   "LocalMapMenu::InputHandler CanProcess"
+  ],
+  [
+   270662,
+   216412,
+   3,
+   5,
+   "LocalMapMenu::InputHandler ProcessThumbstick"
+  ],
+  [
+   270662,
+   216412,
+   4,
+   6,
+   "LocalMapMenu::InputHandler ProcessMouseMove"
+  ],
+  [
+   270662,
+   216412,
+   5,
+   7,
+   "LocalMapMenu::InputHandler ProcessButton"
+  ],
+  [
+   268819,
+   215368,
+   1,
+   1,
+   "HUDObject Update (Minimap derives from it)"
+  ],
+  [
+   268819,
+   215368,
+   2,
+   2,
+   "HUDObject ProcessMessage"
+  ],
+  [
+   268819,
+   215368,
+   3,
+   3,
+   "HUDObject RegisterHUDComponent"
+  ],
+  [
+   232862,
+   188659,
+   2,
+   2,
+   "LocalMapCamera Update (TESCamera slot 2)"
+  ],
+  [
+   232864,
+   188661,
+   1,
+   1,
+   "LocalMapCamera::DefaultState Begin"
+  ],
+  [
+   230108,
+   187074,
+   5,
+   5,
+   "INISettingCollection OpenHandle (utils::INISettingCollection copies slots 1-9)"
+  ],
+  [
+   230108,
+   187074,
+   6,
+   6,
+   "INISettingCollection CloseHandle"
+  ]
+ ],
+ "notes": [
+  "Read with .MD/scripts/check-17.py (ids exist on 1.7.104; call/jmp sites; vtable slot prologues) plus .MD/scripts/gamecode.py dis on the 1.5.97 and 1.7.104 code dumps, 2026-09-24.",
+  "Every function id in include/Line17.h is also called by the game's own LocalMapCullingProcess::RenderOffScreen (16094 / 16335) on 1.7.104 with the same arguments: 77249 SetClearColor, 16339/16343 cull, 36617 portal graph entry, 106921 Cull, 77457/77454/77453 render target manager (this = lea of id 411451, a static object), 106436 Accumulate, 106610/105641 accumulator, 106905 SetupPixelConstantGroup, 105676 CopyWithImageSpaceEffect with edx = 0x62.",
+  "CHK 'HUDMenu AdvanceMovie' is a prologue difference only: 1.7.104 slot 5 is the same function (Invoke + movie Advance through vtable +0x128 + the same +0x160 check); 1.5.97's call to 50871 is inlined on 1.7.104.",
+  "CHK 'LocalMapMenu::InputHandler CanProcess' is a prologue difference only: both test the menu at +0x303FC and +0x303FE the same way.",
+  "LocalMapMenu::InputHandler on 1.7.104: slots 2, 3, 4 are 'xor al, al; ret' stubs, slots 5, 6, 7 thumbstick / mouse move / button; the MenuEventHandler base vtable has 8 slots on 1.7.104 against 6 on 1.5.97.",
+  "Argument blocks compared instruction by instruction 1.5.97 vs 1.7.104: AttachFogOfWarOverlay (16101/16344) FogOfWar +0x08/+0x0C/+0x18; CullCellObjects (16100/16343) UnkData; LocalMapMenu ctor (52076/52964) initialises the same RUNTIME_DATA offsets 0x303A0-0x303FE.",
+  "TES on 1.7.104: interiorCell +0xC0, gridCells +0x78, worldSpace +0x148 (RenderOffScreen), loadedAreaBound +0x2B8 (id 13288, the SetCurrentCell caller) - CommonLibSSE-NG 7.2's versioned accessors give the same.",
+  "ControlMap::ToggleControls (67245/68545): enabled/stored control words at +0x118/+0x11C on 1.5.97 and +0x120/+0x124 on 1.7.104; the third argument gates the stored-word update.",
+  "CHK 'HUDObject Update': both slots are the same pure-virtual thunk (jmp [rip+disp]); only the displacement differs.",
+  "CHK 'LocalMapCamera::DefaultState Begin': the same instructions (movss from a global into the state); only the RIP displacement differs.",
+  "CHK 'INISettingCollection CloseHandle': the 1.5.97 dump holds a patched jmp there (a plugin was loaded when it was taken); 1.7.104's slot 6 is 'mov qword [rcx+0x110], 0; mov al, 1; ret' - CloseHandle, clearing the handle at +0x110 as utils::INISettingCollection's layout has it."
+ ]
+}

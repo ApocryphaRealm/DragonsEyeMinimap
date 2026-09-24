@@ -41,6 +41,13 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   release ever shipped it - its presence is what turns the widget on - and keeping it in `dist\` would have
   installed it for everyone.
 
+### Added
+- **A Skyrim 1.7 build (1.7.99 and later).** The 1.7 line (CommonLibSSE-NG 7.2) now compiles: each of this repo's own
+  engine headers that 7.2 also declares forwards to 7.2's, a view over 7.2's LocalMapMenu keeps the member names this
+  code uses with every offset asserted, and the engine functions and vtable slots it needs were checked against the
+  game's own 1.7.104 code (`tools/check-17.json`, 36 ID pairs). 1.7.99 added two virtual functions to the menu input
+  handler, so the 1.7 build loads inert on an older game and says which download fits. The SE/AE build is unchanged.
+
 ## 1.7.2 - 2026-09-17 - untested
 
 ### Fixed

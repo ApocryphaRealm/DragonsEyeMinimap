@@ -1,5 +1,10 @@
 #pragma once
 
+#if RUNTIME_LINE == 17
+// Skyrim 1.7 line: CommonLibSSE-NG 7.2 ships these BSGraphics shadow-state types (with their 1.7 layout) in RendererShadowState.h, so that one is used.
+#	include <include/RE/R/RendererShadowState.h>
+#else
+
 #include "RE\D\DepthStencilDepthModes.h"
 #include "RE\S\State.h"
 #include "RE\T\TextureAddressModes.h"
@@ -457,3 +462,4 @@ namespace RE
 #undef RUNTIME_DATA_CONTENT
 #undef FLAT_RUNTIME_DATA_CONTENT
 #undef VR_RUNTIME_DATA_CONTENT
+#endif  // RUNTIME_LINE

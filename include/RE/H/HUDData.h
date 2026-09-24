@@ -1,5 +1,10 @@
 #pragma once
 
+#if RUNTIME_LINE == 17
+// Skyrim 1.7 line: CommonLibSSE-NG 7.2 ships this type with its 1.7 layout, so that one is used (see CMakeLists.txt, line 17).
+#	include <include/RE/H/HUDData.h>
+#else
+
 #include "RE/B/BSString.h"
 #include "RE/E/ExtraMapMarker.h"
 #include "RE/I/IUIMessageData.h"
@@ -65,3 +70,4 @@ namespace RE
 	};
 	static_assert(sizeof(HUDData) == 0x48);
 }
+#endif  // RUNTIME_LINE

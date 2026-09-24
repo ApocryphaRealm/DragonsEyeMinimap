@@ -1,3 +1,6 @@
+// Skyrim 1.7 line: CommonLibSSE-NG 7.2 defines this type, so its library carries these definitions and the header
+// forwards to 7.2's (include/RE/G/GFxValue.h). Compiled on line 1 only.
+#if RUNTIME_LINE != 17
 #include "RE/G/GFxValue.h"
 
 namespace RE
@@ -1070,3 +1073,4 @@ namespace RE
 		_type = a_type;
 	}
 }
+#endif  // RUNTIME_LINE != 17

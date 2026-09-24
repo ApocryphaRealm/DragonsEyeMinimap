@@ -1,5 +1,10 @@
 #pragma once
 
+#if RUNTIME_LINE == 17
+// Skyrim 1.7 line: CommonLibSSE-NG 7.2 ships this type with its 1.7 layout, so that one is used (see CMakeLists.txt, line 17).
+#	include <include/RE/R/RenderTargetManager.h>
+#else
+
 #include "RE/B/BSShaderRenderTargets.h"
 #include "RE/R/RenderTargetProperties.h"
 #include "RE/R/Renderer.h"
@@ -50,3 +55,4 @@ namespace RE
 		static_assert(sizeof(RenderTargetManager) == 0xD44);
 	}
 }
+#endif  // RUNTIME_LINE

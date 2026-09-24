@@ -11,6 +11,8 @@
 
 #include "LMU/API.h"
 
+#include "Line17.h"  // the Skyrim 1.7 line only; empty on line 1
+
 namespace DEM
 {
 	struct ExtraMarker
@@ -75,9 +77,25 @@ namespace DEM
 			// override (RE::MenuEventHandler). ProcessMouseMove is back (1.5.9, the author): holding the
 			// hide key pans the map with the mouse, the original control scheme, on the same key.
 			bool CanProcess(RE::InputEvent* a_event) final;				 // 01
+#if RUNTIME_LINE == 17
+			// Skyrim 1.7.99 put two new input virtuals (motion gesture, sixaxis) into MenuEventHandler ahead of the rest,
+			// so the game calls ProcessThumbstick / ProcessMouseMove / ProcessButton through slots 5 / 6 / 7 instead of
+			// 3 / 4 / 5. CommonLibSSE-NG 7.2 declares those three as non-virtual wrappers, so this handler lays the 1.7
+			// table out itself: slots 2-4 are the `return false` stubs the game's own LocalMapMenu::InputHandler has
+			// there, then the three handlers. Read from the 1.7.104 vtable of LocalMapMenu::InputHandler (216412):
+			// slots 2, 3, 4 are `xor al, al; ret`, slots 5, 6, 7 are the thumbstick, mouse-move and button handlers
+			// (tools/check-17.json). main.cpp refuses a game older than 1.7.99 on this line for that reason.
+			virtual bool ProcessMotionGesture17(RE::InputEvent*) { return false; }	  // 02
+			virtual bool ProcessSixaxis17(RE::InputEvent*) { return false; }		  // 03
+			virtual bool ProcessKinect17(RE::InputEvent*) { return false; }			  // 04
+			virtual bool ProcessThumbstick(RE::ThumbstickEvent* a_event);			  // 05 - RIGHT stick pans while holding
+			virtual bool ProcessMouseMove(RE::MouseMoveEvent* a_event);				  // 06
+			virtual bool ProcessButton(RE::ButtonEvent* a_event);					  // 07
+#else
 			bool ProcessThumbstick(RE::ThumbstickEvent* a_event) final; // 03 - RIGHT stick pans while holding (design decision, 2026-08-30)
 			bool ProcessMouseMove(RE::MouseMoveEvent* a_event) final;	 // 04
 			bool ProcessButton(RE::ButtonEvent* a_event) final;			 // 05
+#endif
 
 			bool ProcessKeyboardOrMouseButton(RE::ButtonEvent* a_butonEvent);
 
@@ -288,8 +306,13 @@ namespace DEM
 
 		void RenderOffScreen();
 		void ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object);
+#if RUNTIME_LINE == 17
+		void CullTerrain(const RE::GridCellArray* a_gridCells, line17::LocalMapCullingProcess::UnkData& a_unkData,
+						 const RE::TESObjectCELL* a_cell);
+#else
 		void CullTerrain(const RE::GridCellArray* a_gridCells, RE::LocalMapMenu::LocalMapCullingProcess::UnkData& a_unkData,
 						 const RE::TESObjectCELL* a_cell);
+#endif
 
 		static inline Minimap* singleton = nullptr;
 
@@ -334,9 +357,16 @@ namespace DEM
 
 		Shape shape = static_cast<Shape>(settings::display::shape);
 
+#if RUNTIME_LINE == 17
+		// Views over CommonLibSSE-NG 7.2's LocalMapMenu under line 1's member names; layout asserted equal in Line17.h.
+		line17::LocalMapMenu* localMap = nullptr;
+		line17::LocalMapMenu::RUNTIME_DATA* localMap_ = nullptr;
+		line17::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
+#else
 		RE::LocalMapMenu* localMap = nullptr;
 		RE::LocalMapMenu::RUNTIME_DATA* localMap_ = nullptr;
 		RE::LocalMapMenu::LocalMapCullingProcess* cullingProcess = nullptr;
+#endif
 		RE::LocalMapCamera* cameraContext = nullptr;
 
 		float minCamFrustumHalfWidth = 0.0F;

@@ -224,8 +224,16 @@ namespace DEM
 		inputControlledMode = true;
 		if (auto* controlMap = RE::ControlMap::GetSingleton())
 		{
+#if RUNTIME_LINE == 17
+			// CommonLibSSE-NG 7.2 calls the engine's own ToggleControls (67245 / 68545), whose third argument also
+			// updates the stored-controls word unless it is unset - what 3.7's inline version always did. The engine
+			// keeps those two words at +0x120/+0x124 on 1.7.104 (+0x118/+0x11C on 1.5.97), read from its code.
+			controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, false, true);
+			controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, false, true);
+#else
 			controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, false);
 			controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, false);
+#endif
 		}
 		logger::debug("hold-to-pan: entered (looking + wheel zoom handed to the map)");
 	}
@@ -235,8 +243,13 @@ namespace DEM
 		inputControlledMode = false;
 		if (auto* controlMap = RE::ControlMap::GetSingleton())
 		{
+#if RUNTIME_LINE == 17
+			controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, true, true);	 // see EnterInputControlledMode
+			controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, true, true);
+#else
 			controlMap->ToggleControls(RE::ControlMap::UEFlag::kLooking, true);
 			controlMap->ToggleControls(RE::ControlMap::UEFlag::kWheelZoom, true);
+#endif
 		}
 		logger::debug("hold-to-pan: left (controls returned to the camera)");
 	}

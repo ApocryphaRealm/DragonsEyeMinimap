@@ -1,3 +1,8 @@
+// Compiled on both build lines. On the Skyrim 1.7 line the header forwards to CommonLibSSE-NG 7.2's LocalMapCamera, whose
+// library defines these same functions in a file that also defines LocalMapCamera's constructor - and linking that file
+// needs the engine-only TESCamera/LocalMapCamera virtuals it cannot resolve. Defining them here keeps that file out of
+// the link. The bodies match 7.2's line for line, and the two ids (RE::Offset::LocalMapCamera in Compat17.h on line 17,
+// 16084/16325 and 16089/16330) are in tools/check-17.json.
 #include "RE/L/LocalMapCamera.h"
 
 #include "RE/I/INISettingCollection.h"

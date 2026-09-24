@@ -32,7 +32,12 @@ namespace DEM
 
 	void Minimap::InitLocalMap()
 	{
+#if RUNTIME_LINE == 17
+		// The view over CommonLibSSE-NG 7.2's LocalMapMenu - the same size, asserted in Line17.h.
+		localMap = static_cast<line17::LocalMapMenu*>(std::malloc(sizeof(line17::LocalMapMenu)));
+#else
 		localMap = static_cast<RE::LocalMapMenu*>(std::malloc(sizeof(RE::LocalMapMenu)));
+#endif
 		if (localMap)
 		{
 			logger::debug("InitLocalMap: allocated LocalMapMenu instance");
@@ -804,6 +809,18 @@ namespace DEM
 
 			for (RE::Setting* candidate : a_collection->settings)
 			{
+#if RUNTIME_LINE == 17
+				// CommonLibSSE-NG 7.2 makes Setting::name private; GetName() returns "" where the name is null.
+				if (!candidate || candidate->GetName()[0] == '\0')
+				{
+					continue;
+				}
+
+				if (std::string_view(candidate->GetName()).find("HUDOpacity") != std::string_view::npos)
+				{
+					logger::warn("HUD Opacity: {} has a setting named \"{}\" - none of the names tried matched it",
+								 a_which, candidate->GetName());
+#else
 				if (!candidate || !candidate->name)
 				{
 					continue;
@@ -813,6 +830,7 @@ namespace DEM
 				{
 					logger::warn("HUD Opacity: {} has a setting named \"{}\" - none of the names tried matched it",
 								 a_which, candidate->name);
+#endif
 					++reported;
 				}
 			}
@@ -974,7 +992,14 @@ namespace DEM
 			const RE::LoadedAreaBound* bound = tes->GetRuntimeData2().loadedAreaBound;
 			if (bound)
 			{
+#if RUNTIME_LINE == 17
+				// Line 1's copy names LoadedAreaBound+0x78 maxExtent and +0x84 minExtent; 7.2 names the same two points
+				// boundsMin (+0x78) and boundsMax (+0x84). Read by OFFSET, exactly as line 1 does.
+				static_assert(offsetof(RE::LoadedAreaBound, boundsMin) == 0x78 && offsetof(RE::LoadedAreaBound, boundsMax) == 0x84);
+				const float areaHalfHeight = (bound->boundsMin.y - bound->boundsMax.y) * 0.5F;
+#else
 				const float areaHalfHeight = (bound->maxExtent.y - bound->minExtent.y) * 0.5F;
+#endif
 				const float currentHalfHeight = cameraContext->defaultState->minFrustumHalfHeight;
 
 				// > 1 unit guards a bound that is not built yet (both extents zero); only ever
@@ -1455,7 +1480,12 @@ namespace DEM
 
 		cameraContext->Update();
 
+#if RUNTIME_LINE == 17
+		// By offset, as line 1: +0x78 (7.2 boundsMin, line 1 maxExtent) first, +0x84 second. See SetLocalMapExtents.
+		cameraContext->SetAreaBounds(loadedAreaBound->boundsMin, loadedAreaBound->boundsMax);
+#else
 		cameraContext->SetAreaBounds(loadedAreaBound->maxExtent, loadedAreaBound->minExtent);
+#endif
 		return true;
 	}
 

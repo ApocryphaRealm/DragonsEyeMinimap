@@ -516,7 +516,12 @@ namespace settings
 		// here instead, where the message can say which setting is at fault.
 		void AddChecked(INISettingCollection* a_collection, RE::Setting* a_setting, const char* a_name)
 		{
+#if RUNTIME_LINE == 17
+			// CommonLibSSE-NG 7.2 makes Setting::name private; GetName() returns "" where the name is null.
+			if (a_setting && a_setting->GetName()[0] != '\0')
+#else
 			if (a_setting && a_setting->name)
+#endif
 			{
 				a_collection->AddSettings(a_setting);
 

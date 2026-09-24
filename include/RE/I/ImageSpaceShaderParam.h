@@ -1,5 +1,10 @@
 #pragma once
 
+#if RUNTIME_LINE == 17
+// Skyrim 1.7 line: CommonLibSSE-NG 7.2 ships this type with its 1.7 layout, so that one is used (see CMakeLists.txt, line 17).
+#	include <include/RE/I/ImageSpaceShaderParam.h>
+#else
+
 #include "RE/I/ImageSpaceEffectParam.h"
 #include "RE/N/NiSmartPointer.h"
 #include "RE/N/NiTArray.h"
@@ -48,3 +53,4 @@ namespace RE
 	};
 	static_assert(sizeof(ImageSpaceShaderParam) == 0x80);
 }
+#endif  // RUNTIME_LINE

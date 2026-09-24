@@ -1,5 +1,10 @@
 #pragma once
 
+#if RUNTIME_LINE == 17
+// Skyrim 1.7 line: CommonLibSSE-NG 7.2 ships this type with its 1.7 layout, so that one is used (see CMakeLists.txt, line 17).
+#	include <include/RE/I/ImageSpaceManager.h>
+#else
+
 #ifndef KEEP_FOR_RE
 #	define KEEP_FOR_RE()  // CommonLibSSE-NG 3.7s marker; 7.2 (the Skyrim 1.7 line) has none
 #endif
@@ -353,3 +358,4 @@ namespace RE
 }
 #undef RUNTIME_DATA_CONTENT
 #undef VR_RUNTIME_DATA_CONTENT
+#endif  // RUNTIME_LINE

@@ -1,5 +1,10 @@
 #pragma once
 
+#if RUNTIME_LINE == 17
+// Skyrim 1.7 line: CommonLibSSE-NG 7.2 ships this type with its 1.7 layout, so that one is used (see CMakeLists.txt, line 17).
+#	include <include/RE/S/ShaderAccumulator.h>
+#else
+
 #include "RE/B/BSMap.h"
 #include "RE/N/NiAlphaAccumulator.h"
 #include "RE/N/NiNode.h"
@@ -112,3 +117,4 @@ namespace RE
 	};
 }
 #undef RUNTIME_DATA_CONTENT
+#endif  // RUNTIME_LINE

@@ -1,5 +1,10 @@
 #pragma once
 
+#if RUNTIME_LINE == 17
+// Skyrim 1.7 line: CommonLibSSE-NG 7.2 ships this type with its 1.7 layout, so that one is used (see CMakeLists.txt, line 17).
+#	include <include/RE/L/LocalMapCamera.h>
+#else
+
 #include "RE/B/BSTSmartPointer.h"
 #include "RE/N/NiCamera.h"
 #include "RE/N/NiPoint3.h"
@@ -69,3 +74,4 @@ namespace RE
 	};
 	static_assert(sizeof(LocalMapCamera) == 0x68);
 }
+#endif  // RUNTIME_LINE

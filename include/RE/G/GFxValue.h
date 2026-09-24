@@ -1,5 +1,10 @@
 #pragma once
 
+#if RUNTIME_LINE == 17
+// Skyrim 1.7 line: CommonLibSSE-NG 7.2 ships this type with its 1.7 layout, so that one is used (see CMakeLists.txt, line 17).
+#	include <include/RE/G/GFxValue.h>
+#else
+
 #include "RE/G/GFxPlayerStats.h"
 #include "RE/G/GMatrix3D.h"
 #include "RE/G/GMemory.h"
@@ -430,3 +435,4 @@ namespace RE
 	};
 	static_assert(sizeof(GFxValue) == 0x18);
 }
+#endif  // RUNTIME_LINE

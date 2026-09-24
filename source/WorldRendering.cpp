@@ -12,6 +12,7 @@
 
 namespace RE
 {
+#if RUNTIME_LINE != 17  // CommonLibSSE-NG 7.2 declares BSPortalGraphEntry itself (portalGraph at +0x10, as here)
 	class BSPortalGraphEntry : public NiRefObject
 	{
 	public:
@@ -22,6 +23,7 @@ namespace RE
 									 // ...
 	};
 	//static_assert(sizeof(BSPortalGraphEntry) == 0x140);
+#endif
 
 	RE::BSPortalGraphEntry* Main__GetPortalGraphEntry(Main* a_this)
 	{
@@ -61,7 +63,11 @@ namespace DEM
 				fogOfWarOverlayHolder->DetachChildAt(i);
 			}
 
+#if RUNTIME_LINE == 17
+			line17::FogOfWar fogOfWar;
+#else
 			RE::LocalMapMenu::FogOfWar fogOfWar;
+#endif
 
 			fogOfWar.overlayHolder = fogOfWarOverlayHolder.get();
 
@@ -212,7 +218,11 @@ namespace DEM
 		// Now: gate on size(), and validate only the indices that exist. The point of the check is that
 		// the children this render walks are real objects before it walks them - a child that is not
 		// there is not a child that is half-built, and must not fail the world.
+#if RUNTIME_LINE == 17
+		RE::ShadowSceneNode* shadow = line17::GetMainShadowSceneNode();
+#else
 		RE::ShadowSceneNode* shadow = RE::ShadowSceneNode::GetMain();
+#endif
 		if (!shadow) { a_reason = "no main shadow scene node"; return false; }
 		auto& children = shadow->GetChildren();
 
@@ -371,7 +381,11 @@ namespace DEM
 
 		useMapBrightnessAndContrastBoost = true;
 
+#if RUNTIME_LINE == 17
+		RE::ShadowSceneNode* mainShadowSceneNode = line17::GetMainShadowSceneNode();
+#else
 		RE::ShadowSceneNode* mainShadowSceneNode = RE::ShadowSceneNode::GetMain();
+#endif
 
         RE::NiPointer<RE::BSGraphics::BSShaderAccumulator>& shaderAccumulator = cullingProcess->GetShaderAccumulator();
 
@@ -393,12 +407,20 @@ namespace DEM
 		dword_1431D0D8C = 0;
 
 		RE::BSGraphics::Renderer* renderer = RE::BSGraphics::Renderer::GetSingleton();
+#if RUNTIME_LINE == 17
+		line17::SetClearColor(renderer, 0.0F, 0.0F, 0.0F, 1.0F);
+#else
 		renderer->SetClearColor(0.0F, 0.0F, 0.0F, 1.0F);
+#endif
 
         RE::TES* tes = RE::TES::GetSingleton();
 		RE::TESWorldSpace* worldSpace = tes->GetRuntimeData2().worldSpace;
 
+#if RUNTIME_LINE == 17
+		line17::LocalMapCullingProcess::UnkData unkData{ cullingProcess };
+#else
 		RE::LocalMapMenu::LocalMapCullingProcess::UnkData unkData{ cullingProcess };
+#endif
 		
 		if (worldSpace && worldSpace->flags.any(RE::TESWorldSpace::Flag::kFixedDimensions))
 		{
@@ -466,7 +488,11 @@ namespace DEM
 			cullingProcess->CullCellObjects(unkData, currentCell);
 		}
 
+#if RUNTIME_LINE == 17
+        line17::CullJobDescriptor& cullJobDesc = cullingProcess->cullJobDesc;
+#else
         RE::CullJobDescriptor& cullJobDesc = cullingProcess->cullJobDesc;
+#endif
 		RE::NiPointer<RE::NiCamera> camera = cameraContext->camera;
 
         cullJobDesc.camera = camera;
@@ -482,7 +508,13 @@ namespace DEM
 			RE::BSPortalGraph* portalGraph = portalGraphEntry->portalGraph;
             if (portalGraph)
             {
+#if RUNTIME_LINE == 17
+				// 7.2 names BSPortalGraph+0x58 alwaysRenderChildren (a BSTArray<NiPointer<NiAVObject>>) - the member line 1 calls unk58.
+				static_assert(offsetof(RE::BSPortalGraph, alwaysRenderChildren) == 0x58);
+				cullJobDesc.cullingObjects = &portalGraph->alwaysRenderChildren;
+#else
 				cullJobDesc.cullingObjects = reinterpret_cast<RE::BSTArray<RE::NiPointer<RE::NiAVObject>>*>(&portalGraph->unk58);
+#endif
 				cullJobDesc.Cull(1, 0);
 
 				if (s_portalCullingDegraded)
@@ -545,11 +577,20 @@ namespace DEM
 
 		// 3. Rendering step ///////////////////////////////////////////////////////////////////////////////////////////////
 
+#if RUNTIME_LINE == 17
+        // The manager is the static object at 524970 / 411451 itself, as the game passes it (Line17.h).
+        RE::BSGraphics::RenderTargetManager* renderTargetManager = line17::RenderTargetManager();
+
+        int depthStencil = line17::GetDepthStencil(renderTargetManager);
+		line17::SetupDepthStencilAt(renderTargetManager, depthStencil, RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR, 0, false);
+		line17::SetupRenderTargetAt(renderTargetManager, 0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR, true);
+#else
         RE::BSGraphics::RenderTargetManager* renderTargetManager = RE::BSGraphics::RenderTargetManager::GetSingleton();
 
         int depthStencil = renderTargetManager->GetDepthStencil();
 		renderTargetManager->SetupDepthStencilAt(depthStencil, RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR, 0, false);
 		renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR, true);
+#endif
 
 		RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
 
@@ -567,9 +608,15 @@ namespace DEM
 
 		if (isFogOfWarEnabled)
 		{
+#if RUNTIME_LINE == 17
+			line17::ClearActiveRenderPasses(shaderAccumulator.get(), false);
+
+			line17::SetRenderMode(19);
+#else
 			shaderAccumulator->ClearActiveRenderPasses(false);
 
 			RE::BSGraphics::BSShaderAccumulator::SetRenderMode(19);
+#endif
 
 			RE::NiPointer<RE::NiAVObject> fogOfWarOverlayHolder = cullingProcess->GetFogOfWarOverlay();
 			cullJobDesc.scene = fogOfWarOverlayHolder;
@@ -577,6 +624,16 @@ namespace DEM
 
 			RE::BSGraphics::RendererShadowState* rendererShadowState = RE::BSGraphics::RendererShadowState::GetSingleton();
 
+#if RUNTIME_LINE == 17
+			line17::SetAlphaBlendWriteMode(rendererShadowState, 8);
+			line17::SetDepthStencilDepthMode(rendererShadowState, RE::BSGraphics::DepthStencilDepthMode::kDisabled);
+
+			line17::SetupRenderTargetAt(renderTargetManager, 0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE, true);
+			RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
+
+			line17::SetDepthStencilDepthMode(rendererShadowState, RE::BSGraphics::DepthStencilDepthMode::kTestWrite);
+			line17::SetAlphaBlendWriteMode(rendererShadowState, 1);
+#else
 			rendererShadowState->SetAlphaBlendWriteMode(8);
 			rendererShadowState->SetDepthStencilDepthMode(RE::BSGraphics::DepthStencilDepthMode::kDisabled);
 
@@ -585,11 +642,16 @@ namespace DEM
 
 			rendererShadowState->SetDepthStencilDepthMode(RE::BSGraphics::DepthStencilDepthMode::kTestWrite);
 			rendererShadowState->SetAlphaBlendWriteMode(1);
+#endif
 		}
 
 		// 5. Finish rendering and dispatch ////////////////////////////////////////////////////////////////////////////////
 
+#if RUNTIME_LINE == 17
+        line17::SetupDepthStencilAt(renderTargetManager, -1, RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE, 0, false);
+#else
         renderTargetManager->SetupDepthStencilAt(-1, RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE, 0, false);
+#endif
 
 		RE::ImageSpaceShaderParam& imageSpaceShaderParam = cullingProcess->GetImageSpaceShaderParam();
 
@@ -598,13 +660,23 @@ namespace DEM
 		float localMapSwapWidth = renderLocalMapSwapData.width;
 		float localMapSwapHeight = renderLocalMapSwapData.height;
 
+#if RUNTIME_LINE == 17
+		line17::SetupPixelConstantGroup(&imageSpaceShaderParam, 0, static_cast<float>(1.0 / localMapSwapWidth), static_cast<float>(1.0 / localMapSwapHeight), 0.0F, 0.0F);
+#else
 		imageSpaceShaderParam.SetupPixelConstantGroup(0, 1.0 / localMapSwapWidth, 1.0 / localMapSwapHeight, 0.0, 0.0);
+#endif
 		
         RE::ImageSpaceManager* imageSpaceManager = RE::ImageSpaceManager::GetSingleton();
 
+#if RUNTIME_LINE == 17
+		line17::CopyWithImageSpaceEffect(imageSpaceManager, RE::ImageSpaceManager::ImageSpaceEffectEnum::ISLocalMap,
+										 RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::RENDER_TARGET::kLOCAL_MAP,
+										 &imageSpaceShaderParam);
+#else
 		imageSpaceManager->CopyWithImageSpaceEffect(RE::ImageSpaceManager::ImageSpaceEffectEnum::ISLocalMap,
 													RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::RENDER_TARGET::kLOCAL_MAP,
 													&imageSpaceShaderParam);
+#endif
 
 		if (areLODsHidden)
 		{
@@ -616,7 +688,11 @@ namespace DEM
 		nodeDrawFadeEnabled = nodeFadeEnabled = isNodeFadeEnabled;
 		dword_1431D0D8C = 0;
 
+#if RUNTIME_LINE == 17
+        line17::ClearActiveRenderPasses(shaderAccumulator.get(), false);
+#else
         shaderAccumulator->ClearActiveRenderPasses(false);
+#endif
 
 		useMapBrightnessAndContrastBoost = false;
 
@@ -641,7 +717,13 @@ namespace DEM
 			{
 				if (RE::BSGeometry* geometry = object->AsGeometry())
 				{
+#if RUNTIME_LINE == 17
+					// 7.2 names the geometry's effect slot (properties[kEffect] on line 1, BSGeometry+0x128) shaderProperty.
+					static_assert(offsetof(RE::BSGeometry::GEOMETRY_RUNTIME_DATA, shaderProperty) == 0x08);  // + the 0x120 accessor
+					auto shaderProp = geometry->GetGeometryRuntimeData().shaderProperty.get();
+#else
 					auto shaderProp = static_cast<RE::BSShaderProperty*>(geometry->properties[RE::BSGeometry::States::kEffect].get());
+#endif
 					if (shaderProp)
 					{
 						shaderProp->DoClearRenderPasses();
@@ -653,10 +735,17 @@ namespace DEM
 		}
 	};
 
+#if RUNTIME_LINE == 17
+	void Minimap::CullTerrain(const RE::GridCellArray* a_gridCells, line17::LocalMapCullingProcess::UnkData& a_unkData,
+							  const RE::TESObjectCELL* a_cell)
+	{
+		line17::CullJobDescriptor& cullJobDesc = a_unkData.ptr->cullJobDesc;
+#else
 	void Minimap::CullTerrain(const RE::GridCellArray* a_gridCells, RE::LocalMapMenu::LocalMapCullingProcess::UnkData& a_unkData,
 							  const RE::TESObjectCELL* a_cell)
 	{
 		RE::CullJobDescriptor& cullJobDesc = a_unkData.ptr->cullJobDesc;
+#endif
 
 		// Called once per frame while in an exterior worldspace with an attached sky cell - only
 		// log when the grid size or the unk8-gated index-2 pass actually changes, not every call.

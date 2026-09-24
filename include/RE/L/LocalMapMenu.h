@@ -1,5 +1,10 @@
 #pragma once
 
+#if RUNTIME_LINE == 17
+// Skyrim 1.7 line: CommonLibSSE-NG 7.2 ships this type with its 1.7 layout, so that one is used (see CMakeLists.txt, line 17).
+#	include <include/RE/L/LocalMapMenu.h>
+#else
+
 #include "RE/B/BSCullingProcess.h"
 #include "RE/B/BSTArray.h"
 #include "RE/B/BSTSmartPointer.h"
@@ -274,3 +279,4 @@ namespace RE
 	static_assert(sizeof(LocalMapMenu) == 0x30480);
 #endif
 }
+#endif  // RUNTIME_LINE
