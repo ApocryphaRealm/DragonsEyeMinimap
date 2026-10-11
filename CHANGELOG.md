@@ -21,6 +21,11 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
+## 1.7.4 - 2026-10-10 - untested
+
+### Fixed
+- The DLL's own file properties (LegalCopyright in the version resource) now say GPL-3.0-or-later, matching the repo's LICENSE since the 2026-09-16 relicense; builds since then still said MIT License there. No behaviour change.
+
 ## 1.7.3 - 2026-09-23 - untested
 
 ### Fixed
