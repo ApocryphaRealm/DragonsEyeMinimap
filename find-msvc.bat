@@ -23,4 +23,7 @@ call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat" >nul
 if errorlevel 1 exit /b 1
 
 set "PATH=%VSPATH%\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;%VSPATH%\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%PATH%"
+REM The shared build environment (rule 45): strips build-machine paths from the DLL and PDB. Unset on any other machine, so the build is unchanged there.
+if not defined MODS_BUILD_ENV for /f "tokens=2,*" %%A in ('reg query "HKCU\Environment" /v MODS_BUILD_ENV 2^>nul ^| findstr /i /c:"MODS_BUILD_ENV"') do call set "MODS_BUILD_ENV=%%B"
+if defined MODS_BUILD_ENV if exist "%MODS_BUILD_ENV%" call "%MODS_BUILD_ENV%"
 exit /b 0
