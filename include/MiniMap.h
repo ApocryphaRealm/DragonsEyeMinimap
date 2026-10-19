@@ -6,6 +6,10 @@
 
 #include "Settings.h"
 
+#include <atomic>
+#include <cstdint>
+#include <vector>
+#include <array>
 #include <chrono>
 #include <mutex>
 
@@ -256,6 +260,38 @@ namespace DEM
 		// miss therefore disabled every minimap marker for the whole session, no matter what any
 		// visibility setting said. Retrying until it resolves is the fix.
 		bool EnsureIconDisplay();
+
+		// The extra markers add-ons contribute (Local Map Upgrade's actors, and Local Map Item Markers' weapons,
+		// armour, containers and quest items) arrive in IconDisplay.ExtraMarkerData as icon-type numbers.
+		// Local Map Upgrade's own local map places them with a marker extension it loads next to the game's
+		// map; this minimap has no such extension - Map.Display.CreateMarkers (in Minimap.swf, and in the
+		// restyled copy Norden UI ships) maps each number through Map.MapMarker.ExtraIconTypes, which holds
+		// only Local Map Upgrade's six actor symbols, so every item marker (types 6 to 9) attached nothing.
+		//
+		// EnsureExtraIconTypes() runs BEFORE CreateMarkers and completes that list to ten symbols; the four
+		// item types draw the shared NeutralMarker symbol. TintExtraMarkers() runs AFTER CreateMarkers and
+		// colours them, as Local Map Upgrade's extension does on the real map. Both ask the movie what it has
+		// (rule 30) and do nothing when the class or the list is not there. Done at run time, not in the
+		// SWF, because the SWF that wins is often another mod's (Norden UI ships its own Minimap.swf).
+		void EnsureExtraIconTypes();
+		void TintExtraMarkers();
+		void TintExtraMarkersImpl();
+
+	public:
+		// DevBench read-only probe (op=markers): what the minimap's marker layer holds right now.
+		// Must run on the game thread (it reads Scaleform).
+		std::string ExtraMarkersProbeJson();
+
+		// Test aid for op=itemmarkers:on|off - lets a test see the minimap with and without the item-marker
+		// support in one run. Always on in normal play.
+		static inline std::atomic<bool> itemMarkersEnabled{ true };
+
+	private:
+		std::uint32_t extraIconTypesRecheck_ = 0;
+		std::atomic<std::uint64_t> tintCalls_{ 0 };
+		std::atomic<std::uint64_t> tintMicros_{ 0 };
+		std::array<RE::GFxValue, 4> itemTintTransforms_;
+		std::vector<std::uint8_t> extraTypesScratch_;
 
 		void MeasureStage();
 

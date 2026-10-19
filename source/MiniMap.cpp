@@ -256,6 +256,214 @@ namespace DEM
 		return true;
 	}
 
+	namespace
+	{
+		// The icon types add-ons contribute above Local Map Upgrade's own six (enemy, hostile, guard, dead,
+		// teammate, neutral): 6 weapon, 7 armour, 8 container, 9 quest item - the order Local Map Item
+		// Markers hands them over in. The tints are the ones its marker extension applies on the real map.
+		constexpr std::uint32_t kFirstAddOnIconType = 6;
+		constexpr std::uint32_t kAddOnIconTypeCount = 4;
+		constexpr std::uint32_t kExtraIconTypeCount = kFirstAddOnIconType + kAddOnIconTypeCount;
+		constexpr std::uint32_t kAddOnTints[kAddOnIconTypeCount] = { 16744234, 6990335, 13148747, 8313175 };
+		constexpr const char* kSharedSymbol = "NeutralMarker";
+	}
+
+	void Minimap::EnsureExtraIconTypes()
+	{
+		if (!itemMarkersEnabled.load(std::memory_order_relaxed) || !view)
+		{
+			return;
+		}
+
+		// The list lives for the life of the movie, so a check now and then is enough; GetVariable crosses into
+		// Scaleform and this runs from Advance().
+		if (extraIconTypesRecheck_ > 0)
+		{
+			--extraIconTypesRecheck_;
+			return;
+		}
+
+		extraIconTypesRecheck_ = 300;
+
+		RE::GFxValue types;
+		if (!view->GetVariable(&types, "_global.Map.MapMarker.ExtraIconTypes") || !types.IsArray())
+		{
+			static bool loggedMissing = false;
+			if (!loggedMissing)
+			{
+				loggedMissing = true;
+				logger::info("Map.MapMarker.ExtraIconTypes is not in the minimap's movie - add-on item markers will not be drawn on it");
+			}
+			return;
+		}
+
+		std::uint32_t n = types.GetArraySize();
+		if (n >= kExtraIconTypeCount)
+		{
+			return;
+		}
+
+		const std::uint32_t before = n;
+		for (; n < kExtraIconTypeCount; ++n)
+		{
+			types.PushBack(RE::GFxValue{ kSharedSymbol });
+		}
+
+		logger::info("Map.MapMarker.ExtraIconTypes completed from {} to {} symbols - the item markers Local Map Item Markers contributes now draw on the minimap", before, n);
+	}
+
+	void Minimap::TintExtraMarkers()
+	{
+		const auto started = std::chrono::steady_clock::now();
+		TintExtraMarkersImpl();
+		tintMicros_.fetch_add(static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started).count()), std::memory_order_relaxed);
+		tintCalls_.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	void Minimap::TintExtraMarkersImpl()
+	{
+		if (!itemMarkersEnabled.load(std::memory_order_relaxed) || !localMap_ || !localMap_->iconDisplay.IsObject())
+		{
+			return;
+		}
+
+		auto& icon = localMap_->iconDisplay;
+
+		RE::GFxValue extra;
+		if (!icon.GetMember("ExtraMarkerData", &extra) || !extra.IsArray())
+		{
+			return;
+		}
+
+		// The add-on types sit at the END of the list (an add-on's markers are appended after Local Map Upgrade's
+		// own actors), so read from the tail until a value below the first add-on type.
+		const std::uint32_t total = extra.GetArraySize();
+		std::uint32_t firstItem = total;
+		extraTypesScratch_.clear();
+		while (firstItem > 0)
+		{
+			RE::GFxValue v;
+			if (!extra.GetElement(firstItem - 1, &v) || !v.IsNumber() || v.GetNumber() < kFirstAddOnIconType)
+			{
+				break;
+			}
+			extraTypesScratch_.push_back(static_cast<std::uint8_t>(v.GetNumber()));
+			--firstItem;
+		}
+
+		if (firstItem == total)
+		{
+			return;
+		}
+
+		// extraTypesScratch_ holds the tail in reverse; item j of the run is extraTypesScratch_[size-1-j].
+		RE::GFxValue markerData, markers;
+		if (!icon.GetMember("MarkerData", &markerData) || !markerData.IsArray() ||
+			!icon.GetMember("markers", &markers) || !markers.IsArray())
+		{
+			return;
+		}
+
+		const std::uint32_t dataLen = markerData.GetArraySize();
+		std::uint32_t slot = 0;		// which ExtraMarkerData entry this icon-type-0 marker takes
+		std::uint32_t tinted = 0;
+
+		for (std::uint32_t i = 0; i * 3 + 1 < dataLen; ++i)
+		{
+			RE::GFxValue iconType;
+			if (!markerData.GetElement(i * 3 + 1, &iconType) || !iconType.IsNumber() || iconType.GetNumber() != 0.0)
+			{
+				continue;
+			}
+
+			const std::uint32_t k = slot++;
+			if (k < firstItem)
+			{
+				continue;
+			}
+
+			const std::uint32_t type = extraTypesScratch_[extraTypesScratch_.size() - 1 - (k - firstItem)];
+			if (type < kFirstAddOnIconType || type >= kExtraIconTypeCount)
+			{
+				continue;
+			}
+
+			RE::GFxValue& transform = itemTintTransforms_[type - kFirstAddOnIconType];
+			if (!transform.IsObject())
+			{
+				const std::uint32_t rgb = kAddOnTints[type - kFirstAddOnIconType];
+				const std::array<RE::GFxValue, 8> args{ 0.0, 0.0, 0.0, 1.0, static_cast<double>(rgb >> 16 & 0xFF),
+														static_cast<double>(rgb >> 8 & 0xFF), static_cast<double>(rgb & 0xFF), 0.0 };
+				if (view)
+				{
+					view->CreateObject(&transform, "flash.geom.ColorTransform", args.data(), static_cast<std::uint32_t>(args.size()));
+				}
+
+				if (!transform.IsObject())
+				{
+					static bool loggedNoTransform = false;
+					if (!loggedNoTransform)
+					{
+						loggedNoTransform = true;
+						logger::warn("could not create flash.geom.ColorTransform - add-on item markers stay uncoloured");
+					}
+					return;
+				}
+			}
+
+			RE::GFxValue clip, clipTransform;
+			if (markers.GetElement(i, &clip) && clip.IsObject() && clip.GetMember("transform", &clipTransform) && clipTransform.IsObject())
+			{
+				clipTransform.SetMember("colorTransform", transform);
+				++tinted;
+			}
+		}
+
+		static std::uint32_t lastTinted = static_cast<std::uint32_t>(-1);
+		if (tinted != lastTinted)
+		{
+			lastTinted = tinted;
+			logger::debug("TintExtraMarkers: {} add-on item marker(s) coloured on the minimap", tinted);
+		}
+	}
+
+	std::string Minimap::ExtraMarkersProbeJson()
+	{
+		if (!localMap_ || !EnsureIconDisplay())
+		{
+			return R"({"ok":false,"error":"icon display not resolved"})";
+		}
+
+		auto& icon = localMap_->iconDisplay;
+		auto arrLen = [&](const char* a_name) {
+			RE::GFxValue v;
+			return icon.GetMember(a_name, &v) && v.IsArray() ? static_cast<int>(v.GetArraySize()) : -1;
+		};
+
+		RE::GFxValue types;
+		const int typesLen = view && view->GetVariable(&types, "_global.Map.MapMarker.ExtraIconTypes") && types.IsArray() ?
+								 static_cast<int>(types.GetArraySize()) : -1;
+
+		int addOn = 0;
+		RE::GFxValue extra;
+		if (icon.GetMember("ExtraMarkerData", &extra) && extra.IsArray())
+		{
+			for (std::uint32_t i = 0; i < extra.GetArraySize(); ++i)
+			{
+				RE::GFxValue v;
+				if (extra.GetElement(i, &v) && v.IsNumber() && v.GetNumber() >= kFirstAddOnIconType) { ++addOn; }
+			}
+		}
+
+		char buf[640];
+		std::snprintf(buf, sizeof(buf),
+					  R"({"ok":true,"op":"markers","extraIconTypes":%d,"extraMarkerData":%d,"addOnEntries":%d,"markerData":%d,"markers":%d,"itemMarkersEnabled":%s,"hasPostCreateMarkers":%s,"tintCalls":%llu,"tintMicrosTotal":%llu})",
+					  typesLen, arrLen("ExtraMarkerData"), addOn, arrLen("MarkerData"), arrLen("markers"),
+					  itemMarkersEnabled.load() ? "true" : "false", icon.HasMember("PostCreateMarkers") ? "true" : "false",
+					  static_cast<unsigned long long>(tintCalls_.load()), static_cast<unsigned long long>(tintMicros_.load()));
+		return buf;
+	}
+
 	void Minimap::MeasureStage()
 	{
 		if (auto* view = displayObj.GetMovieView())
@@ -1383,7 +1591,9 @@ namespace DEM
 					// Re-resolves IconDisplay if the one-shot lookup in InitLocalMap() was too early.
 					if (EnsureIconDisplay())
 					{
+						EnsureExtraIconTypes();
 						localMap_->iconDisplay.Invoke("CreateMarkers");
+						TintExtraMarkers();
 					}
 
 					localMap->RefreshMarkers();

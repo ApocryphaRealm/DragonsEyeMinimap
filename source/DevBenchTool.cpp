@@ -98,6 +98,25 @@ namespace DEM::devbench
 				return;
 			}
 
+			if (op == "markers" || op == "itemmarkers:on" || op == "itemmarkers:off")
+			{
+				// 1.7.4: what the minimap's marker layer holds (read on the main thread), and a switch
+				// that turns the item-marker support off and on so one run shows both.
+				if (op != "markers") { Minimap::itemMarkersEnabled.store(op == "itemmarkers:on"); }
+				auto* task = SKSE::GetTaskInterface();
+				if (!task) { a_write(a_sink, R"({"ok":false,"error":"no task interface"})"); return; }
+				auto result = std::make_shared<std::string>();
+				auto done = std::make_shared<std::atomic<bool>>(false);
+				task->AddTask([result, done]() {
+					auto* m = Minimap::GetSingleton();
+					*result = m ? m->ExtraMarkersProbeJson() : std::string(R"({"ok":false,"error":"no minimap"})");
+					done->store(true);
+				});
+				for (int i = 0; i < 200 && !done->load(); ++i) { std::this_thread::sleep_for(std::chrono::milliseconds(10)); }
+				a_write(a_sink, done->load() ? result->c_str() : R"({"ok":false,"error":"the game thread did not answer within 2 s"})");
+				return;
+			}
+
 			if (op == "state" || op.empty())
 			{
 				float l = 0, t = 0, r = 0, b = 0, sw = 0, sh = 0;
@@ -124,7 +143,7 @@ namespace DEM::devbench
 				return;
 			}
 
-			a_write(a_sink, "{\"ok\":false,\"error\":\"op must be show|hide|state|strings|hudvis\"}");
+			a_write(a_sink, "{\"ok\":false,\"error\":\"op must be show|hide|state|strings|hudvis|markers|itemmarkers:on|itemmarkers:off\"}");
 		}
 	}
 
