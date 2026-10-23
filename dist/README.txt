@@ -1,9 +1,12 @@
 ﻿# MiniMap
 
-Version 1.7.4
+Version 1.7.5
 
 WHAT CHANGED
 ------------
+
+Version 1.7.5
+A missing or wrong Address Library now shows the mod's own message naming the file it needs, instead of a bare error box from the library the mod is built on. No change to how the minimap works.
 
 Version 1.7.4
 The DLL's file properties now name its real licence, GPL-3.0-or-later, instead of MIT.

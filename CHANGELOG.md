@@ -21,6 +21,16 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
+## 1.7.5 - 2026-10-23 - untested
+
+### Fixed
+- **A missing or wrong Address Library now gets the Address Library guard's message, not CommonLibSSE-NG's bare box.**
+  Hooks.h built the HUD menu's vtable and three Local Map addresses (LocalMapMenu Ctor and RefreshMarkers,
+  LocalMapCullingProcess::RenderOffScreen) as static REL::Relocations. The C runtime constructs those while the DLL
+  loads - before SKSEPluginLoad - and constructing one opens the Address Library, so the guard never got to run. They
+  are now resolved inside hooks::Install() (gate row no-address-resolved-at-static-init; the Infinity UI 2.1.3 fix).
+  No change to what the hooks do.
+
 ## 1.7.4 - 2026-10-10 - untested
 
 ### Fixed
