@@ -101,15 +101,11 @@ void PreDisplayHUDMenu(RE::HUDMenu* a_hudMenu)
 		// ShowElements runs, and the element is hidden while the mode stack innocently reads
 		// "All". That matches every observation so far, including why disabling every other HUD
 		// mod changed nothing.
-		{
-			static bool reportedFlags = false;
-
-			if (!reportedFlags)
-			{
-				reportedFlags = true;
-				miniMap->ReportModeFlagOwnership();
-			}
-		}
+		//
+		// 1.7.5: the report runs from Minimap::InitLocalMap(), right after the flags are assigned. Here, at the first
+		// PreDisplay, it ran ~2 s before that assignment and warned "no All property" on every start - with this
+		// mod's own movie and Norden UI's alike (combined run 2026-10-23: PreDisplay 03:18:30.61, flags assigned
+		// 03:18:32.48).
 
 		static bool wasVisible = false;
 		bool isVisible = miniMap->IsVisible();

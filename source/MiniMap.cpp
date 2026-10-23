@@ -122,6 +122,15 @@ namespace DEM
 
 				logger::info("HUD mode flags assigned on the minimap clip: All, Favor, StealthMode, "
 							 "Swimming, HorseMode, WarHorseMode - ShowElements can now keep it visible");
+
+				// One-shot ownership report (moved here from the first HUD PreDisplay in 1.7.5): only after the
+				// assignment above does "the clip owns no All property" mean something.
+				static bool reportedFlags = false;
+				if (!reportedFlags)
+				{
+					reportedFlags = true;
+					ReportModeFlagOwnership();
+				}
 			}
 
 			localMap_->root.Invoke("InitMap");
@@ -1577,6 +1586,9 @@ namespace DEM
 				const bool loading = ui && ui->IsMenuOpen(RE::LoadingMenu::MENU_NAME);
 				const bool markersSafe = !loading && WorldIsSteady(notSteady);
 				static bool s_lastMarkersSafe = true;
+				// 1.7.5: YouAreHereMarker is built by the movie's CreateMarkers; until that has run once, missing it is
+				// the normal start-up state, not a fault (it warned ~3 s before the first CreateMarkers, 2026-10-23).
+				static bool s_markersCreated = false;
 				if (markersSafe != s_lastMarkersSafe)
 				{
 					if (markersSafe) { logger::debug("Advance: world steady again; camera and markers update"); }
@@ -1593,6 +1605,7 @@ namespace DEM
 					{
 						EnsureExtraIconTypes();
 						localMap_->iconDisplay.Invoke("CreateMarkers");
+						s_markersCreated = true;
 						TintExtraMarkers();
 					}
 
@@ -1616,7 +1629,7 @@ namespace DEM
 					else
 					{
 						static bool warnedMissingYouAreHereMarker = false;
-						if (!warnedMissingYouAreHereMarker)
+						if (s_markersCreated && !warnedMissingYouAreHereMarker)
 						{
 							logger::warn("Advance: could not reach YouAreHereMarker; player rotation marker will not be updated");
 							warnedMissingYouAreHereMarker = true;

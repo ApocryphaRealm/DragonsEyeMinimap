@@ -24,6 +24,11 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 ## 1.7.5 - 2026-10-23 - untested
 
 ### Fixed
+- Two false warnings at every start are gone: "the clip does not own an All property" was checked at the first
+  HUD draw, about 2 s before the minimap assigns those flags, and "could not reach YouAreHereMarker" fired before
+  the movie's first CreateMarkers builds that marker (combined run 2026-10-23, with this mod's movie and Norden UI's
+  alike). The flag report now runs right after the flags are assigned, and the marker warning only once markers
+  have been created.
 - **A missing or wrong Address Library now gets the Address Library guard's message, not CommonLibSSE-NG's bare box.**
   Hooks.h built the HUD menu's vtable and three Local Map addresses (LocalMapMenu Ctor and RefreshMarkers,
   LocalMapCullingProcess::RenderOffScreen) as static REL::Relocations. The C runtime constructs those while the DLL
