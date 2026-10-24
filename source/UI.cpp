@@ -3,6 +3,7 @@
 #include "SKSEMenuFramework.h"
 
 #include "MiniMap.h"
+#include "PreciseSlider.h"
 #include "Settings.h"
 
 #include "utils/Logger.h"
@@ -129,6 +130,9 @@ namespace UI
 				"igCheckbox",
 				"igCombo_Str_arr",
 				"igSliderFloat",
+				// precise::SliderFloat (include/PreciseSlider.h, rule 68) asks these to tell a nudge from a drag.
+				"igIsKeyDown_Nil",
+				"igIsMouseDown_Nil",
 				"igInputInt",
 				"igIsKeyPressed_Bool",
 				"igIsItemClicked",
@@ -570,10 +574,12 @@ namespace UI
 		// hopeless for the last decimal place, and the framework does not turn on ImGui's own
 		// keyboard navigation, so this tracks the selection itself rather than changing a
 		// setting shared with every other mod's page.
-		bool NudgeableSlider(const char* a_label, float* a_value, float a_min, float a_max,
-							 const char* a_format, float a_step)
+		// 1.7.5 (rule 68): drawn through precise::SliderFloat, and the arrow-key nudge moves one unit of the digit the
+		// format shows ("%.3f" -> 0.001) instead of a fixed step. A frame where the slider itself already moved the
+		// value (ImGui's own keyboard navigation, which a framework with it switched on drives) adds no second nudge.
+		bool NudgeableSlider(const char* a_label, float* a_value, float a_min, float a_max, const char* a_format)
 		{
-			bool changed = ImGuiMCP::SliderFloat(a_label, a_value, a_min, a_max, a_format);
+			bool changed = precise::SliderFloat(a_label, a_value, a_min, a_max, a_format);
 
 			if (ImGuiMCP::IsItemClicked() || ImGuiMCP::IsItemActive())
 			{
@@ -582,18 +588,19 @@ namespace UI
 
 			if (selectedSlider == a_label)
 			{
+				const float step = static_cast<float>(precise::Step(a_format));
 				float nudge = 0.0F;
 
 				if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_LeftArrow) || ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_DownArrow))
 				{
-					nudge -= a_step;
+					nudge -= step;
 				}
 				if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_RightArrow) || ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_UpArrow))
 				{
-					nudge += a_step;
+					nudge += step;
 				}
 
-				if (nudge != 0.0F)
+				if (nudge != 0.0F && !changed)
 				{
 					*a_value = std::clamp(*a_value + nudge, a_min, a_max);
 					changed = true;
@@ -696,10 +703,10 @@ namespace UI
 			// adjustment made to the one you were on.
 			const int offsetCorner = display::AnchorIndex();
 
-			changed |= NudgeableSlider(strings::TR("DEM_OffsetX", "Offset X"), &display::offsetX[offsetCorner], -600.0F, 600.0F, "%.0f px", 1.0F);
+			changed |= NudgeableSlider(strings::TR("DEM_OffsetX", "Offset X"), &display::offsetX[offsetCorner], -600.0F, 600.0F, "%.0f px");
 			HelpMarker(strings::TR("DEM_HelpOffsetX", "Nudge from the corner, in screen pixels. Positive is always rightwards, whichever corner is anchored. Each corner remembers its own pair."));
 
-			changed |= NudgeableSlider(strings::TR("DEM_OffsetY", "Offset Y"), &display::offsetY[offsetCorner], -600.0F, 600.0F, "%.0f px", 1.0F);
+			changed |= NudgeableSlider(strings::TR("DEM_OffsetY", "Offset Y"), &display::offsetY[offsetCorner], -600.0F, 600.0F, "%.0f px");
 			HelpMarker(strings::TR("DEM_HelpOffsetY", "Nudge from the corner, in screen pixels. Positive is always downwards, whichever corner is anchored. Each corner remembers its own pair."));
 
 			ImGuiMCP::Text(strings::TR("DEM_EditingOffset", "Editing the %s offset."),
@@ -712,7 +719,7 @@ namespace UI
 
 			display::scale = std::clamp(display::scale, display::kScaleSliderMin, maxScale);
 
-			changed |= NudgeableSlider(strings::TR("DEM_Scale", "Scale"), &display::scale, display::kScaleSliderMin, maxScale, "%.2f", 0.01F);
+			changed |= NudgeableSlider(strings::TR("DEM_Scale", "Scale"), &display::scale, display::kScaleSliderMin, maxScale, "%.2f");
 			HelpMarker(strings::TR("DEM_HelpScale", "Size of the minimap. 1.00 is the size the artwork was drawn at. The top of the range is capped so the minimap stays within a quarter of the screen."));
 
 			ImGuiMCP::Text(strings::TR("DEM_LargestAllowed", "Largest allowed: %.2f (a quarter of the screen)"), maxScale);
@@ -793,7 +800,7 @@ namespace UI
 			auto* minimap = DEM::Minimap::GetSingleton();
 			const bool ready = minimap && minimap->IsReady();
 
-			if (NudgeableSlider(strings::TR("DEM_DefaultZoom", "Default zoom"), &controls::zoomDefault, 0.0F, 1.0F, "%.3f", 0.01F))
+			if (NudgeableSlider(strings::TR("DEM_DefaultZoom", "Default zoom"), &controls::zoomDefault, 0.0F, 1.0F, "%.3f"))
 			{
 				logger::debug("Default zoom set to {:.3f}", controls::zoomDefault);
 			}
@@ -807,7 +814,7 @@ namespace UI
 				}
 			}
 
-			if (NudgeableSlider(strings::TR("DEM_ZoomedIn", "Zoomed in"), &controls::zoomZoomedIn, 0.0F, 1.0F, "%.3f", 0.01F))
+			if (NudgeableSlider(strings::TR("DEM_ZoomedIn", "Zoomed in"), &controls::zoomZoomedIn, 0.0F, 1.0F, "%.3f"))
 			{
 				logger::debug("Zoomed-in zoom set to {:.3f}", controls::zoomZoomedIn);
 			}
@@ -834,7 +841,7 @@ namespace UI
 			// Read back from the camera every frame rather than keeping our own copy, so the
 			// slider shows where the zoom actually ended up after the game clamped it.
 			float live = minimap->GetMapZoom();
-			if (NudgeableSlider(strings::TR("DEM_LiveZoom", "Live zoom"), &live, 0.0F, 1.0F, "%.3f", 0.01F))
+			if (NudgeableSlider(strings::TR("DEM_LiveZoom", "Live zoom"), &live, 0.0F, 1.0F, "%.3f"))
 			{
 				logger::debug("Live zoom set to {:.3f}", live);
 

@@ -43,6 +43,13 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   on-change log.
   No change to what the hooks do.
 
+### Changed
+- **Sliders move one shown digit per nudge** (rule 68, the package gate's sliders-are-precise). The settings page's six
+  sliders (Offset X / Y, Scale, Default zoom, Zoomed in, Live zoom) are drawn through precise::SliderFloat
+  (include/PreciseSlider.h, the same header as Compass Navigation Overhaul), and the arrow-key nudge now steps one unit
+  of the digit the format shows instead of a fixed step: the zoom sliders ("%.3f") move 0.001 per press, not 0.01;
+  Offset (1 px) and Scale (0.01) are unchanged. A frame where the slider already moved itself adds no second nudge.
+
 ## 1.7.4 - 2026-10-10 - untested
 
 ### Fixed
