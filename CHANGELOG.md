@@ -49,6 +49,9 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   (include/PreciseSlider.h, the same header as Compass Navigation Overhaul), and the arrow-key nudge now steps one unit
   of the digit the format shows instead of a fixed step: the zoom sliders ("%.3f") move 0.001 per press, not 0.01;
   Offset (1 px) and Scale (0.01) are unchanged. A frame where the slider already moved itself adds no second nudge.
+  Holding an arrow key now repeats (test 36ae): the first press used to move the value AND the menu's keyboard focus
+  to the "Set to current" button beside it, so the hold stopped after one step. The slider that takes the arrow now
+  cancels that focus move.
 
 ## 1.7.4 - 2026-10-10 - untested
 

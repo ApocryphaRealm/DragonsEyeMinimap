@@ -133,6 +133,7 @@ namespace UI
 				// precise::SliderFloat (include/PreciseSlider.h, rule 68) asks these to tell a nudge from a drag.
 				"igIsKeyDown_Nil",
 				"igIsMouseDown_Nil",
+				"igNavMoveRequestCancel",   // the selected slider keeps the arrow keys (NudgeableSlider)
 				"igInputInt",
 				"igIsKeyPressed_Bool",
 				"igIsItemClicked",
@@ -604,6 +605,13 @@ namespace UI
 				{
 					*a_value = std::clamp(*a_value + nudge, a_min, a_max);
 					changed = true;
+				}
+				// The arrow is this slider's: cancel the keyboard-navigation move ImGui made from the same press this
+				// frame. Without it (test 36ae, 2026-10-24) the first press stepped the value AND moved focus to "Set to
+				// current" beside it, so holding the key stopped after one step.
+				if (nudge != 0.0F)
+				{
+					ImGuiMCP::NavMoveRequestCancel();
 				}
 
 				ImGuiMCP::SameLine();
