@@ -1518,7 +1518,8 @@ namespace DEM
 					{
 						title[0] = parentCell->GetFullName();
 
-						logger::debug("Advance: title from interior cell \"{}\"", title[0].GetString());
+						// Per-frame path - logged only on change (1.7.5 test 280b: 243 -> 5057 identical lines in 60 s indoors).
+						LogTitleOnChange("interior cell", title[0].GetString() ? title[0].GetString() : "", -1);
 					}
 					else if (RE::BGSLocation* location = parentCell->GetLocation())
 					{

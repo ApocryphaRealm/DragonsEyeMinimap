@@ -38,7 +38,9 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   on every frame outdoors - 92,389 identical lines (6.5 MB) in a 30-minute session at uLogLevel=0 (Njordlinger log
   audit, 2026-10-24) - and "player has no parentCell" the same way. Where the title comes from is now logged only when
   it changes (location, worldspace or none, its text, its cleared state), one state for all three, as the location
-  line already was.
+  line already was. Interiors too: the first build still wrote "title from interior cell" every frame indoors (test
+  280b: 243 -> 5057 lines in 60 s in the Bannered Mare, outdoors flat at 5); that path now goes through the same
+  on-change log.
   No change to what the hooks do.
 
 ## 1.7.4 - 2026-10-10 - untested
