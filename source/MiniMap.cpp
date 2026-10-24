@@ -1241,6 +1241,32 @@ namespace DEM
 					  aspectRatio, minCamFrustumHalfWidth, minCamFrustumHalfHeight);
 	}
 
+	namespace
+	{
+		// Advance runs every frame, so where the title came from is logged only when it CHANGES - the source, the text or
+		// the cleared state - per CLAUDE.md rule 14. One state for all three sources, so moving from a location to open
+		// worldspace (or back) still logs once. The worldspace branch was ungated: 92,389 identical lines in a 30-minute
+		// session at uLogLevel=0 (log audit 2026-10-24).
+		void LogTitleOnChange(const char* a_source, std::string_view a_title, int a_cleared)
+		{
+			static std::string lastSource;
+			static std::string lastTitle;
+			static int lastCleared = -2;
+			if (lastSource == a_source && lastTitle == a_title && lastCleared == a_cleared) { return; }
+			lastSource = a_source;
+			lastTitle = a_title;
+			lastCleared = a_cleared;
+			if (a_cleared < 0)
+			{
+				logger::debug("Advance: title from {} \"{}\"", a_source, a_title);
+			}
+			else
+			{
+				logger::debug("Advance: title from {} \"{}\", everCleared {}", a_source, a_title, a_cleared != 0);
+			}
+		}
+	}
+
 	void Minimap::Advance()
 	{
 		// Re-apply until the position stops moving, rather than for a fixed number of frames.
@@ -1519,37 +1545,20 @@ namespace DEM
 							}
 						}
 
-						// Per-frame path - log only when the location or its cleared state actually changes,
-						// per CLAUDE.md rule 14. Ungated, this produced 18,989 identical lines in one session.
-						{
-							const std::string currentTitle = title[0].GetString() ? title[0].GetString() : "";
-							const bool currentCleared = static_cast<bool>(location->everCleared);
-
-							static std::string lastTitle;
-							static bool lastCleared = false;
-							static bool everLogged = false;
-
-							if (!everLogged || currentTitle != lastTitle || currentCleared != lastCleared)
-							{
-								everLogged = true;
-								lastTitle = currentTitle;
-								lastCleared = currentCleared;
-
-								logger::debug("Advance: title from location \"{}\", everCleared {}", currentTitle, currentCleared);
-							}
-						}
+						// Per-frame path - logged only on change (ungated, 18,989 identical lines in one session).
+						LogTitleOnChange("location", title[0].GetString() ? title[0].GetString() : "", location->everCleared ? 1 : 0);
 					}
 					else
 					{
 						RE::TESWorldSpace* worldSpace = player->GetWorldspace();
 						title[0] = worldSpace->GetFullName();
 
-						logger::debug("Advance: title from worldspace \"{}\"", title[0].GetString());
+						LogTitleOnChange("worldspace", title[0].GetString() ? title[0].GetString() : "", -1);
 					}
 				}
 				else
 				{
-					logger::debug("Advance: player has no parentCell; title left unset");
+					LogTitleOnChange("nothing - the player has no parentCell; title left unset", "", -1);
 				}
 
 				// Blank the title rather than skipping the call: SetTitle is what the SWF uses to

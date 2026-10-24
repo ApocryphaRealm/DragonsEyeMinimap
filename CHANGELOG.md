@@ -34,6 +34,11 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   LocalMapCullingProcess::RenderOffScreen) as static REL::Relocations. The C runtime constructs those while the DLL
   loads - before SKSEPluginLoad - and constructing one opens the Address Library, so the guard never got to run. They
   are now resolved inside hooks::Install() (gate row no-address-resolved-at-static-init; the Infinity UI 2.1.3 fix).
+- **The log no longer grows by a line every frame at the debug level.** "Advance: title from worldspace" was written
+  on every frame outdoors - 92,389 identical lines (6.5 MB) in a 30-minute session at uLogLevel=0 (Njordlinger log
+  audit, 2026-10-24) - and "player has no parentCell" the same way. Where the title comes from is now logged only when
+  it changes (location, worldspace or none, its text, its cleared state), one state for all three, as the location
+  line already was.
   No change to what the hooks do.
 
 ## 1.7.4 - 2026-10-10 - untested
