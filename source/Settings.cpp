@@ -1,5 +1,6 @@
 #include <cctype>
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <map>
 #include "Settings.h"
@@ -588,6 +589,9 @@ namespace settings
 					offsetY[corner] = Read<float>(c, (OffsetKey('Y', corner) + ":Display").c_str(), offsetY[corner]);
 				}
 				scale = Read<float>(c, "fScale:Display", scale);
+				// A hand-edited or damaged INI value never reaches the minimap outside the slider's range; the runtime
+				// quarter-screen cap is applied on top of this by the settings page and by every apply (1.7.5, test d844).
+				scale = std::isfinite(scale) ? std::clamp(scale, kScaleSliderMin, kScaleSliderMax) : defaults.scale;
 				shape = Read<std::uint32_t>(c, "uShape:Display", shape);
 				showOnGameStart = Read<bool>(c, "bShowOnGameStart:Display", showOnGameStart);
 				showLocationName = Read<bool>(c, "bShowLocationName:Display", showLocationName);

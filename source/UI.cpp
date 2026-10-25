@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <cctype>
@@ -29,6 +30,22 @@ namespace UI
 
 		// The slider the arrow keys currently drive. Set by clicking one.
 		std::string selectedSlider;
+
+		// The display values (corner, that corner's offsets, the scale after the runtime cap) the page last handed to
+		// ApplyDisplaySettings. A widget that reports a change queues an apply only when one of them really differs, so
+		// a slider that says "changed" every frame with the same value can never re-apply the minimap at frame rate
+		// (test d844: typed Scale over the cap, ~90 applies a second, Skyrim died in Scaleform). Reset whenever the
+		// settings are applied from somewhere else (Reload / Restore defaults), so going back to an earlier value is
+		// never mistaken for "already applied".
+		struct AppliedDisplay
+		{
+			bool valid = false;
+			std::uint32_t anchor = 0;
+			float offsetX = 0.0F;
+			float offsetY = 0.0F;
+			float scale = 0.0F;
+		};
+		AppliedDisplay lastQueuedDisplay;
 
 		// Which key, if any, the next keypress should be bound to. kNone means the Bind
 		// buttons are idle; OnInputEvent clears it back to kNone as soon as it captures one.
@@ -571,6 +588,13 @@ namespace UI
 			return false;
 		}
 
+		// Is any of the four arrow keys down this frame? The selected slider owns them while held.
+		bool ArrowKeyHeld()
+		{
+			return ImGuiMCP::IsKeyDown(ImGuiMCP::ImGuiKey_LeftArrow) || ImGuiMCP::IsKeyDown(ImGuiMCP::ImGuiKey_RightArrow) ||
+			       ImGuiMCP::IsKeyDown(ImGuiMCP::ImGuiKey_UpArrow) || ImGuiMCP::IsKeyDown(ImGuiMCP::ImGuiKey_DownArrow);
+		}
+
 		// A slider that the arrow keys can also nudge, once it has been clicked. Dragging is
 		// hopeless for the last decimal place, and the framework does not turn on ImGui's own
 		// keyboard navigation, so this tracks the selection itself rather than changing a
@@ -606,10 +630,13 @@ namespace UI
 					*a_value = std::clamp(*a_value + nudge, a_min, a_max);
 					changed = true;
 				}
-				// The arrow is this slider's: cancel the keyboard-navigation move ImGui made from the same press this
-				// frame. Without it (test 36ae, 2026-10-24) the first press stepped the value AND moved focus to "Set to
-				// current" beside it, so holding the key stopped after one step.
-				if (nudge != 0.0F)
+				// The arrow is this slider's: cancel the keyboard-navigation move ImGui made from it. Without it (test
+				// 36ae, 2026-10-24) the first press stepped the value AND moved focus to "Set to current" beside it.
+				// Cancelled on EVERY frame an arrow is held, not only on the frames the nudge fires (test d844,
+				// 2026-10-25): ImGui repeats a navigation move on its own faster schedule (KeyRepeatDelay x0.72, rate
+				// x0.80 - 0.198 s / 0.040 s against the nudge's 0.275 s / 0.050 s), so from ~0.2 s into a hold the
+				// moves landed on frames with no nudge, nothing cancelled them, and focus walked to the button.
+				if (nudge != 0.0F || ArrowKeyHeld())
 				{
 					ImGuiMCP::NavMoveRequestCancel();
 				}
@@ -732,14 +759,33 @@ namespace UI
 
 			ImGuiMCP::Text(strings::TR("DEM_LargestAllowed", "Largest allowed: %.2f (a quarter of the screen)"), maxScale);
 
+			// The stored value never leaves the range the page allows: typed entry is clamped inside the slider
+			// (precise::SliderFloat draws with ImGuiSliderFlags_AlwaysClamp), and this catches every other way in.
+			display::scale = std::clamp(display::scale, display::kScaleSliderMin, maxScale);
+
 			if (changed)
 			{
-				OnMainThread([]() {
-					if (auto* target = DEM::Minimap::GetSingleton())
-					{
-						target->ApplyDisplaySettings();
-					}
-				});
+				const AppliedDisplay want{ true, display::anchor, display::offsetX[offsetCorner], display::offsetY[offsetCorner],
+					display::scale };
+				const bool differs = !lastQueuedDisplay.valid || want.anchor != lastQueuedDisplay.anchor ||
+				                     std::abs(want.offsetX - lastQueuedDisplay.offsetX) > 0.001F ||
+				                     std::abs(want.offsetY - lastQueuedDisplay.offsetY) > 0.001F ||
+				                     std::abs(want.scale - lastQueuedDisplay.scale) > 0.0001F;
+
+				if (differs)
+				{
+					lastQueuedDisplay = want;
+					OnMainThread([]() {
+						if (auto* target = DEM::Minimap::GetSingleton())
+						{
+							target->ApplyDisplaySettings();
+						}
+					});
+				}
+				else
+				{
+					logger::trace("Display section reported a change with the same values; not re-applying");
+				}
 			}
 
 			int shape = static_cast<int>(display::shape);
@@ -1061,6 +1107,8 @@ namespace UI
 
 	void ApplyLiveSettings()
 	{
+		lastQueuedDisplay.valid = false;   // applied from outside the display section - the next change always applies
+
 		logger::set_level(settings::debug::logLevel, settings::debug::logLevel);
 
 		OnMainThread([]() {
