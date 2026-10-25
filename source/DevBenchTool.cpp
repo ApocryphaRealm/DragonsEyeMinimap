@@ -7,6 +7,7 @@
 
 #include "DevBench/DevBenchAPI.h"
 #include "MiniMap.h"
+#include "RenderDiagnostics.h"
 #include "Settings.h"
 
 #include "utils/Strings.h"
@@ -114,6 +115,19 @@ namespace DEM::devbench
 				});
 				for (int i = 0; i < 200 && !done->load(); ++i) { std::this_thread::sleep_for(std::chrono::milliseconds(10)); }
 				a_write(a_sink, done->load() ? result->c_str() : R"({"ok":false,"error":"the game thread did not answer within 2 s"})");
+				return;
+			}
+
+			// 1.7.5 render diagnostics (RenderDiagnostics.h): dump the local-map targets on the next pass, read the result
+			if (op == "dump")
+			{
+				const std::string note = rdiag::RequestDump();
+				a_write(a_sink, (R"({"ok":true,"note":")" + note + R"("})").c_str());
+				return;
+			}
+			if (op == "dumpresult")
+			{
+				a_write(a_sink, rdiag::LastDumpJson().c_str());
 				return;
 			}
 

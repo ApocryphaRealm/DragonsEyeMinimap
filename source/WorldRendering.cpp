@@ -1,4 +1,5 @@
 #include "Minimap.h"
+#include "RenderDiagnostics.h"
 
 #include "RE/B/BSTimer.h"
 #include "RE/I/ImageSpaceManager.h"
@@ -647,6 +648,8 @@ namespace DEM
 
 		// 5. Finish rendering and dispatch ////////////////////////////////////////////////////////////////////////////////
 
+		rdiag::AfterGeometry();   // 1.7.5 diagnostics: what the pass inherits, and kLOCAL_MAP_SWAP before the composite on request
+
 #if RUNTIME_LINE == 17
         line17::SetupDepthStencilAt(renderTargetManager, -1, RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE, 0, false);
 #else
@@ -677,6 +680,7 @@ namespace DEM
 													RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::RENDER_TARGET::kLOCAL_MAP,
 													&imageSpaceShaderParam);
 #endif
+		rdiag::AfterComposite();   // 1.7.5 diagnostics: kLOCAL_MAP after the composite, on request
 
 		if (areLODsHidden)
 		{

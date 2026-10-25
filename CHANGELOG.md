@@ -43,6 +43,16 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   on-change log.
   No change to what the hooks do.
 
+### Added
+- **Render diagnostics for the black ground under Community Shaders' Upscaling** (tests f6ac, 67ea, c5f9: with CS
+  Upscaling loaded the minimap's ground is dark whatever its method or frame generation; with the feature unloaded it
+  draws). The minimap pass now logs, once per change, what it inherits - the game's dynamic-resolution ratios and the
+  sizes / formats of kLOCAL_MAP_SWAP, kLOCAL_MAP and kMAIN. DevBench `dem.control op=dump` saves kLOCAL_MAP_SWAP after
+  the geometry pass (before the ISLocalMap composite) and kLOCAL_MAP after it, colour and alpha, as BMPs under
+  SKSE\Plugins\DragonsEyeMinimap\diag\ with their mean luminance and alpha (`op=dumpresult`) - so a run shows whether the
+  ground goes dark in the geometry or in the composite, from the targets themselves. Nothing changes for players; SE/AE
+  only for now (the 1.7 line answers "not on this line").
+
 ### Changed
 - **Sliders move one shown digit per nudge** (rule 68, the package gate's sliders-are-precise). The settings page's six
   sliders (Offset X / Y, Scale, Default zoom, Zoomed in, Live zoom) are drawn through precise::SliderFloat
