@@ -63,7 +63,7 @@ namespace DEM::devbench
 					return;
 				}
 				const bool show = (op == "show");
-				task->AddTask([show]() {
+				task->AddUITask([show]() {
 					if (auto* m = Minimap::GetSingleton(); m && m->IsReady())
 					{
 						// Runtime toggle only - never persists bShowOnGameStart (same contract as
@@ -85,7 +85,7 @@ namespace DEM::devbench
 				if (!task) { a_write(a_sink, "{\"ok\":false,\"error\":\"no task interface\"}"); return; }
 				auto result = std::make_shared<std::string>();
 				auto done = std::make_shared<std::atomic<bool>>(false);
-				task->AddTask([result, done]() {
+				task->AddUITask([result, done]() {
 					auto* m = Minimap::GetSingleton();
 					*result = compassring::HudVisibilityJson(m ? m->GetHudMovieView() : nullptr);
 					done->store(true);
@@ -108,7 +108,7 @@ namespace DEM::devbench
 				if (!task) { a_write(a_sink, R"({"ok":false,"error":"no task interface"})"); return; }
 				auto result = std::make_shared<std::string>();
 				auto done = std::make_shared<std::atomic<bool>>(false);
-				task->AddTask([result, done]() {
+				task->AddUITask([result, done]() {
 					auto* m = Minimap::GetSingleton();
 					*result = m ? m->ExtraMarkersProbeJson() : std::string(R"({"ok":false,"error":"no minimap"})");
 					done->store(true);

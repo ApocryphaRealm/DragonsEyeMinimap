@@ -800,6 +800,26 @@ namespace DEM
 	// the render thread.
 	bool Minimap::ApplyDisplaySettings()
 	{
+		// Never re-entrant (1.7.6). Every caller is on the HUD movie's thread, but an Invoke inside the passes runs
+		// ActionScript, and anything that ends up back here mid-apply would measure a clip that is half moved. Fold a
+		// nested call into a request instead; the next Advance() applies the then-current values.
+		if (displayApplyInProgress)
+		{
+			logger::debug("ApplyDisplaySettings: called while an apply is running; deferred to the next frame");
+			displayApplyRequested.store(true);
+
+			return false;
+		}
+
+		struct InProgress
+		{
+			bool& flag;
+			explicit InProgress(bool& a_flag) : flag(a_flag) { flag = true; }
+			~InProgress() { flag = false; }
+		} inProgress{ displayApplyInProgress };
+
+		lastDisplayApplyTicks.store(std::chrono::steady_clock::now().time_since_epoch().count());
+
 		constexpr int kMaxPasses = 8;
 		constexpr float kSettledPixels = 0.5F;
 
@@ -842,6 +862,72 @@ namespace DEM
 		ApplyTitlePosition();
 
 		return true;
+	}
+
+	void Minimap::RequestDisplayApply()
+	{
+		displayRequestsSinceApply.fetch_add(1);
+		displayApplyRequested.store(true);
+
+		// The HUD normally advances every frame, menus open or not, and Advance() picks the request up. If it has not
+		// advanced for a while (or never has), hand the request to ONE SKSE UI task: AddUITask runs inside the UI's own
+		// message processing, the thread the HUD movie lives on - unlike AddTask, whose job runs beside it.
+		const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+		const auto lastAdvance = lastAdvanceTicks.load();
+		const auto stalledTicks = std::chrono::duration_cast<std::chrono::steady_clock::duration>(kHudStalledAfter).count();
+		if (lastAdvance != 0 && now - lastAdvance < stalledTicks)
+		{
+			return;
+		}
+
+		if (displayApplyFallbackQueued.exchange(true))
+		{
+			return;   // one is already waiting; it reads the values current when it runs
+		}
+
+		if (auto* task = SKSE::GetTaskInterface())
+		{
+			logger::debug("RequestDisplayApply: the HUD has not advanced for {} ms; queued one UI task",
+						  lastAdvance == 0 ? -1 : static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(
+														  std::chrono::steady_clock::duration(now - lastAdvance)).count()));
+			task->AddUITask([]() {
+				if (auto* minimap = Minimap::GetSingleton())
+				{
+					minimap->displayApplyFallbackQueued.store(false);
+					minimap->ServiceDisplayApplyRequest(true);
+				}
+			});
+		}
+		else
+		{
+			displayApplyFallbackQueued.store(false);
+		}
+	}
+
+	void Minimap::ServiceDisplayApplyRequest(bool a_ignoreInterval)
+	{
+		if (!displayApplyRequested.load() || displayApplyInProgress)
+		{
+			return;
+		}
+
+		if (!a_ignoreInterval)
+		{
+			const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+			const auto intervalTicks = std::chrono::duration_cast<std::chrono::steady_clock::duration>(kDisplayApplyInterval).count();
+			if (now - lastDisplayApplyTicks.load() < intervalTicks)
+			{
+				return;   // the flag stays up, so the final value is applied once the interval has passed
+			}
+		}
+
+		// Clear BEFORE applying: a change made while the apply runs raises the flag again and is applied next time.
+		displayApplyRequested.store(false);
+		const std::uint32_t folded = displayRequestsSinceApply.exchange(0);
+
+		ApplyDisplaySettings();
+
+		logger::debug("Display apply served on the HUD thread ({} request(s) folded into it)", folded);
 	}
 
 	void Minimap::ApplyTitlePosition()
@@ -1278,6 +1364,21 @@ namespace DEM
 		// minimap ~9 units off with its frame past the screen edge. ApplyDisplaySettings()
 		// converges within a single call; this converges across calls, which is the other half of
 		// the same problem and the half 1.2.5 did not fix.
+		lastAdvanceTicks.store(std::chrono::steady_clock::now().time_since_epoch().count());
+
+		// Settings-page changes (RequestDisplayApply) are applied here, on the HUD movie's own thread, coalesced to one
+		// apply per kDisplayApplyInterval with the latest values (1.7.6). While the start-up window below is open it
+		// re-applies every frame with the current values anyway, so a request is simply absorbed by it.
+		if (pendingReapplyFrames > 0)
+		{
+			displayApplyRequested.store(false);
+			displayRequestsSinceApply.store(0);
+		}
+		else
+		{
+			ServiceDisplayApplyRequest(false);
+		}
+
 		if (pendingReapplyFrames > 0)
 		{
 			--pendingReapplyFrames;

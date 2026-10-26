@@ -194,12 +194,28 @@ namespace DEM
 		// The HUD movie that hosts the minimap - CompassRing draws its own clip on its root.
 		RE::GFxMovieView* GetHudMovieView() { return displayObj.GetMovieView(); }
 
-		// Re-applies fPositionX / fPositionY / fScale to the Scaleform clip, and uShape to the
-		// local map. Both must run on the main thread; the settings menu queues them there.
+		// Asks for fPositionX / fPositionY / fScale to be re-applied. Safe from ANY thread (the settings page calls it from
+		// the framework's render thread): it only raises a flag. The apply itself runs inside the HUD movie's own
+		// AdvanceMovie (Advance() -> ServiceDisplayApplyRequest), at most once per kDisplayApplyInterval, and always with
+		// the values current at that moment - so a held arrow, a fast drag or typed digits end in exactly one apply of
+		// the final value once they stop. 1.7.6: until then the page queued a full apply per change through SKSE's
+		// AddTask, which on 1.5.97 runs as its own BSJobs job beside the UI job, so DEM's SetMember/getBounds/InitMap
+		// calls raced the HUD movie's own Advance on another thread - the held-slider crashes of 2026-10-25
+		// (SkyrimSE+0EE7FA7 inside getBounds, SkyrimSE+0FFE143 inside the HUD advance) and the typed-scale crash before.
+		void RequestDisplayApply();
+
+		// Re-applies fPositionX / fPositionY / fScale to the Scaleform clip. HUD-MOVIE THREAD ONLY - the constructor,
+		// InitLocalMap() and Advance() call it, all from inside the HUD's own message/advance processing; everything else
+		// goes through RequestDisplayApply(). Never re-entrant: a nested call becomes a request and returns false.
 		// Returns false when the artwork could not be measured - which is NOT the same as
 		// "nothing moved". Advance() needs to tell those apart: a failed measurement must keep
 		// the re-apply window alive rather than end it (see 1.6.9).
 		bool ApplyDisplaySettings();
+
+		// Runs a pending RequestDisplayApply() if one is due. HUD-movie thread only (Advance(), or the UI-task fallback
+		// queued when the HUD has stopped advancing). a_ignoreInterval applies at once rather than waiting out the
+		// interval - the fallback uses it, since it runs once per request.
+		void ServiceDisplayApplyRequest(bool a_ignoreInterval);
 
 		// One positioning pass. Returns false if it bailed out (nothing measurable to work with),
 		// true otherwise, reporting through the out-params how far it actually moved the clip.
@@ -490,6 +506,19 @@ namespace DEM
 		int  visibilityReassertCount = 0;
 		int  visibilityStableFrames = 0;
 		int pendingReapplyFrames = 0;
+
+		// RequestDisplayApply() state (1.7.6). The flag and the two clocks are atomics because the request comes from the
+		// framework's render thread while Advance() reads them on the HUD's. Interval: 120 ms - about eight applies a
+		// second at most, whatever rate the values change at (a held key steps ~16/s, a drag changes every frame).
+		static constexpr std::chrono::milliseconds kDisplayApplyInterval{ 120 };
+		// Advance() not seen for this long means the HUD is not advancing; a request then falls back to one UI task.
+		static constexpr std::chrono::milliseconds kHudStalledAfter{ 250 };
+		std::atomic<bool> displayApplyRequested{ false };
+		std::atomic<bool> displayApplyFallbackQueued{ false };
+		std::atomic<std::int64_t> lastDisplayApplyTicks{ 0 };   // steady_clock ticks of the last apply
+		std::atomic<std::int64_t> lastAdvanceTicks{ 0 };        // steady_clock ticks of the last Advance()
+		bool displayApplyInProgress = false;                    // HUD-thread re-entrancy guard
+		std::atomic<std::uint32_t> displayRequestsSinceApply{ 0 };   // requests folded into the next apply (log only)
 
 		// Vanilla's "Cleared" location-name suffix (sCleared). Kept as a nullable pointer
 		// rather than an unchecked bound reference like the two settings below used to be -

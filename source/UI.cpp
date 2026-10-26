@@ -119,9 +119,13 @@ namespace UI
 		// the minimap has to be handed to the main thread first.
 		void OnMainThread(std::function<void()> a_task)
 		{
+			// AddUITask, not AddTask (1.7.6): every task queued here talks to Scaleform (Show/Hide, SetShape) or the map
+			// camera. SKSE runs UI tasks inside the UI's own message processing, the thread the HUD movie advances on;
+			// AddTask's queue runs as a separate BSJobs job on 1.5.97, beside the UI job, so its Scaleform calls raced the
+			// HUD movie (the held-slider crashes of 2026-10-25).
 			if (auto* taskInterface = SKSE::GetTaskInterface())
 			{
-				taskInterface->AddTask(std::move(a_task));
+				taskInterface->AddUITask(std::move(a_task));
 			}
 		}
 
@@ -775,12 +779,13 @@ namespace UI
 				if (differs)
 				{
 					lastQueuedDisplay = want;
-					OnMainThread([]() {
-						if (auto* target = DEM::Minimap::GetSingleton())
-						{
-							target->ApplyDisplaySettings();
-						}
-					});
+					// 1.7.6: a REQUEST, not a queued apply. The minimap applies it on the HUD movie's own thread, at most
+					// once per 120 ms and always with the latest values, so a held arrow or a fast drag ends in one apply
+					// of the final value (RequestDisplayApply in MiniMap.h has the crash this replaced).
+					if (auto* target = DEM::Minimap::GetSingleton())
+					{
+						target->RequestDisplayApply();
+					}
 				}
 				else
 				{
@@ -1111,10 +1116,14 @@ namespace UI
 
 		logger::set_level(settings::debug::logLevel, settings::debug::logLevel);
 
+		if (auto* minimap = DEM::Minimap::GetSingleton())
+		{
+			minimap->RequestDisplayApply();   // applied on the HUD thread, coalesced (1.7.6)
+		}
+
 		OnMainThread([]() {
 			if (auto* minimap = DEM::Minimap::GetSingleton())
 			{
-				minimap->ApplyDisplaySettings();
 				minimap->ApplyShapeSetting();
 			}
 		});

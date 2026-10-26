@@ -1,9 +1,12 @@
 ﻿# MiniMap
 
-Version 1.7.5
+Version 1.7.6
 
 WHAT CHANGED
 ------------
+
+Version 1.7.6
+Holding an arrow key or dragging quickly on Offset X, Offset Y or Scale no longer crashes the game. Changes are now applied to the minimap on the game's interface thread, at most about eight times a second, and the final value is always applied once you stop.
 
 Version 1.7.5
 A missing or wrong Address Library now shows the mod's own message naming the file it needs, instead of a bare error box from the library the mod is built on. No change to how the minimap works.

@@ -21,6 +21,20 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
+## 1.7.6 - 2026-10-25 - untested
+
+### Fixed
+- **Holding an arrow (or dragging fast) on Offset X / Offset Y / Scale no longer crashes the game** (AMF regression
+  2026-10-25: crash after six held steps at SkyrimSE+0EE7FA7 inside the artwork's getBounds; earlier the same evening
+  SkyrimSE+0FFE143 inside the HUD's own advance). The settings page queued a full re-apply of the minimap for every
+  change through SKSE's AddTask. On 1.5.97 that queue runs as its own job beside the UI job, so the re-apply's
+  Scaleform calls (rescale and move the clip, measure the artwork, re-run the local map's InitMap) ran on one thread
+  while the HUD movie advanced on another; the faster the changes came, the sooner the two collided. The page now only
+  raises a request; the minimap applies it inside the HUD movie's own advance, at most once every 120 ms and always with
+  the values current at that moment, so a held key, a drag or typed digits end in one apply of the final value. The
+  apply can no longer re-enter itself, and the other settings-page actions that touch Scaleform (Show minimap, Shape,
+  live zoom) and the DevBench show/hide/hudvis/markers commands are queued as UI tasks, which run on the HUD's thread.
+
 ## 1.7.5 - 2026-10-23 - untested
 
 ### Fixed
