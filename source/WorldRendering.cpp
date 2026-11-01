@@ -461,7 +461,6 @@ namespace DEM
 		class PictureEventSink final :
 			public RE::BSTEventSink<RE::TESCellAttachDetachEvent>,
 			public RE::BSTEventSink<RE::TESCellFullyLoadedEvent>,
-			public RE::BSTEventSink<RE::TESObjectLoadedEvent>,
 			public RE::BSTEventSink<RE::TESActivateEvent>,
 			public RE::BSTEventSink<RE::TESDestructionStageChangedEvent>,
 			public RE::BSTEventSink<RE::MenuOpenCloseEvent>
@@ -478,20 +477,6 @@ namespace DEM
 				else if (ref && ref->Is(RE::FormType::Reference))
 				{
 					Minimap::BumpContentEpoch(perf::EpochCause::kCellOther);
-				}
-				return RE::BSEventNotifyControl::kContinue;
-			}
-
-			// A script enabling or disabling something, the change no other event here announces.
-			RE::BSEventNotifyControl ProcessEvent(const RE::TESObjectLoadedEvent* a_event, RE::BSTEventSource<RE::TESObjectLoadedEvent>*) override
-			{
-				if (a_event)
-				{
-					const auto* ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_event->formID);
-					if (IsMapFixture(ref) && IsInLoadedCell(ref))
-					{
-						Minimap::BumpContentEpoch(perf::EpochCause::kObject);
-					}
 				}
 				return RE::BSEventNotifyControl::kContinue;
 			}
@@ -527,8 +512,8 @@ namespace DEM
 					return RE::BSEventNotifyControl::kContinue;
 				}
 
-				// A leaf turning about its hinge is a line of a few pixels on the map, drawn again for the player's own
-				// door because it is rare and cheap. An NPC's door is left to the safety net; the live picture is still redrawn.
+				// Doors are drawn on the map (the owner), so a door anyone uses in a loaded cell captures again. Only an
+				// interior's own cell is loaded while the cache is in use, and the counters stay apart for testing.
 				const bool byPlayer = a_event->actionRef.get() == RE::PlayerCharacter::GetSingleton();
 				if (isDoor)
 				{
@@ -564,6 +549,7 @@ namespace DEM
 	{
 		contentEpoch.fetch_add(1, std::memory_order_relaxed);
 		if (a_cause == perf::EpochCause::kCell || a_cause == perf::EpochCause::kObject || a_cause == perf::EpochCause::kDoor ||
+			a_cause == perf::EpochCause::kDoorOther ||
 			a_cause == perf::EpochCause::kDestructible || a_cause == perf::EpochCause::kSettings)
 		{
 			cacheEpoch.fetch_add(1, std::memory_order_relaxed);
@@ -591,13 +577,42 @@ namespace DEM
 
 		holder->GetEventSource<RE::TESCellAttachDetachEvent>()->AddEventSink(&sink);
 		holder->GetEventSource<RE::TESCellFullyLoadedEvent>()->AddEventSink(&sink);
-		holder->GetEventSource<RE::TESObjectLoadedEvent>()->AddEventSink(&sink);
 		holder->GetEventSource<RE::TESActivateEvent>()->AddEventSink(&sink);
 		holder->GetEventSource<RE::TESDestructionStageChangedEvent>()->AddEventSink(&sink);
 		ui->AddEventSink<RE::MenuOpenCloseEvent>(&sink);
 
 		registered = true;
 		logger::debug("Picture events registered: cell attach/detach and load, activation, destruction stage, menu close");
+	}
+
+	// What the map shows of this cell, as one number. No game event reports a script's Disable or Enable on a static, or
+	// setopenstate on a door (test 20d2: neither moved any counter), so the cell's own references are read. A sum, so the
+	// order the set hands them over in does not matter. Read at most once a second; the section cellSignature times it.
+	std::uint64_t Minimap::InteriorSignature(const RE::TESObjectCELL* a_cell)
+	{
+		std::uint64_t sum = 0;
+		a_cell->ForEachReference([&sum](RE::TESObjectREFR* a_ref) {
+			if (IsMapFixture(a_ref))
+			{
+				const RE::NiPoint3 position = a_ref->GetPosition();
+				std::uint64_t state = a_ref->IsDisabled() ? 1 : 0;
+				if (a_ref->GetBaseObject()->Is(RE::FormType::Door) && a_ref->Is3DLoaded())
+				{
+					// Opening counts as open and closing as closed, so one swing is one change.
+					const auto open = RE::BGSOpenCloseForm::GetOpenState(a_ref);
+					state |= (open == RE::BGSOpenCloseForm::OPEN_STATE::kOpen || open == RE::BGSOpenCloseForm::OPEN_STATE::kOpening) ? 2 : 0;
+				}
+
+				// Per reference: its identity, its state, and where it stands to 16 units (a script can also move a wall).
+				std::uint64_t h = (std::uint64_t{ a_ref->GetFormID() } << 8) ^ state;
+				h = (h ^ static_cast<std::uint32_t>(static_cast<std::int32_t>(std::floor(position.x / 16.0F)))) * 1099511628211ULL;
+				h = (h ^ static_cast<std::uint32_t>(static_cast<std::int32_t>(std::floor(position.y / 16.0F)))) * 1099511628211ULL;
+				h = (h ^ static_cast<std::uint32_t>(static_cast<std::int32_t>(std::floor(position.z / 16.0F)))) * 1099511628211ULL;
+				sum += h * 14695981039346656037ULL;
+			}
+			return RE::BSContainer::ForEachResult::kContinue;
+		});
+		return sum;
 	}
 
 	bool Minimap::BuildPictureKey(PictureKey& a_key)

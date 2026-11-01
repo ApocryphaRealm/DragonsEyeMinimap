@@ -15,7 +15,7 @@
 
 namespace perf
 {
-	enum class Section : int { kFog, kRender, kMarkers, kGpuRender, kCompose, kCacheRender, kGpuCompose, kCount };
+	enum class Section : int { kFog, kRender, kMarkers, kGpuRender, kCompose, kCacheRender, kGpuCompose, kCellSignature, kCount };
 
 	// What happened to the picture on a frame the camera was updated.
 	enum class Outcome : int
@@ -40,9 +40,9 @@ namespace perf
 	{
 		kCell,          // a fixture attached, detached or a cell finished loading: recapture
 		kCellOther,     // a loose item attached or detached: the picture is redrawn, the interior is not captured again
-		kObject,        // a fixture's 3D loaded or unloaded, as a script enabling or disabling it does: recapture
-		kDoor,          // the PLAYER activated a door in a loaded cell: recapture
-		kDoorOther,     // someone else did: the picture is redrawn, the interior is not captured again
+		kObject,        // the interior's signature changed - a script enabled, disabled or moved a fixture, or a door changed state: recapture
+		kDoor,          // the player activated a door in a loaded cell: recapture
+		kDoorOther,     // someone else did: recapture
 		kDestructible,  // a destruction stage changed, or the player activated something destructible: recapture
 		kMenuClosed, kSettings, kFogGrid, kDisplay,
 		kCacheReady,    // a capture finished, and the new picture is to be shown

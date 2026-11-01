@@ -37,6 +37,7 @@ namespace DEM
 		constexpr float kMaxSoften = 2.0F;                          // the most a big cell's tiles may grow before it stays live
 		constexpr float kMaxMagnification = 1.25F;                  // stored pixels stretched more than this: draw live instead
 		constexpr auto kSettle = std::chrono::milliseconds(1200);   // after the last door, cell or settings event
+		constexpr auto kSignatureInterval = std::chrono::seconds(1);
 		constexpr auto kMaxAge = std::chrono::minutes(5);           // the safety net for what no event announces
 
 		ID3D11Texture2D* g_texture = nullptr;
@@ -470,6 +471,23 @@ float4 PS(V i) : SV_Target0 { return Picture.Sample(PictureSampler, i.uv); }
 		if (!c.planned || c.failed)
 		{
 			return;
+		}
+
+		if (!c.hasSignature || a_now - c.signatureAt >= kSignatureInterval)
+		{
+			if (const RE::TESObjectCELL* cell = RE::TES::GetSingleton()->interiorCell)
+			{
+				const perf::ScopedTimer timer{ perf::Section::kCellSignature };
+				const std::uint64_t signature = InteriorSignature(cell);
+				if (c.hasSignature && signature != c.signature)
+				{
+					logger::debug("Interior cache: cell {:X}'s signature changed; capturing again", c.cell);
+					BumpContentEpoch(perf::EpochCause::kObject);
+				}
+				c.signature = signature;
+				c.hasSignature = true;
+				c.signatureAt = a_now;
+			}
 		}
 
 		const std::uint32_t epoch = cacheEpoch.load(std::memory_order_relaxed);

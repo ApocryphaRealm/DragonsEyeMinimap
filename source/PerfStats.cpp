@@ -17,7 +17,7 @@ namespace perf
 	{
 		constexpr double kWindowSeconds = 10.0;
 
-		constexpr std::array<const char*, static_cast<int>(Section::kCount)> kSectionNames = { "fog", "render", "markers", "gpuRender", "compose", "cacheRender", "gpuCompose" };
+		constexpr std::array<const char*, static_cast<int>(Section::kCount)> kSectionNames = { "fog", "render", "markers", "gpuRender", "compose", "cacheRender", "gpuCompose", "cellSignature" };
 		constexpr std::array<const char*, static_cast<int>(Reason::kCount)> kReasonNames = {
 			"reuseOff", "first", "epoch", "age", "gap", "world", "shapeStyle", "zoomBounds", "position", "rotation"
 		};

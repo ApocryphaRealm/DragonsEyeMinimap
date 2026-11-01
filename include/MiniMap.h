@@ -444,6 +444,9 @@ namespace DEM
 			float vY = 0.0F;   // texture v from world Y
 			float v0 = 0.0F;
 			std::uint32_t seenEpoch = 0;
+			bool hasSignature = false;
+			std::uint64_t signature = 0;
+			std::chrono::steady_clock::time_point signatureAt{};
 			std::chrono::steady_clock::time_point changedAt{};
 			std::chrono::steady_clock::time_point completedAt{};
 		};
@@ -456,6 +459,7 @@ namespace DEM
 		void ServiceInteriorCache(const PictureKey& a_key, std::chrono::steady_clock::time_point a_now);
 		void CaptureInteriorTile(const PictureKey& a_key);
 		bool InteriorCacheUsable(const PictureKey& a_key) const;
+		static std::uint64_t InteriorSignature(const RE::TESObjectCELL* a_cell);
 		bool ComposeInteriorPicture(const PictureKey& a_key);
 
 		// FOG ON CHANGE (1.8.0). When the overlay was last built, and whether the coming pass re-uses it.
