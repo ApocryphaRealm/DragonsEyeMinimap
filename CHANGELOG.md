@@ -21,6 +21,11 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
+## 1.8.1 - 2026-11-01 - untested
+
+### Fixed
+- **Showing the minimap after loading with it hidden put it in the wrong place, part of it past the screen edge** (bug report on 1.7.6, reproduced on 1.8.0: top-right corner, art 104 wide at _x 528.75, _y -500.5, against 189 wide at _x 482.25, _y -466.4 when shown from the start). The position window after a load settled on what the artwork measures while hidden, about half its shown size, and showing the map did not work the position out again. Show() now asks Advance() to open that window again. The window also decided the artwork had stopped resizing after three quiet frames; at 125 fps that fits between two steps of the fade-in, and it closed with the art 138 wide. It now waits for 250 ms without movement, whatever the frame rate.
+
 ## 1.8.0 - 2026-11-01 - untested
 
 ### Added

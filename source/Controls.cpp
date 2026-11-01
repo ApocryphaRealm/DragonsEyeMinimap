@@ -415,6 +415,9 @@ namespace DEM
 		// Confirmed by the AE diagnostic build: IsShown=true, IsVisible=false, with displayObj
 		// resolving fine and GetDisplayInfo succeeding.
 		SetDisplayObjectVisible(true);
+
+		// The artwork measures smaller while hidden, so the position has to be worked out again now it is shown.
+		displayRearmRequested.store(true);
 	}
 
 	void Minimap::Hide(bool a_persist)

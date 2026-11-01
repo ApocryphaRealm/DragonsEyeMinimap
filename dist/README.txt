@@ -1,9 +1,12 @@
 ﻿# MiniMap
 
-Version 1.7.6
+Version 1.8.1
 
 WHAT CHANGED
 ------------
+
+Version 1.8.1
+Showing the map with its key after loading with it hidden no longer puts it in the wrong place, part of it past the edge of the screen.
 
 Version 1.8.0
 The map no longer redraws the world every frame when nothing in the picture has changed. Standing still now costs about one redraw a second instead of one a frame; moving costs what it always did. Markers, the player arrow, the frame and the compass still update every frame, and a door opening, a cell loading, a menu closing or a settings change redraws at once.

@@ -171,7 +171,7 @@ namespace DEM
 
 			// Same reset as the art-swap site: arming the window must also clear any run of
 			// quiet frames already counted, or the window can close on its first tick.
-			displayStableFrames = 0;
+			displayStableMs = 0.0F;
 
 			logger::debug("InitLocalMap: scaleform wired up, queued {} reapply frame(s), showOnGameStart {}",
 						  pendingReapplyFrames, settings::display::showOnGameStart);
@@ -1368,7 +1368,16 @@ namespace DEM
 		// minimap ~9 units off with its frame past the screen edge. ApplyDisplaySettings()
 		// converges within a single call; this converges across calls, which is the other half of
 		// the same problem and the half 1.2.5 did not fix.
-		lastAdvanceTicks.store(std::chrono::steady_clock::now().time_since_epoch().count());
+		const auto advanceTicks = std::chrono::steady_clock::now().time_since_epoch().count();
+		const auto previousAdvanceTicks = lastAdvanceTicks.exchange(advanceTicks);
+
+		// The first Show() after a hidden load (1.8.1): the window below settled on what the artwork measures while
+		// hidden, about half its shown size, so a corner anchored from that puts the shown map past the screen edge.
+		if (displayRearmRequested.exchange(false))
+		{
+			pendingReapplyFrames = kPendingReapplyFrames;
+			displayStableMs = 0.0F;
+		}
 
 		// Settings-page changes (RequestDisplayApply) are applied here, on the HUD movie's own thread, coalesced to one
 		// apply per kDisplayApplyInterval with the latest values (1.7.6). While the start-up window below is open it
@@ -1394,7 +1403,7 @@ namespace DEM
 			{
 				// Could not measure yet - the artwork has not arrived. That is the whole reason
 				// this window exists, so keep it open instead of counting a quiet frame.
-				displayStableFrames = 0;
+				displayStableMs = 0.0F;
 
 				// Do NOT return here. 1.6.9 did, and that skipped the never-settled warning
 				// below, so a window that burned all 300 frames failing to measure said nothing
@@ -1414,9 +1423,13 @@ namespace DEM
 
 			if (std::abs(lastAppliedX - beforeX) < kStillPixels && std::abs(lastAppliedY - beforeY) < kStillPixels)
 			{
-				++displayStableFrames;
+				// Time, not frames (1.8.1). The fade-in grows the artwork in steps about 50 ms apart, so at 125 fps three
+				// quiet frames fit between two steps and the window closed mid-fade. One long frame counts for
+				// kStableFrameCapMs at most: the movie did not advance through it either.
+				const std::chrono::steady_clock::duration frameTime{ advanceTicks - previousAdvanceTicks };
+				displayStableMs += std::min(std::chrono::duration<float, std::milli>(frameTime).count(), kStableFrameCapMs);
 
-				if (displayStableFrames >= kRequiredStableFrames)
+				if (displayStableMs >= kRequiredStableMs)
 				{
 					logger::info("Display settled at _x {}, _y {} after {} re-applies", lastAppliedX, lastAppliedY,
 								 kPendingReapplyFrames - pendingReapplyFrames);
@@ -1426,10 +1439,10 @@ namespace DEM
 			else
 			{
 				// Still moving - restart the run of quiet frames.
-				displayStableFrames = 0;
+				displayStableMs = 0.0F;
 			}
 
-			if (pendingReapplyFrames == 0 && displayStableFrames < kRequiredStableFrames)
+			if (pendingReapplyFrames == 0 && displayStableMs < kRequiredStableMs)
 			{
 				logger::warn("Display never settled within {} re-applies; left at _x {}, _y {}",
 							 kPendingReapplyFrames, lastAppliedX, lastAppliedY);

@@ -600,18 +600,19 @@ namespace DEM
 		// position with its frame past the screen edge. Confirmed by comparing two logs that
 		// followed the same trajectory - 1.2.7 reached _x 482.29 in six, 1.2.8 needed a seventh
 		// and stopped at 491.51. Settling is now decided by the position actually going still
-		// (see kRequiredStableFrames); this only bounds how long that may take.
+		// (see kRequiredStableMs); this only bounds how long that may take.
 		static constexpr int kPendingReapplyFrames = 300;
 
-		// How many consecutive re-applies must produce no movement before it counts as settled.
-		// More than one, because the artwork can pause resizing for a frame and then continue.
-		static constexpr int kRequiredStableFrames = 3;
+		// How long the re-applies must produce no movement before it counts as settled. Long enough
+		// to outlast the pauses between the artwork's resizing steps at any frame rate (see Advance()).
+		static constexpr float kRequiredStableMs = 250.0F;
+		static constexpr float kStableFrameCapMs = 50.0F;
 
 		// Where the last ApplyDisplaySettings() left the clip, so Advance() can tell whether a
 		// re-apply actually moved anything.
 		float lastAppliedX = 0.0F;
 		float lastAppliedY = 0.0F;
-		int   displayStableFrames = 0;
+		float displayStableMs = 0.0F;
 		// Consecutive failed measurements. The re-apply window retries every frame for 300
 		// frames, so logging each failure wrote ~400 identical error lines per art swap
 		// (observed 2026-09-16). Log the first, then sparsely, then say how many there were.
@@ -619,7 +620,7 @@ namespace DEM
 
 
 		// How long the visibility gate must stay OPEN before the mod accepts it and stops
-		// re-asserting. Distinct from kRequiredStableFrames above, which is about the artwork's
+		// re-asserting. Distinct from kRequiredStableMs above, which is about the artwork's
 		// position going still - these are two different kinds of "settled" and must not share a
 		// constant.
 		//
@@ -635,6 +636,10 @@ namespace DEM
 		int  visibilityReassertCount = 0;
 		int  visibilityStableFrames = 0;
 		int pendingReapplyFrames = 0;
+
+		// Set by Show() (1.8.1), consumed by Advance(), which opens the re-apply window again. Atomic because Show() runs
+		// on the input thread, the framework's render thread or a UI task, and the window belongs to the HUD thread.
+		std::atomic<bool> displayRearmRequested{ false };
 
 		// RequestDisplayApply() state (1.7.6). The flag and the two clocks are atomics because the request comes from the
 		// framework's render thread while Advance() reads them on the HUD's. Interval: 120 ms - about eight applies a
