@@ -40,7 +40,7 @@ namespace perf
 	{
 		kCell,          // a fixture attached, detached or a cell finished loading: recapture
 		kCellOther,     // a loose item attached or detached: the picture is redrawn, the interior is not captured again
-		kObject,        // the interior's signature changed - a script enabled, disabled or moved a fixture, or a door changed state: recapture
+		kObject,        // the interior's signature changed - a static or door was enabled or disabled, or a door opened or closed: recapture
 		kDoor,          // the player activated a door in a loaded cell: recapture
 		kDoorOther,     // someone else did: recapture
 		kDestructible,  // a destruction stage changed, or the player activated something destructible: recapture

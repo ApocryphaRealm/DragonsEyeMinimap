@@ -416,6 +416,15 @@ namespace DEM
 		std::int32_t lastFogSquareY = 0;
 
 		// INTERIOR CACHE (1.8.0, InteriorCache.cpp).
+		struct SignatureEntry
+		{
+			RE::FormID formID = 0;
+			std::uint32_t state = 0;   // kSignatureDisabled, kSignatureDoorOpen
+			auto operator<=>(const SignatureEntry&) const = default;
+		};
+		static constexpr std::uint32_t kSignatureDisabled = 1;
+		static constexpr std::uint32_t kSignatureDoorOpen = 2;
+
 		struct InteriorCacheState
 		{
 			RE::FormID cell = 0;
@@ -445,7 +454,7 @@ namespace DEM
 			float v0 = 0.0F;
 			std::uint32_t seenEpoch = 0;
 			bool hasSignature = false;
-			std::uint64_t signature = 0;
+			std::vector<SignatureEntry> signature;
 			std::chrono::steady_clock::time_point signatureAt{};
 			std::chrono::steady_clock::time_point changedAt{};
 			std::chrono::steady_clock::time_point completedAt{};
@@ -459,7 +468,8 @@ namespace DEM
 		void ServiceInteriorCache(const PictureKey& a_key, std::chrono::steady_clock::time_point a_now);
 		void CaptureInteriorTile(const PictureKey& a_key);
 		bool InteriorCacheUsable(const PictureKey& a_key) const;
-		static std::uint64_t InteriorSignature(const RE::TESObjectCELL* a_cell);
+		static std::vector<SignatureEntry> ReadInteriorSignature(const RE::TESObjectCELL* a_cell);
+		static void LogSignatureChange(RE::FormID a_cell, const std::vector<SignatureEntry>& a_old, const std::vector<SignatureEntry>& a_new);
 		bool ComposeInteriorPicture(const PictureKey& a_key);
 
 		// FOG ON CHANGE (1.8.0). When the overlay was last built, and whether the coming pass re-uses it.

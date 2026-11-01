@@ -478,13 +478,13 @@ float4 PS(V i) : SV_Target0 { return Picture.Sample(PictureSampler, i.uv); }
 			if (const RE::TESObjectCELL* cell = RE::TES::GetSingleton()->interiorCell)
 			{
 				const perf::ScopedTimer timer{ perf::Section::kCellSignature };
-				const std::uint64_t signature = InteriorSignature(cell);
+				std::vector<SignatureEntry> signature = ReadInteriorSignature(cell);
 				if (c.hasSignature && signature != c.signature)
 				{
-					logger::debug("Interior cache: cell {:X}'s signature changed; capturing again", c.cell);
+					LogSignatureChange(c.cell, c.signature, signature);
 					BumpContentEpoch(perf::EpochCause::kObject);
 				}
-				c.signature = signature;
+				c.signature = std::move(signature);
 				c.hasSignature = true;
 				c.signatureAt = a_now;
 			}

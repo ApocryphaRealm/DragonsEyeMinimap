@@ -47,8 +47,8 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   ISLocalMap run as before, so edges, style, shape, the fade and fog stay live. No file, one interior kept, released on
   leaving. Drawn again (after 1.2 s, so a door has finished) on a fixture attaching, a door activated by anyone in that
   cell, a destructible the player activates, a destruction stage changing, a settings change, or a change in the cell's
-  signature, and every 5 minutes as the safety net. The signature is read once a second from the cell's fixtures (disabled,
-  door open or closed, position to 16 units), because no game event reports a script's Disable or Enable, or setopenstate
+  signature, and every 5 minutes as the safety net. The signature is read once a second: which statics and doors are disabled
+  and which doors are open (no positions and no activators: test 831c saw false changes with walking), because no game event reports a script's Disable or Enable, or setopenstate
   (test 20d2). Not on what cannot change the map: doors AI activates in cells that are not loaded (test 96d8: about 3 per
   10 s anywhere, 47 full recaptures in a 5-minute walk), actors, projectiles or loose items. Replaced at a new resolution or camera frame. Above 128 MB after doubling the tile size, or
   when the current zoom would stretch stored pixels by more than 1.25, it draws live as outdoors. A menu closing recomposes;

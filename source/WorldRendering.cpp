@@ -11,6 +11,7 @@
 #include "RE/R/RenderPassCache.h"
 #include "RE/R/RenderTargetManager.h"
 
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 
@@ -585,34 +586,81 @@ namespace DEM
 		logger::debug("Picture events registered: cell attach/detach and load, activation, destruction stage, menu close");
 	}
 
-	// What the map shows of this cell, as one number. No game event reports a script's Disable or Enable on a static, or
-	// setopenstate on a door (test 20d2: neither moved any counter), so the cell's own references are read. A sum, so the
-	// order the set hands them over in does not matter. Read at most once a second; the section cellSignature times it.
-	std::uint64_t Minimap::InteriorSignature(const RE::TESObjectCELL* a_cell)
+	// What a script or an NPC has changed in this cell: the list of statics and doors that are disabled, and of doors that are
+	// open. No game event reports a Disable, an Enable or setopenstate (test 20d2), so the cell's own references are read.
+	//
+	// Only those two facts, and only those base types. Test 831c saw false changes that came with walking and stopped when
+	// the player stood. A position moves for anything physics or an animation carries. An activator is the other
+	// candidate: trigger boxes and traps are activators, are not drawn, and many disable themselves as the player walks
+	// through. Neither is wanted here, so a script MOVING a fixture, or disabling a drawn activator, furniture or a
+	// container, now waits for the 5-minute safety net.
+	std::vector<Minimap::SignatureEntry> Minimap::ReadInteriorSignature(const RE::TESObjectCELL* a_cell)
 	{
-		std::uint64_t sum = 0;
-		a_cell->ForEachReference([&sum](RE::TESObjectREFR* a_ref) {
-			if (IsMapFixture(a_ref))
+		std::vector<SignatureEntry> entries;
+		a_cell->ForEachReference([&entries](RE::TESObjectREFR* a_ref) {
+			const RE::TESBoundObject* base = a_ref && a_ref->Is(RE::FormType::Reference) ? a_ref->GetBaseObject() : nullptr;
+			if (base && base->Is(RE::FormType::Static, RE::FormType::MovableStatic, RE::FormType::Door))
 			{
-				const RE::NiPoint3 position = a_ref->GetPosition();
-				std::uint64_t state = a_ref->IsDisabled() ? 1 : 0;
-				if (a_ref->GetBaseObject()->Is(RE::FormType::Door) && a_ref->Is3DLoaded())
+				std::uint32_t state = a_ref->IsDisabled() ? kSignatureDisabled : 0;
+				if (base->Is(RE::FormType::Door) && a_ref->Is3DLoaded())
 				{
 					// Opening counts as open and closing as closed, so one swing is one change.
 					const auto open = RE::BGSOpenCloseForm::GetOpenState(a_ref);
-					state |= (open == RE::BGSOpenCloseForm::OPEN_STATE::kOpen || open == RE::BGSOpenCloseForm::OPEN_STATE::kOpening) ? 2 : 0;
+					if (open == RE::BGSOpenCloseForm::OPEN_STATE::kOpen || open == RE::BGSOpenCloseForm::OPEN_STATE::kOpening)
+					{
+						state |= kSignatureDoorOpen;
+					}
 				}
-
-				// Per reference: its identity, its state, and where it stands to 16 units (a script can also move a wall).
-				std::uint64_t h = (std::uint64_t{ a_ref->GetFormID() } << 8) ^ state;
-				h = (h ^ static_cast<std::uint32_t>(static_cast<std::int32_t>(std::floor(position.x / 16.0F)))) * 1099511628211ULL;
-				h = (h ^ static_cast<std::uint32_t>(static_cast<std::int32_t>(std::floor(position.y / 16.0F)))) * 1099511628211ULL;
-				h = (h ^ static_cast<std::uint32_t>(static_cast<std::int32_t>(std::floor(position.z / 16.0F)))) * 1099511628211ULL;
-				sum += h * 14695981039346656037ULL;
+				if (state != 0)
+				{
+					entries.push_back({ a_ref->GetFormID(), state });
+				}
 			}
 			return RE::BSContainer::ForEachResult::kContinue;
 		});
-		return sum;
+		std::sort(entries.begin(), entries.end());
+		return entries;
+	}
+
+	// Names what changed, so a test can say what fired: at info with bDiagnostics on, otherwise debug.
+	void Minimap::LogSignatureChange(RE::FormID a_cell, const std::vector<SignatureEntry>& a_old, const std::vector<SignatureEntry>& a_new)
+	{
+		const auto stateName = [](std::uint32_t a_state) {
+			return a_state == 0 ? "none" : a_state == kSignatureDisabled ? "disabled" : a_state == kSignatureDoorOpen ? "doorOpen" : "disabled+doorOpen";
+		};
+		const auto report = [&](RE::FormID a_id, std::uint32_t a_before, std::uint32_t a_after) {
+			const auto* ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_id);
+			const auto* base = ref ? ref->GetBaseObject() : nullptr;
+			const std::string line = std::format("Interior cache: cell {:X} changed: ref {:08X} base {:08X} type {} from {} to {}", a_cell, a_id, base ? base->GetFormID() : 0,
+				base ? static_cast<int>(base->GetFormType()) : -1, stateName(a_before), stateName(a_after));
+			if (settings::performance::diagnostics) { logger::info("{}", line); }
+			else { logger::debug("{}", line); }
+		};
+
+		std::size_t i = 0;
+		std::size_t j = 0;
+		while (i < a_old.size() || j < a_new.size())
+		{
+			if (j == a_new.size() || (i < a_old.size() && a_old[i].formID < a_new[j].formID))
+			{
+				report(a_old[i].formID, a_old[i].state, 0);
+				++i;
+			}
+			else if (i == a_old.size() || a_new[j].formID < a_old[i].formID)
+			{
+				report(a_new[j].formID, 0, a_new[j].state);
+				++j;
+			}
+			else
+			{
+				if (a_old[i].state != a_new[j].state)
+				{
+					report(a_new[j].formID, a_old[i].state, a_new[j].state);
+				}
+				++i;
+				++j;
+			}
+		}
 	}
 
 	bool Minimap::BuildPictureKey(PictureKey& a_key)
