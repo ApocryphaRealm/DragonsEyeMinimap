@@ -17,7 +17,7 @@ namespace perf
 	{
 		constexpr double kWindowSeconds = 10.0;
 
-		constexpr std::array<const char*, static_cast<int>(Section::kCount)> kSectionNames = { "fog", "render", "markers", "gpuRender" };
+		constexpr std::array<const char*, static_cast<int>(Section::kCount)> kSectionNames = { "fog", "render", "markers", "gpuRender", "compose", "cacheRender", "gpuCompose" };
 		constexpr std::array<const char*, static_cast<int>(Reason::kCount)> kReasonNames = {
 			"reuseOff", "first", "epoch", "age", "gap", "world", "shapeStyle", "zoomBounds", "position", "rotation"
 		};
@@ -55,6 +55,11 @@ namespace perf
 		std::mutex g_lastLock;
 		std::string g_lastWindowJson = "{}";
 
+		std::atomic<std::uint64_t> g_cacheBytes{ 0 };
+		std::atomic<std::uint32_t> g_cacheTilesX{ 0 };
+		std::atomic<std::uint32_t> g_cacheTilesY{ 0 };
+		std::atomic<const char*> g_cacheState{ "none" };
+
 		std::atomic<std::int64_t> g_windowStart{ 0 };
 		std::atomic<std::int64_t> g_totalStart{ 0 };
 
@@ -72,9 +77,10 @@ namespace perf
 
 		std::string ScopeJson(Scope& a_scope, double a_seconds)
 		{
-			std::string out = std::format("{{\"seconds\":{:.1f},\"redraws\":{},\"reused\":{},\"held\":{}", a_seconds,
+			std::string out = std::format("{{\"seconds\":{:.1f},\"redraws\":{},\"reused\":{},\"held\":{},\"composed\":{},\"fogRebuilt\":{},\"fogKept\":{}", a_seconds,
 				a_scope.outcomes[static_cast<int>(Outcome::kRedrawn)].load(), a_scope.outcomes[static_cast<int>(Outcome::kReused)].load(),
-				a_scope.outcomes[static_cast<int>(Outcome::kHeld)].load());
+				a_scope.outcomes[static_cast<int>(Outcome::kHeld)].load(), a_scope.outcomes[static_cast<int>(Outcome::kComposed)].load(),
+				a_scope.outcomes[static_cast<int>(Outcome::kFogRebuilt)].load(), a_scope.outcomes[static_cast<int>(Outcome::kFogKept)].load());
 			for (int i = 0; i < static_cast<int>(Section::kCount); ++i) {
 				const Stat& s = a_scope.sections[i];
 				const std::uint64_t n = s.samples.load();
@@ -107,9 +113,10 @@ namespace perf
 
 		std::string LogLine(Scope& a_scope, double a_seconds)
 		{
-			std::string out = std::format("Performance ({:.1f} s): redrawn {}, reused {}, held {}", a_seconds,
+			std::string out = std::format("Performance ({:.1f} s): redrawn {}, reused {}, held {}, composed {}, fog rebuilt {}, fog kept {}", a_seconds,
 				a_scope.outcomes[static_cast<int>(Outcome::kRedrawn)].load(), a_scope.outcomes[static_cast<int>(Outcome::kReused)].load(),
-				a_scope.outcomes[static_cast<int>(Outcome::kHeld)].load());
+				a_scope.outcomes[static_cast<int>(Outcome::kHeld)].load(), a_scope.outcomes[static_cast<int>(Outcome::kComposed)].load(),
+				a_scope.outcomes[static_cast<int>(Outcome::kFogRebuilt)].load(), a_scope.outcomes[static_cast<int>(Outcome::kFogKept)].load());
 			for (int i = 0; i < static_cast<int>(Section::kCount); ++i) {
 				const Stat& s = a_scope.sections[i];
 				const std::uint64_t n = s.samples.load();
@@ -141,6 +148,7 @@ namespace perf
 			ID3D11Query* disjoint = nullptr;
 			ID3D11Query* begin = nullptr;
 			ID3D11Query* end = nullptr;
+			Section section = Section::kGpuRender;
 			bool waiting = false;
 		};
 		constexpr int kQuerySets = 6;
@@ -220,7 +228,7 @@ namespace perf
 				set.waiting = false;
 				if (!dis.Disjoint && dis.Frequency > 0 && t1 >= t0) {
 					const double seconds = static_cast<double>(t1 - t0) / static_cast<double>(dis.Frequency);
-					AddSample(Section::kGpuRender, static_cast<std::int64_t>(seconds * static_cast<double>(Frequency())));
+					AddSample(set.section, static_cast<std::int64_t>(seconds * static_cast<double>(Frequency())));
 				}
 			}
 		}
@@ -261,6 +269,14 @@ namespace perf
 		g_total.causes[i].fetch_add(1, std::memory_order_relaxed);
 	}
 
+	void SetCacheInfo(std::uint64_t a_bytes, std::uint32_t a_tilesX, std::uint32_t a_tilesY, const char* a_state)
+	{
+		g_cacheBytes.store(a_bytes, std::memory_order_relaxed);
+		g_cacheTilesX.store(a_tilesX, std::memory_order_relaxed);
+		g_cacheTilesY.store(a_tilesY, std::memory_order_relaxed);
+		g_cacheState.store(a_state, std::memory_order_relaxed);
+	}
+
 	void Tick()
 	{
 		PollGpu();
@@ -292,7 +308,7 @@ namespace perf
 		g_windowStart.store(now);
 	}
 
-	void GpuBegin()
+	void GpuBegin(Section a_section)
 	{
 		g_open = -1;
 		if (!settings::performance::diagnostics || !CreateSets()) { return; }
@@ -304,6 +320,7 @@ namespace perf
 			if (!g_sets[i].waiting) {
 				context->Begin(g_sets[i].disjoint);
 				context->End(g_sets[i].begin);
+				g_sets[i].section = a_section;
 				g_open = i;
 				return;
 			}
@@ -341,9 +358,12 @@ namespace perf
 		else if (g_gpuState.load() == kGpuUnavailable) { gpu = "unavailable"; }
 
 		return std::format("{{\"ok\":true,\"op\":\"perf\",\"reusePicture\":{},\"maxPictureAgeMs\":{},\"diagnostics\":{},\"redrawIntervalMs\":{},"
+						   "\"interiorCache\":{},\"fogOnChange\":{},\"cache\":{{\"state\":\"{}\",\"tilesX\":{},\"tilesY\":{},\"megabytes\":{:.1f}}},"
 						   "\"gpuTiming\":\"{}\",\"gpuUnmeasured\":{},\"sinceReset\":{},\"lastWindow\":{}}}",
 			settings::performance::reusePicture, settings::performance::maxPictureAgeMs, settings::performance::diagnostics,
-			settings::rendering::redrawIntervalMs, gpu, g_gpuUnmeasured.load(), ScopeJson(g_total, totalSeconds), lastWindow);
+			settings::rendering::redrawIntervalMs, settings::performance::interiorCache, settings::performance::fogOnChange,
+			g_cacheState.load(), g_cacheTilesX.load(), g_cacheTilesY.load(), static_cast<double>(g_cacheBytes.load()) / (1024.0 * 1024.0),
+			gpu, g_gpuUnmeasured.load(), ScopeJson(g_total, totalSeconds), lastWindow);
 	}
 
 	void Reset()

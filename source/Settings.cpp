@@ -61,6 +61,8 @@ namespace settings
 			bool reusePicture;
 			std::int32_t maxPictureAgeMs;
 			bool diagnostics;
+			bool interiorCache;
+			bool fogOnChange;
 		};
 
 		Defaults defaults;
@@ -87,6 +89,8 @@ namespace settings
 			defaults.reusePicture = performance::reusePicture;
 			defaults.maxPictureAgeMs = performance::maxPictureAgeMs;
 			defaults.diagnostics = performance::diagnostics;
+			defaults.interiorCache = performance::interiorCache;
+			defaults.fogOnChange = performance::fogOnChange;
 
 			logger::debug("Captured built-in defaults: anchor={}, scale={:.2f}, shape={}, hideKey={}, zoomToggleKey={}",
 				defaults.anchor, defaults.scale, defaults.shape, defaults.hideKeyCode, defaults.zoomToggleKeyCode);
@@ -645,6 +649,8 @@ namespace settings
 				performance::reusePicture = Read<bool>(c, "bReusePicture:Performance", performance::reusePicture);
 				performance::maxPictureAgeMs = Read<std::int32_t>(c, "iMaxPictureAgeMs:Performance", performance::maxPictureAgeMs);
 				performance::diagnostics = Read<bool>(c, "bDiagnostics:Performance", performance::diagnostics);
+				performance::interiorCache = Read<bool>(c, "bInteriorCache:Performance", performance::interiorCache);
+				performance::fogOnChange = Read<bool>(c, "bFogOnChange:Performance", performance::fogOnChange);
 				performance::maxPictureAgeMs = std::clamp(performance::maxPictureAgeMs, 100, 10000);
 
 				logger::debug("Picture reuse resolved: reusePicture={}, maxPictureAgeMs={}, diagnostics={}",
@@ -735,6 +741,8 @@ namespace settings
 			add("bReusePicture:Performance", reusePicture);
 			add("iMaxPictureAgeMs:Performance", static_cast<int>(maxPictureAgeMs));
 			add("bDiagnostics:Performance", diagnostics);
+			add("bInteriorCache:Performance", interiorCache);
+			add("bFogOnChange:Performance", fogOnChange);
 		}
 
 		// DELIBERATELY NOT calling iniSettingCollection->ReadFromFile here.
@@ -845,6 +853,8 @@ namespace settings
 		ok &= WriteBool(kPerformanceSection, "bReusePicture", performance::reusePicture);
 		ok &= WriteInt(kPerformanceSection, "iMaxPictureAgeMs", performance::maxPictureAgeMs);
 		ok &= WriteBool(kPerformanceSection, "bDiagnostics", performance::diagnostics);
+		ok &= WriteBool(kPerformanceSection, "bInteriorCache", performance::interiorCache);
+		ok &= WriteBool(kPerformanceSection, "bFogOnChange", performance::fogOnChange);
 
 		// Write the file once, with every queued key applied. Until this succeeds nothing has
 		// reached disk, so its result - not the queueing above - decides whether Save() worked.
@@ -929,6 +939,8 @@ namespace settings
 		performance::reusePicture = defaults.reusePicture;
 		performance::maxPictureAgeMs = defaults.maxPictureAgeMs;
 		performance::diagnostics = defaults.diagnostics;
+		performance::interiorCache = defaults.interiorCache;
+		performance::fogOnChange = defaults.fogOnChange;
 	}
 
 	std::uint64_t Fingerprint()
@@ -965,6 +977,8 @@ namespace settings
 		mix(rendering::redrawIntervalMs);
 		mix(performance::reusePicture);
 		mix(performance::maxPictureAgeMs);
+		mix(performance::interiorCache);
+		mix(performance::fogOnChange);
 		return hash;
 	}
 

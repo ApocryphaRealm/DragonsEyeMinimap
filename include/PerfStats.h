@@ -15,7 +15,7 @@
 
 namespace perf
 {
-	enum class Section : int { kFog, kRender, kMarkers, kGpuRender, kCount };
+	enum class Section : int { kFog, kRender, kMarkers, kGpuRender, kCompose, kCacheRender, kGpuCompose, kCount };
 
 	// What happened to the picture on a frame the camera was updated.
 	enum class Outcome : int
@@ -23,6 +23,9 @@ namespace perf
 		kRedrawn,   // fog rebuild and render ran
 		kReused,    // the picture still matched, nothing was drawn
 		kHeld,      // ShouldRedrawWorld said no (settle, loading screen, steadiness, iRedrawIntervalMs)
+		kComposed,  // an interior's stored picture was drawn into the target instead of the world
+		kFogRebuilt,   // the fog overlay was built again
+		kFogKept,      // a redraw or compose kept the fog overlay it already had
 		kCount
 	};
 
@@ -61,8 +64,11 @@ namespace perf
 	void Tick();
 
 	// Bracket the off-screen render. No-ops unless [Performance] bDiagnostics is on. Render thread.
-	void GpuBegin();
+	void GpuBegin(Section a_section = Section::kGpuRender);
 	void GpuEnd();
+
+	// What the interior cache holds now, for op=perf. a_state is a string literal.
+	void SetCacheInfo(std::uint64_t a_bytes, std::uint32_t a_tilesX, std::uint32_t a_tilesY, const char* a_state);
 
 	// Everything since the last Reset, and the last closed 10 s window, as JSON. Any thread.
 	std::string Json();

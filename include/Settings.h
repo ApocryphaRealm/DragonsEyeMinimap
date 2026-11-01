@@ -184,6 +184,13 @@ namespace settings
 
 		// Writes the 10 s performance line at info instead of debug, and adds GPU timing of the off-screen render.
 		inline bool diagnostics = false;            // bDiagnostics:Performance
+
+		// Draw an interior's geometry once, into graphics memory, and show the part the camera sees from there
+		// (InteriorCache.cpp). Exteriors never use it.
+		inline bool interiorCache = true;           // bInteriorCache:Performance
+
+		// Build the fog overlay again only when it can have changed, instead of on every redraw (WorldRendering.cpp).
+		inline bool fogOnChange = true;             // bFogOnChange:Performance
 	}
 
 	// Built-in compass ring + quest pointer (design decision, 2026-08-30) - INI-only for now

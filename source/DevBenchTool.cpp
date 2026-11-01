@@ -120,9 +120,22 @@ namespace DEM::devbench
 
 			// 1.8.0 measurement: the numbers (op=perf), and the switches a test needs to compare reuse off with on inside one
 			// run. Runtime only - nothing here writes the INI. All of it is plain state, safe from this listener thread.
-			if (op == "perf" || op == "perf:reset" || op == "perf:reuse:on" || op == "perf:reuse:off" || op == "perf:diag:on" || op == "perf:diag:off")
+			if (op == "perf" || op == "perf:reset" || op == "perf:reuse:on" || op == "perf:reuse:off" ||  op == "perf:diag:on" || op == "perf:diag:off" ||
+				op == "perf:cache:on" || op == "perf:cache:off" || op == "perf:fog:on" || op == "perf:fog:off")
 			{
-				if (op == "perf:reuse:on" || op == "perf:reuse:off")
+				if (op == "perf:cache:on" || op == "perf:cache:off")
+				{
+					settings::performance::interiorCache = (op == "perf:cache:on");
+					Minimap::BumpContentEpoch(perf::EpochCause::kSettings);
+					perf::Reset();
+				}
+				else if (op == "perf:fog:on" || op == "perf:fog:off")
+				{
+					settings::performance::fogOnChange = (op == "perf:fog:on");
+					Minimap::BumpContentEpoch(perf::EpochCause::kSettings);
+					perf::Reset();
+				}
+				else if (op == "perf:reuse:on" || op == "perf:reuse:off")
 				{
 					settings::performance::reusePicture = (op == "perf:reuse:on");
 					Minimap::BumpContentEpoch(perf::EpochCause::kSettings);
@@ -181,7 +194,7 @@ namespace DEM::devbench
 				return;
 			}
 
-			a_write(a_sink, "{\"ok\":false,\"error\":\"op must be show|hide|state|strings|hudvis|markers|itemmarkers:on|itemmarkers:off|dump|dumpresult|perf|perf:reset|perf:reuse:on|perf:reuse:off|perf:diag:on|perf:diag:off\"}");
+			a_write(a_sink, "{\"ok\":false,\"error\":\"op must be show|hide|state|strings|hudvis|markers|itemmarkers:on|itemmarkers:off|dump|dumpresult|perf|perf:reset|perf:reuse:on|perf:reuse:off|perf:diag:on|perf:diag:off|perf:cache:on|perf:cache:off|perf:fog:on|perf:fog:off\"}");
 		}
 	}
 
@@ -202,7 +215,8 @@ namespace DEM::devbench
 			"strings (the language the settings page is drawn in, where it came from and how many "
 			"translated texts were loaded), perf (ms per section, redrawn/reused/held counts, why it redrew; "
 			"since the last reset and for the last 10 s window), perf:reset, perf:reuse:on|off (runtime, also "
-			"resets), perf:diag:on|off (runtime: GPU timing, and the log line at info).\","
+			"resets), perf:cache:on|off and perf:fog:on|off (runtime, also reset), perf:diag:on|off (runtime: GPU "
+			"timing, and the log line at info).\","
 			"\"inputSchema\":{\"type\":\"object\",\"properties\":{\"op\":{\"type\":\"string\"}}},"
 			"\"readOnly\":false"
 			"}";

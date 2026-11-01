@@ -40,13 +40,27 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   much less often. Markers, the player arrow, the frame and the compass still update every frame, on the HUD thread.
 - **`[Performance]` in the INI:** `bReusePicture` (default 1; 0 behaves as 1.7.6 did), `iMaxPictureAgeMs` (default 1000,
   100-10000), `bDiagnostics` (default 0).
+- **Interiors draw once (`[Performance] bInteriorCache`, default 1).** After the cell settles, the geometry is drawn north
+  up into a texture in graphics memory, one tile a frame through the existing pass and the engine's own camera update; a
+  tile is what the camera frames at its closest zoom, so the closest zoom stays sharp. Each redraw then draws the part the
+  live camera sees into `kLOCAL_MAP_SWAP` with one textured triangle (device state saved and restored), and the fog pass and
+  ISLocalMap run as before, so edges, style, shape, the fade and fog stay live. No file, one interior kept, released on
+  leaving. Drawn again on a door, destructible, cell load or settings event (after 1.2 s, so a door has finished), and
+  every 30 s as the safety net; replaced at a new resolution or camera frame. Above 128 MB after doubling the tile size, or
+  when the current zoom would stretch stored pixels by more than 1.25, it draws live as outdoors. A menu closing recomposes;
+  it does not capture again.
+- **The fog overlay is rebuilt only when it can have changed (`[Performance] bFogOnChange`, default 1).** It cannot be
+  updated in place: the engine's AttachFogOfWarOverlay allocates a new shape and buffers per cell on each call. It is now
+  built when the content counter moves (another fog square, cell events, menus, settings) and at the latest once a second.
 - **Measurement.** QueryPerformanceCounter timers around the fog rebuild, the off-screen render and the marker block.
   Every 10 s one line goes to the log with average and maximum ms per section, redrawn/reused/held counts, why it redrew
   and what moved the content counter: at debug level, or info with `bDiagnostics=1`. With `bDiagnostics=1`, D3D11
   timestamp queries also bracket the off-screen render; they are read with `D3D11_ASYNC_GETDATA_DONOTFLUSH` from a ring of
   six query sets, so nothing ever waits on the GPU, and a redraw with no free set simply goes unmeasured.
 - **`dem.control` ops:** `perf` (the same numbers as JSON, since the last reset and for the last 10 s window),
-  `perf:reset`, `perf:reuse:on|off` and `perf:diag:on|off` (runtime only, never written to the INI).
+  `perf:reset`, `perf:reuse:on|off`, `perf:cache:on|off`, `perf:fog:on|off` and `perf:diag:on|off` (runtime only, never
+  written to the INI). `perf` also gives composed, fogRebuilt and fogKept counts, compose, cacheRender and gpuCompose timers,
+  and the cache's state, tile grid and megabytes.
 
 ## 1.7.6 - 2026-10-25 - untested
 

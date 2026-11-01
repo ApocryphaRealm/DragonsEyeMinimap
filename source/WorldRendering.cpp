@@ -154,6 +154,70 @@ namespace DEM
 		}
 	}
 
+	// FOG ON CHANGE (1.8.0). The overlay cannot be updated in place: AttachFogOfWarOverlay (16101) allocates a new shape and
+	// its GPU buffers per cell on every call, and nothing in the engine edits one afterwards. But what it draws only changes
+	// when the player reaches another fog square or the set of cells changes, and both of those move the content epoch. So
+	// it is built when the epoch moved, and at most a second late for anything else; between builds the shapes stay
+	// attached and the fog pass draws them as they are.
+	void Minimap::UpdateFogOfWarIfNeeded(std::chrono::steady_clock::time_point a_now)
+	{
+		const std::uint32_t epoch = contentEpoch.load(std::memory_order_relaxed);
+
+		if (settings::performance::fogOnChange && fogOverlayBuilt && epoch == fogBuiltEpoch &&
+			a_now - fogBuiltAt < std::chrono::seconds(1))
+		{
+			fogOverlayRetained = true;
+			perf::Count(perf::Outcome::kFogKept);
+			return;
+		}
+
+		{
+			const perf::ScopedTimer fogTimer{ perf::Section::kFog };
+			UpdateFogOfWar();
+		}
+		perf::Count(perf::Outcome::kFogRebuilt);
+
+		fogOverlayRetained = false;
+		fogOverlayBuilt = true;
+		fogBuiltAt = a_now;
+		fogBuiltEpoch = contentEpoch.load(std::memory_order_relaxed);   // after the build: creating the holder bumps it, for the next pass
+		if (fogBuiltEpoch != epoch)
+		{
+			fogOverlayBuilt = false;
+		}
+	}
+
+	// A shape that was freed after one pass never had to give its render passes back. One that is drawn again does, or each
+	// pass adds to its list - the same thing ClearTerrainRenderPasses is there for.
+	void Minimap::ClearFogRenderPasses(RE::NiAVObject* a_object)
+	{
+		if (!a_object)
+		{
+			return;
+		}
+
+		if (RE::BSGeometry* geometry = a_object->AsGeometry())
+		{
+#if RUNTIME_LINE == 17
+			auto shaderProp = geometry->GetGeometryRuntimeData().shaderProperty.get();
+#else
+			auto shaderProp = static_cast<RE::BSShaderProperty*>(geometry->properties[RE::BSGeometry::States::kEffect].get());
+#endif
+			if (shaderProp)
+			{
+				shaderProp->DoClearRenderPasses();
+			}
+		}
+
+		if (RE::NiNode* node = a_object->AsNode())
+		{
+			for (RE::NiPointer<RE::NiAVObject>& child : node->GetChildren())
+			{
+				ClearFogRenderPasses(child.get());
+			}
+		}
+	}
+
 	// ----------------------------------------------------------------------------------------
 	// WORLD STEADINESS (1.6.4). The settle window in ShouldRedrawWorld is a TIMER - 1500 ms after
 	// the loading screen closes - and a timer is a guess about how long the engine needs. Two
@@ -433,6 +497,11 @@ namespace DEM
 	void Minimap::BumpContentEpoch(perf::EpochCause a_cause)
 	{
 		contentEpoch.fetch_add(1, std::memory_order_relaxed);
+		if (a_cause == perf::EpochCause::kCell || a_cause == perf::EpochCause::kDoor ||
+			a_cause == perf::EpochCause::kDestructible || a_cause == perf::EpochCause::kSettings)
+		{
+			cacheEpoch.fetch_add(1, std::memory_order_relaxed);
+		}
 		perf::Count(a_cause);
 	}
 
@@ -599,7 +668,7 @@ namespace DEM
 		return true;
 	}
 
-	bool Minimap::RenderOffScreen()
+	bool Minimap::RenderOffScreen(PassMode a_mode, const PictureKey* a_composeKey)
 	{
 		LMU::PixelShaderProperty::Shape prevShaderShape;
 		LMU::PixelShaderProperty::Style shaderStyle;
@@ -708,7 +777,10 @@ namespace DEM
 		}
 
 		// 2. Culling step /////////////////////////////////////////////////////////////////////////////////////////////////
+		// Compose has nothing to cull but the fog overlay, below.
 
+		if (a_mode != PassMode::kCompose)
+		{
 		RE::TESObjectCELL* currentCell = nullptr;
 
 		if (RE::TESObjectCELL* interiorCell = tes->interiorCell)
@@ -752,6 +824,7 @@ namespace DEM
         {
 			cullingProcess->CullCellObjects(unkData, currentCell);
 		}
+		}
 
 #if RUNTIME_LINE == 17
         line17::CullJobDescriptor& cullJobDesc = cullingProcess->cullJobDesc;
@@ -762,6 +835,8 @@ namespace DEM
 
         cullJobDesc.camera = camera;
 
+		if (a_mode != PassMode::kCompose)
+		{
         RE::BSPortalGraphEntry* portalGraphEntry = RE::Main__GetPortalGraphEntry(RE::Main::GetSingleton());
 		
 		// Edge-triggered: this runs every frame, but a missing portal graph would mean degraded
@@ -839,6 +914,7 @@ namespace DEM
 			}
 		}
 		cullJobDesc.Cull(0, 0);
+		}
 
 		// 3. Rendering step ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -848,16 +924,30 @@ namespace DEM
 
         int depthStencil = line17::GetDepthStencil(renderTargetManager);
 		line17::SetupDepthStencilAt(renderTargetManager, depthStencil, RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR, 0, false);
-		line17::SetupRenderTargetAt(renderTargetManager, 0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR, true);
+		if (a_mode != PassMode::kCompose)   // a clear is deferred to the next engine draw, which would wipe the stored picture
+		{
+			line17::SetupRenderTargetAt(renderTargetManager, 0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR, true);
+		}
 #else
         RE::BSGraphics::RenderTargetManager* renderTargetManager = RE::BSGraphics::RenderTargetManager::GetSingleton();
 
         int depthStencil = renderTargetManager->GetDepthStencil();
 		renderTargetManager->SetupDepthStencilAt(depthStencil, RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR, 0, false);
-		renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR, true);
+		if (a_mode != PassMode::kCompose)   // a clear is deferred to the next engine draw, which would wipe the stored picture
+		{
+			renderTargetManager->SetupRenderTargetAt(0, RE::RENDER_TARGET::kLOCAL_MAP_SWAP, RE::BSGraphics::SetRenderTargetMode::SRTM_CLEAR, true);
+		}
 #endif
 
-		RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
+		bool composed = true;
+		if (a_mode == PassMode::kCompose)
+		{
+			composed = a_composeKey && ComposeInteriorPicture(*a_composeKey);
+		}
+		else
+		{
+			RE::NiCamera__Accumulate(camera.get(), shaderAccumulator.get(), 0);
+		}
 
 		// 4. Post process step (Add fog of war) ///////////////////////////////////////////////////////////////////////////
 
@@ -871,7 +961,8 @@ namespace DEM
 			s_lastFogCompositeEnabled = isFogOfWarEnabled;
 		}
 
-		if (isFogOfWarEnabled)
+		// A capture stores geometry only. The fog stays a live layer, drawn over the picture on every compose.
+		if (isFogOfWarEnabled && a_mode != PassMode::kCapture)
 		{
 #if RUNTIME_LINE == 17
 			line17::ClearActiveRenderPasses(shaderAccumulator.get(), false);
@@ -884,6 +975,10 @@ namespace DEM
 #endif
 
 			RE::NiPointer<RE::NiAVObject> fogOfWarOverlayHolder = cullingProcess->GetFogOfWarOverlay();
+			if (fogOverlayRetained)
+			{
+				ClearFogRenderPasses(fogOfWarOverlayHolder.get());
+			}
 			cullJobDesc.scene = fogOfWarOverlayHolder;
 			cullJobDesc.Cull(0, 0);
 
@@ -912,7 +1007,10 @@ namespace DEM
 
 		// 5. Finish rendering and dispatch ////////////////////////////////////////////////////////////////////////////////
 
-		rdiag::AfterGeometry();   // 1.7.5 diagnostics: what the pass inherits, and kLOCAL_MAP_SWAP before the composite on request
+		if (a_mode != PassMode::kCapture)
+		{
+			rdiag::AfterGeometry();   // 1.7.5 diagnostics: what the pass inherits, and kLOCAL_MAP_SWAP before the composite on request
+		}
 
 #if RUNTIME_LINE == 17
         line17::SetupDepthStencilAt(renderTargetManager, -1, RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE, 0, false);
@@ -920,6 +1018,10 @@ namespace DEM
         renderTargetManager->SetupDepthStencilAt(-1, RE::BSGraphics::SetRenderTargetMode::SRTM_RESTORE, 0, false);
 #endif
 
+		// A capture stops here: kLOCAL_MAP_SWAP holds the tile, and kLOCAL_MAP keeps the picture on screen. A failed compose
+		// leaves it too - better last frame's picture than an empty one.
+		if (a_mode != PassMode::kCapture && composed)
+		{
 		RE::ImageSpaceShaderParam& imageSpaceShaderParam = cullingProcess->GetImageSpaceShaderParam();
 
 		RE::BSGraphics::RenderTargetProperties& renderLocalMapSwapData = renderTargetManager->renderTargetData[RE::RENDER_TARGET::kLOCAL_MAP_SWAP];
@@ -945,6 +1047,7 @@ namespace DEM
 													&imageSpaceShaderParam);
 #endif
 		rdiag::AfterComposite();   // 1.7.5 diagnostics: kLOCAL_MAP after the composite, on request
+		}
 
 		if (areLODsHidden)
 		{
@@ -966,7 +1069,7 @@ namespace DEM
 
 		SetPixelShaderProperties(prevShaderShape, shaderStyle);
 
-		return true;
+		return composed;
 	}
 
 	// Terrain render passes can be allocated multiple times but only cleared once per frame.

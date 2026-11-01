@@ -1609,14 +1609,8 @@ namespace DEM
 				{
 					cellNorthRotation = -parentCell->GetNorthRotation();
 
-					if (settings::controls::followPlayerCameraRotation)
-					{
-						cameraContext->SetNorthRotation(playerCameraRotation);
-					}
-					else
-					{
-						cameraContext->SetNorthRotation(cellNorthRotation);
-					}
+					liveNorthRotation = settings::controls::followPlayerCameraRotation ? playerCameraRotation : cellNorthRotation;
+					cameraContext->SetNorthRotation(liveNorthRotation);
 					cameraContext->zRotation = 0.0F;
 
 					if (parentCell->IsInteriorCell())
@@ -1867,6 +1861,12 @@ namespace DEM
 					const auto maxAge = std::chrono::milliseconds(settings::performance::maxPictureAgeMs);
 					const bool tooOld = now - lastPictureAt >= maxAge;
 
+					// Before the reuse test: capturing a tile leaves the target alone, so it goes on while the picture is reused.
+					if (haveKey)
+					{
+						ServiceInteriorCache(key, now);
+					}
+
 					perf::Reason why = perf::Reason::kReuseOff;
 					bool reuse = false;
 					if (haveKey && settings::performance::reusePicture)
@@ -1887,19 +1887,26 @@ namespace DEM
 
 						if (isFogOfWarEnabled)
 						{
-							const perf::ScopedTimer fogTimer{ perf::Section::kFog };
-							UpdateFogOfWar();
+							UpdateFogOfWarIfNeeded(now);
 						}
 
 						bool drew = false;
+						if (haveKey && InteriorCacheUsable(key))
+						{
+							const perf::ScopedTimer composeTimer{ perf::Section::kCompose };
+							perf::GpuBegin(perf::Section::kGpuCompose);
+							drew = RenderOffScreen(PassMode::kCompose, &key);
+							perf::GpuEnd();
+							perf::Count(perf::Outcome::kComposed);
+						}
+						else
 						{
 							const perf::ScopedTimer renderTimer{ perf::Section::kRender };
 							perf::GpuBegin();
 							drew = RenderOffScreen();
 							perf::GpuEnd();
+							perf::Count(perf::Outcome::kRedrawn);
 						}
-
-						perf::Count(perf::Outcome::kRedrawn);
 
 						hasPicture = drew && haveKey;
 						if (hasPicture)

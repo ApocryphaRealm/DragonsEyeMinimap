@@ -400,6 +400,9 @@ namespace DEM
 
 		static inline std::atomic<std::uint32_t> contentEpoch{ 0 };
 
+		// Moves only for what can change the stored interior geometry: a menu closing asks for a new compose, not a new capture.
+		static inline std::atomic<std::uint32_t> cacheEpoch{ 0 };
+
 		// No pass for this long means the minimap was hidden or the HUD was not drawn - a menu, the hide key, another mod.
 		// The target is shared, so whatever it holds now is not trusted.
 		static constexpr std::chrono::milliseconds kPictureGap{ 500 };
@@ -412,8 +415,63 @@ namespace DEM
 		std::int32_t lastFogSquareX = 0;
 		std::int32_t lastFogSquareY = 0;
 
+		// INTERIOR CACHE (1.8.0, InteriorCache.cpp).
+		struct InteriorCacheState
+		{
+			RE::FormID cell = 0;
+			std::uint32_t targetWidth = 0;
+			std::uint32_t targetHeight = 0;
+			RE::NiPoint3 boundsA{};
+			RE::NiPoint3 boundsB{};
+			float minHalfW = 0.0F;
+			float minHalfH = 0.0F;
+			bool planned = false;
+			bool dirty = false;
+			bool capturing = false;
+			bool valid = false;
+			bool failed = false;
+			const char* state = "none";
+			std::uint32_t tilesX = 0;
+			std::uint32_t tilesY = 0;
+			std::uint32_t nextTile = 0;
+			std::uint64_t bytes = 0;
+			float tileWorldW = 0.0F;
+			float tileWorldH = 0.0F;
+			float originX = 0.0F;
+			float originY = 0.0F;
+			float uX = 0.0F;   // texture u from world X
+			float u0 = 0.0F;
+			float vY = 0.0F;   // texture v from world Y
+			float v0 = 0.0F;
+			std::uint32_t seenEpoch = 0;
+			std::chrono::steady_clock::time_point changedAt{};
+			std::chrono::steady_clock::time_point completedAt{};
+		};
+		InteriorCacheState interiorCache;
+
+		// The north rotation Advance() last gave the camera: a capture borrows the camera and has to hand it back.
+		float liveNorthRotation = 0.0F;
+
+		void ResetInteriorCache(bool a_releaseTexture);
+		void ServiceInteriorCache(const PictureKey& a_key, std::chrono::steady_clock::time_point a_now);
+		void CaptureInteriorTile(const PictureKey& a_key);
+		bool InteriorCacheUsable(const PictureKey& a_key) const;
+		bool ComposeInteriorPicture(const PictureKey& a_key);
+
+		// FOG ON CHANGE (1.8.0). When the overlay was last built, and whether the coming pass re-uses it.
+		std::uint32_t fogBuiltEpoch = 0;
+		std::chrono::steady_clock::time_point fogBuiltAt{};
+		bool fogOverlayBuilt = false;
+		bool fogOverlayRetained = false;
+		void UpdateFogOfWarIfNeeded(std::chrono::steady_clock::time_point a_now);
+		void ClearFogRenderPasses(RE::NiAVObject* a_object);
+
+		// kFull: the whole pass. kCapture: geometry only, into kLOCAL_MAP_SWAP, for the interior cache to copy; kLOCAL_MAP
+		// is not touched. kCompose: the stored picture replaces the cull and geometry draw; fog and ISLocalMap run as usual.
+		enum class PassMode { kFull, kCapture, kCompose };
+
 		// Returns false when it drew nothing (Local Map Upgrade's shader hooks are not there yet).
-		bool RenderOffScreen();
+		bool RenderOffScreen(PassMode a_mode = PassMode::kFull, const PictureKey* a_composeKey = nullptr);
 		void ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object);
 #if RUNTIME_LINE == 17
 		void CullTerrain(const RE::GridCellArray* a_gridCells, line17::LocalMapCullingProcess::UnkData& a_unkData,
