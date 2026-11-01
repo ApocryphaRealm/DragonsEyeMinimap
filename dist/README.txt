@@ -5,6 +5,10 @@ Version 1.7.6
 WHAT CHANGED
 ------------
 
+Version 1.8.0
+The map no longer redraws the world every frame when nothing in the picture has changed. Standing still now costs about one redraw a second instead of one a frame; moving costs what it always did. Markers, the player arrow, the frame and the compass still update every frame, and a door opening, a cell loading, a menu closing or a settings change redraws at once.
+Added a Performance section to the INI: bReusePicture turns this off, iMaxPictureAgeMs sets the oldest a kept picture may get, and bDiagnostics writes what each part of the map costs to the log every 10 seconds.
+
 Version 1.7.6
 Holding an arrow key or dragging quickly on Offset X, Offset Y or Scale no longer crashes the game. Changes are now applied to the minimap on the game's interface thread, at most about eight times a second, and the final value is always applied once you stop.
 

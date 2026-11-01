@@ -22,6 +22,7 @@ namespace settings
 		constexpr const char* kControlsSection = "Controls";
 		constexpr const char* kCompassSection = "Compass";
 		constexpr const char* kRenderingSection = "Rendering";
+		constexpr const char* kPerformanceSection = "Performance";
 
 		// One offset pair per corner, so the INI names say which corner they belong to rather
 		// than making the reader count indices.
@@ -56,6 +57,10 @@ namespace settings
 			float zoomDefault;
 			float zoomZoomedIn;
 			bool followPlayerCameraRotation;
+
+			bool reusePicture;
+			std::int32_t maxPictureAgeMs;
+			bool diagnostics;
 		};
 
 		Defaults defaults;
@@ -78,6 +83,10 @@ namespace settings
 			defaults.zoomDefault = controls::zoomDefault;
 			defaults.zoomZoomedIn = controls::zoomZoomedIn;
 			defaults.followPlayerCameraRotation = controls::followPlayerCameraRotation;
+
+			defaults.reusePicture = performance::reusePicture;
+			defaults.maxPictureAgeMs = performance::maxPictureAgeMs;
+			defaults.diagnostics = performance::diagnostics;
 
 			logger::debug("Captured built-in defaults: anchor={}, scale={:.2f}, shape={}, hideKey={}, zoomToggleKey={}",
 				defaults.anchor, defaults.scale, defaults.shape, defaults.hideKeyCode, defaults.zoomToggleKeyCode);
@@ -633,6 +642,14 @@ namespace settings
 				rendering::settleMs = std::clamp(rendering::settleMs, 0, 10000);
 				rendering::redrawIntervalMs = std::clamp(rendering::redrawIntervalMs, 0, 10000);
 
+				performance::reusePicture = Read<bool>(c, "bReusePicture:Performance", performance::reusePicture);
+				performance::maxPictureAgeMs = Read<std::int32_t>(c, "iMaxPictureAgeMs:Performance", performance::maxPictureAgeMs);
+				performance::diagnostics = Read<bool>(c, "bDiagnostics:Performance", performance::diagnostics);
+				performance::maxPictureAgeMs = std::clamp(performance::maxPictureAgeMs, 100, 10000);
+
+				logger::debug("Picture reuse resolved: reusePicture={}, maxPictureAgeMs={}, diagnostics={}",
+					performance::reusePicture, performance::maxPictureAgeMs, performance::diagnostics);
+
 				logger::debug("World redraw policy resolved: skipWhileWorldSettles={}, settleMs={}, redrawIntervalMs={}",
 					rendering::skipWhileWorldSettles, rendering::settleMs, rendering::redrawIntervalMs);
 
@@ -711,6 +728,13 @@ namespace settings
 			add("bSkipWhileWorldSettles:Rendering", skipWhileWorldSettles);
 			add("iSettleMs:Rendering", static_cast<int>(settleMs));
 			add("iRedrawIntervalMs:Rendering", static_cast<int>(redrawIntervalMs));
+		}
+
+		{
+			using namespace performance;
+			add("bReusePicture:Performance", reusePicture);
+			add("iMaxPictureAgeMs:Performance", static_cast<int>(maxPictureAgeMs));
+			add("bDiagnostics:Performance", diagnostics);
 		}
 
 		// DELIBERATELY NOT calling iniSettingCollection->ReadFromFile here.
@@ -818,6 +842,10 @@ namespace settings
 		ok &= WriteInt(kRenderingSection, "iSettleMs", rendering::settleMs);
 		ok &= WriteInt(kRenderingSection, "iRedrawIntervalMs", rendering::redrawIntervalMs);
 
+		ok &= WriteBool(kPerformanceSection, "bReusePicture", performance::reusePicture);
+		ok &= WriteInt(kPerformanceSection, "iMaxPictureAgeMs", performance::maxPictureAgeMs);
+		ok &= WriteBool(kPerformanceSection, "bDiagnostics", performance::diagnostics);
+
 		// Write the file once, with every queued key applied. Until this succeeds nothing has
 		// reached disk, so its result - not the queueing above - decides whether Save() worked.
 		ok &= FlushPendingWrites();
@@ -897,6 +925,47 @@ namespace settings
 		controls::zoomDefault = defaults.zoomDefault;
 		controls::zoomZoomedIn = defaults.zoomZoomedIn;
 		controls::followPlayerCameraRotation = defaults.followPlayerCameraRotation;
+
+		performance::reusePicture = defaults.reusePicture;
+		performance::maxPictureAgeMs = defaults.maxPictureAgeMs;
+		performance::diagnostics = defaults.diagnostics;
+	}
+
+	std::uint64_t Fingerprint()
+	{
+		// FNV-1a over the values' bytes.
+		std::uint64_t hash = 14695981039346656037ULL;
+		const auto mix = [&hash](const auto& a_value) {
+			const auto* bytes = reinterpret_cast<const unsigned char*>(&a_value);
+			for (std::size_t i = 0; i < sizeof(a_value); ++i)
+			{
+				hash = (hash ^ bytes[i]) * 1099511628211ULL;
+			}
+		};
+
+		mix(display::anchor);
+		mix(display::offsetX);
+		mix(display::offsetY);
+		mix(display::scale);
+		mix(display::shape);
+		mix(display::showOnGameStart);
+		mix(display::showLocationName);
+		mix(controls::hideKeyCode);
+		mix(controls::zoomToggleKeyCode);
+		mix(controls::panHoldGamepadButton);
+		mix(controls::gamepadHideButtonEnabled);
+		mix(controls::zoomDefault);
+		mix(controls::zoomZoomedIn);
+		mix(controls::followPlayerCameraRotation);
+		mix(compass::compassRing);
+		mix(compass::questPointer);
+		mix(compass::metricUnits);
+		mix(rendering::skipWhileWorldSettles);
+		mix(rendering::settleMs);
+		mix(rendering::redrawIntervalMs);
+		mix(performance::reusePicture);
+		mix(performance::maxPictureAgeMs);
+		return hash;
 	}
 
 	const std::string& GetIniPath() { return iniPath; }

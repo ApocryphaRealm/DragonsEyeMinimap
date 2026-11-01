@@ -1116,6 +1116,8 @@ namespace UI
 
 		logger::set_level(settings::debug::logLevel, settings::debug::logLevel);
 
+		DEM::Minimap::BumpContentEpoch(perf::EpochCause::kSettings);
+
 		if (auto* minimap = DEM::Minimap::GetSingleton())
 		{
 			minimap->RequestDisplayApply();   // applied on the HUD thread, coalesced (1.7.6)
@@ -1164,5 +1166,14 @@ namespace UI
 		ImGuiMCP::PopItemWidth();
 
 		RenderButtons();
+
+		// 1.8.0: any setting changed on this page redraws the picture at once, without each control having to say so.
+		// Only ever a counter moving, so safe from the framework's render thread.
+		static std::uint64_t s_lastFingerprint = settings::Fingerprint();
+		if (const std::uint64_t fingerprint = settings::Fingerprint(); fingerprint != s_lastFingerprint)
+		{
+			s_lastFingerprint = fingerprint;
+			DEM::Minimap::BumpContentEpoch(perf::EpochCause::kSettings);
+		}
 	}
 }

@@ -15,6 +15,8 @@
 
 #include "LMU/API.h"
 
+#include "PerfStats.h"
+
 #include "Line17.h"  // the Skyrim 1.7 line only; empty on line 1
 
 namespace DEM
@@ -239,6 +241,13 @@ namespace DEM
 		// Alternates the map zoom between settings::controls::zoomDefault and zoomZoomedIn.
 		void ToggleZoomPreset();
 
+		// Marks the finished picture out of date, so the next frame that is allowed to redraw does. Safe from ANY thread: it
+		// only moves a counter (1.8.0, WorldRendering.cpp).
+		static void BumpContentEpoch(perf::EpochCause a_cause);
+
+		// The game events that can change the picture with the player standing still. Called once, at kDataLoaded.
+		static void RegisterPictureEventSinks();
+
 		// Local Map Upgrade interface
 		static inline void (*SetPixelShaderProperties)(LMU::PixelShaderProperty::Shape a_shape, LMU::PixelShaderProperty::Style a_style);
 		static inline void (*GetPixelShaderProperties)(LMU::PixelShaderProperty::Shape& a_shape, LMU::PixelShaderProperty::Style& a_style);
@@ -356,7 +365,55 @@ namespace DEM
 		// thing that is not, for the log.
 		bool WorldIsSteady(const char*& a_reason);
 
-		void RenderOffScreen();
+		// PICTURE REUSE (1.8.0). Everything that decides what the local-map render target holds, read just before a redraw
+		// would happen. Positions and angles are compared to the last drawn picture with a tolerance of about one pixel of
+		// that picture, rather than rounded to a grid: a value resting on a grid line would flip bins on every small
+		// jitter and redraw every frame.
+		struct PictureKey
+		{
+			RE::NiPoint3 player{};
+			float yaw = 0.0F;
+			bool followYaw = false;
+			RE::NiPoint3 pan{};
+			float zoom = 0.0F;
+			float frustumWidth = 0.0F;
+			float frustumHeight = 0.0F;
+			RE::NiPoint3 boundsA{};
+			RE::NiPoint3 boundsB{};
+			Shape shape{};
+			Shape lmuShape{};
+			Style lmuStyle{};
+			bool fogEnabled = false;
+			const void* worldSpace = nullptr;   // compared only, never dereferenced
+			RE::FormID interiorCell = 0;
+			std::uint32_t targetWidth = 0;
+			std::uint32_t targetHeight = 0;
+			std::uint32_t epoch = 0;
+		};
+
+		// False when an engine pointer or Local Map Upgrade's shader hooks are not there this frame: a_key is then not
+		// usable, and the redraw decides for itself what it can do.
+		bool BuildPictureKey(PictureKey& a_key);
+
+		// True when the picture in the target still is what a redraw would draw now. a_why names the first test that failed.
+		bool PictureStillGood(const PictureKey& a_key, perf::Reason& a_why) const;
+
+		static inline std::atomic<std::uint32_t> contentEpoch{ 0 };
+
+		// No pass for this long means the minimap was hidden or the HUD was not drawn - a menu, the hide key, another mod.
+		// The target is shared, so whatever it holds now is not trusted.
+		static constexpr std::chrono::milliseconds kPictureGap{ 500 };
+
+		bool hasPicture = false;
+		PictureKey lastPictureKey{};
+		std::chrono::steady_clock::time_point lastPictureAt{};
+		std::chrono::steady_clock::time_point lastPassAt{};
+		bool hasFogSquare = false;
+		std::int32_t lastFogSquareX = 0;
+		std::int32_t lastFogSquareY = 0;
+
+		// Returns false when it drew nothing (Local Map Upgrade's shader hooks are not there yet).
+		bool RenderOffScreen();
 		void ClearTerrainRenderPasses(RE::NiPointer<RE::NiAVObject>& a_object);
 #if RUNTIME_LINE == 17
 		void CullTerrain(const RE::GridCellArray* a_gridCells, line17::LocalMapCullingProcess::UnkData& a_unkData,

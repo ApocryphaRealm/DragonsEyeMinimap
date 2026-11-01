@@ -1039,6 +1039,8 @@ namespace DEM
 
 		localMap_->root.Invoke("SetShape", std::array<RE::GFxValue, 1>{ static_cast<std::uint32_t>(shape) });
 
+		BumpContentEpoch(perf::EpochCause::kSettings);
+
 		logger::debug("Shape set to {}", shape == Shape::kRound ? "round" : "squared");
 	}
 
@@ -1325,6 +1327,8 @@ namespace DEM
 					  localLeft, localTop, localRight, localBottom,
 					  localMap->topLeft.x, localMap->topLeft.y, localMap->bottomRight.x, localMap->bottomRight.y,
 					  aspectRatio, minCamFrustumHalfWidth, minCamFrustumHalfHeight);
+
+		BumpContentEpoch(perf::EpochCause::kDisplay);   // the frame the picture is fitted to moved
 	}
 
 	namespace
@@ -1709,6 +1713,9 @@ namespace DEM
 
 				if (markersSafe && UpdateCamera())
 				{
+					// Per frame always, reused picture or not: the markers are their own Scaleform layer.
+					const perf::ScopedTimer markerTimer{ perf::Section::kMarkers };
+
 					localMap->PopulateData();
 
 					// Re-resolves IconDisplay if the one-shot lookup in InitLocalMap() was too early.
@@ -1838,14 +1845,69 @@ namespace DEM
 				// overlay attaches to live cells, and the off-screen render culls them. Skipping
 				// them leaves the last drawn picture in the local-map render target, which is
 				// what the player keeps seeing until the world has settled.
-				if (ShouldRedrawWorld())
+				//
+				// The gates above stay first and are never bypassed. Reuse only decides, once they have said a redraw
+				// is allowed, whether one is needed: a held frame and a reused frame both leave the target alone.
+				perf::Tick();
+
+				const auto now = std::chrono::steady_clock::now();
+				const bool afterGap = now - lastPassAt > kPictureGap;
+				lastPassAt = now;
+
+				if (!ShouldRedrawWorld())
 				{
-					if (isFogOfWarEnabled)
+					perf::Count(perf::Outcome::kHeld);
+				}
+				else
+				{
+					// Built before the draw, so an epoch bump arriving during it forces the next frame to redraw.
+					PictureKey key;
+					const bool haveKey = BuildPictureKey(key);
+
+					const auto maxAge = std::chrono::milliseconds(settings::performance::maxPictureAgeMs);
+					const bool tooOld = now - lastPictureAt >= maxAge;
+
+					perf::Reason why = perf::Reason::kReuseOff;
+					bool reuse = false;
+					if (haveKey && settings::performance::reusePicture)
 					{
-						UpdateFogOfWar();
+						if (!hasPicture) { why = perf::Reason::kFirst; }
+						else if (afterGap) { why = perf::Reason::kGap; }
+						else if (tooOld) { why = perf::Reason::kAge; }
+						else { reuse = PictureStillGood(key, why); }
 					}
 
-					RenderOffScreen();
+					if (reuse)
+					{
+						perf::Count(perf::Outcome::kReused);
+					}
+					else
+					{
+						perf::Count(why);
+
+						if (isFogOfWarEnabled)
+						{
+							const perf::ScopedTimer fogTimer{ perf::Section::kFog };
+							UpdateFogOfWar();
+						}
+
+						bool drew = false;
+						{
+							const perf::ScopedTimer renderTimer{ perf::Section::kRender };
+							perf::GpuBegin();
+							drew = RenderOffScreen();
+							perf::GpuEnd();
+						}
+
+						perf::Count(perf::Outcome::kRedrawn);
+
+						hasPicture = drew && haveKey;
+						if (hasPicture)
+						{
+							lastPictureKey = key;
+							lastPictureAt = now;
+						}
+					}
 				}
 			}
 		}

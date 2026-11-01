@@ -11,6 +11,9 @@
 #include "RE/R/RenderPassCache.h"
 #include "RE/R/RenderTargetManager.h"
 
+#include <cmath>
+#include <numbers>
+
 namespace RE
 {
 #if RUNTIME_LINE != 17  // CommonLibSSE-NG 7.2 declares BSPortalGraphEntry itself (portalGraph at +0x10, as here)
@@ -53,6 +56,9 @@ namespace DEM
 		{
 			logger::debug("Fog of war overlay not created yet; creating it");
 			localMap->localCullingProcess.CreateFogOfWar();
+
+			// This pass only made the empty holder; the overlay is attached on the next one, which must not wait for the age limit.
+			BumpContentEpoch(perf::EpochCause::kOther);
 		}
 		else
 		{
@@ -335,7 +341,265 @@ namespace DEM
 		return true;
 	}
 
-	void Minimap::RenderOffScreen()
+	// ----------------------------------------------------------------------------------------
+	// PICTURE REUSE (1.8.0).
+	//
+	// What makes this safe to skip: kLOCAL_MAP is an engine render target that keeps its contents until something draws
+	// into it. Minimap.swf bound it once, in LocalMap.as InitMap (loadClip "img://Local_Map"), and nothing per frame
+	// re-binds it, so the HUD movie goes on showing whatever the target holds. The settle gate and iRedrawIntervalMs have
+	// always relied on the same fact. What can write it behind our back is the game's own map menu (the target is
+	// shared) - hence the epoch bump on a menu closing, and kPictureGap for a stretch with no pass at all.
+	//
+	// Why the markers stay right: they are placed from the live camera every frame in Advance(). A picture is only
+	// reused while the camera is within about a pixel of where it was drawn, so the two cannot visibly part.
+	// ----------------------------------------------------------------------------------------
+	namespace
+	{
+		constexpr float kYawTolerance = 0.25F * std::numbers::pi_v<float> / 180.0F;   // 0.25 degrees
+		constexpr float kZTolerance = 16.0F;                                          // world units; the camera looks straight down
+		constexpr float kZoomTolerance = 0.0005F;
+		constexpr float kExteriorFogSquare = 256.0F;                                  // a 4096-unit cell in 16 grid divisions
+		constexpr std::int32_t kInteriorFogDivisions = 32;
+
+		float AngleBetween(float a_a, float a_b)
+		{
+			constexpr float kTwoPi = 2.0F * std::numbers::pi_v<float>;
+			float d = std::fmod(std::abs(a_a - a_b), kTwoPi);
+			return d > std::numbers::pi_v<float> ? kTwoPi - d : d;
+		}
+
+		bool Near(const RE::NiPoint3& a_a, const RE::NiPoint3& a_b, float a_tolerance)
+		{
+			return std::abs(a_a.x - a_b.x) < a_tolerance && std::abs(a_a.y - a_b.y) < a_tolerance && std::abs(a_a.z - a_b.z) < a_tolerance;
+		}
+
+		// Game events only move the epoch counter. Nothing here touches Scaleform or the scene graph (past-mistakes 12737).
+		class PictureEventSink final :
+			public RE::BSTEventSink<RE::TESCellAttachDetachEvent>,
+			public RE::BSTEventSink<RE::TESCellFullyLoadedEvent>,
+			public RE::BSTEventSink<RE::TESActivateEvent>,
+			public RE::BSTEventSink<RE::TESDestructionStageChangedEvent>,
+			public RE::BSTEventSink<RE::MenuOpenCloseEvent>
+		{
+		public:
+			RE::BSEventNotifyControl ProcessEvent(const RE::TESCellAttachDetachEvent*, RE::BSTEventSource<RE::TESCellAttachDetachEvent>*) override
+			{
+				Minimap::BumpContentEpoch(perf::EpochCause::kCell);
+				return RE::BSEventNotifyControl::kContinue;
+			}
+
+			RE::BSEventNotifyControl ProcessEvent(const RE::TESCellFullyLoadedEvent*, RE::BSTEventSource<RE::TESCellFullyLoadedEvent>*) override
+			{
+				Minimap::BumpContentEpoch(perf::EpochCause::kCell);
+				return RE::BSEventNotifyControl::kContinue;
+			}
+
+			RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent* a_event, RE::BSTEventSource<RE::TESActivateEvent>*) override
+			{
+				RE::TESBoundObject* base = a_event && a_event->objectActivated ? a_event->objectActivated->GetBaseObject() : nullptr;
+				if (base)
+				{
+					if (base->Is(RE::FormType::Door))
+					{
+						Minimap::BumpContentEpoch(perf::EpochCause::kDoor);
+					}
+					else if (const auto* destructible = base->As<RE::BGSDestructibleObjectForm>(); destructible && destructible->data)
+					{
+						Minimap::BumpContentEpoch(perf::EpochCause::kDestructible);
+					}
+				}
+				return RE::BSEventNotifyControl::kContinue;
+			}
+
+			RE::BSEventNotifyControl ProcessEvent(const RE::TESDestructionStageChangedEvent*, RE::BSTEventSource<RE::TESDestructionStageChangedEvent>*) override
+			{
+				Minimap::BumpContentEpoch(perf::EpochCause::kDestructible);
+				return RE::BSEventNotifyControl::kContinue;
+			}
+
+			// ANY menu closing, not a list of names: every menu that renders the local map shares kLOCAL_MAP with us, the
+			// list is not ours to know (other mods add menus), and one extra redraw per closed menu costs nothing.
+			RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* a_event, RE::BSTEventSource<RE::MenuOpenCloseEvent>*) override
+			{
+				if (a_event && !a_event->opening)
+				{
+					Minimap::BumpContentEpoch(perf::EpochCause::kMenuClosed);
+				}
+				return RE::BSEventNotifyControl::kContinue;
+			}
+		};
+	}
+
+	void Minimap::BumpContentEpoch(perf::EpochCause a_cause)
+	{
+		contentEpoch.fetch_add(1, std::memory_order_relaxed);
+		perf::Count(a_cause);
+	}
+
+	void Minimap::RegisterPictureEventSinks()
+	{
+		static PictureEventSink sink;
+		static bool registered = false;
+		if (registered)
+		{
+			return;
+		}
+
+		auto* holder = RE::ScriptEventSourceHolder::GetSingleton();
+		auto* ui = RE::UI::GetSingleton();
+		if (!holder || !ui)
+		{
+			logger::warn("Picture events: {} is not available; the picture refreshes on its age limit alone",
+				!holder ? "the script event holder" : "the UI");
+			return;
+		}
+
+		holder->GetEventSource<RE::TESCellAttachDetachEvent>()->AddEventSink(&sink);
+		holder->GetEventSource<RE::TESCellFullyLoadedEvent>()->AddEventSink(&sink);
+		holder->GetEventSource<RE::TESActivateEvent>()->AddEventSink(&sink);
+		holder->GetEventSource<RE::TESDestructionStageChangedEvent>()->AddEventSink(&sink);
+		ui->AddEventSink<RE::MenuOpenCloseEvent>(&sink);
+
+		registered = true;
+		logger::debug("Picture events registered: cell attach/detach and load, activation, destruction stage, menu close");
+	}
+
+	bool Minimap::BuildPictureKey(PictureKey& a_key)
+	{
+		RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+		RE::PlayerCamera* playerCamera = RE::PlayerCamera::GetSingleton();
+		RE::TES* tes = RE::TES::GetSingleton();
+		if (!player || !playerCamera || !tes || !cameraContext || !cameraContext->defaultState || !cameraContext->camera ||
+			!GetPixelShaderProperties)
+		{
+			return false;
+		}
+
+		a_key.player = player->GetPosition();
+
+		// Turning changes the picture only when the map turns with the camera. With north up the angle is the parent
+		// cell's, which is constant in a worldspace and part of the cell events anyway.
+		a_key.followYaw = settings::controls::followPlayerCameraRotation;
+		a_key.yaw = a_key.followYaw ? playerCamera->GetRuntimeData2().yaw : 0.0F;
+
+		a_key.pan = cameraContext->defaultState->translation;   // hold-to-pan moves the camera with the player standing still
+		a_key.zoom = cameraContext->defaultState->zoom;
+
+		const auto& frustum = cameraContext->camera->GetRuntimeData2().viewFrustum;
+		a_key.frustumWidth = frustum.fRight - frustum.fLeft;
+		a_key.frustumHeight = frustum.fTop - frustum.fBottom;
+
+		a_key.boundsA = cameraContext->minExtent;
+		a_key.boundsB = cameraContext->maxExtent;
+
+		a_key.shape = shape;
+		GetPixelShaderProperties(a_key.lmuShape, a_key.lmuStyle);
+		a_key.fogEnabled = isFogOfWarEnabled;
+
+		a_key.worldSpace = tes->GetRuntimeData2().worldSpace;
+		RE::TESObjectCELL* interior = tes->interiorCell;
+		a_key.interiorCell = interior ? interior->GetFormID() : 0;
+
+#if RUNTIME_LINE == 17
+		RE::BSGraphics::RenderTargetManager* renderTargetManager = line17::RenderTargetManager();
+#else
+		RE::BSGraphics::RenderTargetManager* renderTargetManager = RE::BSGraphics::RenderTargetManager::GetSingleton();
+#endif
+		if (renderTargetManager)
+		{
+			const auto& target = renderTargetManager->renderTargetData[RE::RENDER_TARGET::kLOCAL_MAP];
+			a_key.targetWidth = target.width;
+			a_key.targetHeight = target.height;
+		}
+
+		// Crossing a fog square is what can reveal more of the map. Interiors divide the mapped area instead of a cell.
+		if (a_key.fogEnabled)
+		{
+			float squareX = kExteriorFogSquare;
+			float squareY = kExteriorFogSquare;
+			if (interior)
+			{
+				squareX = std::max(std::abs(a_key.boundsB.x - a_key.boundsA.x) / kInteriorFogDivisions, 1.0F);
+				squareY = std::max(std::abs(a_key.boundsB.y - a_key.boundsA.y) / kInteriorFogDivisions, 1.0F);
+			}
+
+			const auto fogX = static_cast<std::int32_t>(std::floor(a_key.player.x / squareX));
+			const auto fogY = static_cast<std::int32_t>(std::floor(a_key.player.y / squareY));
+			if (hasFogSquare && (fogX != lastFogSquareX || fogY != lastFogSquareY))
+			{
+				BumpContentEpoch(perf::EpochCause::kFogGrid);
+			}
+			hasFogSquare = true;
+			lastFogSquareX = fogX;
+			lastFogSquareY = fogY;
+		}
+
+		a_key.epoch = contentEpoch.load(std::memory_order_relaxed);
+		return true;
+	}
+
+	bool Minimap::PictureStillGood(const PictureKey& a_key, perf::Reason& a_why) const
+	{
+		const PictureKey& last = lastPictureKey;
+
+		if (a_key.epoch != last.epoch)
+		{
+			a_why = perf::Reason::kEpoch;
+			return false;
+		}
+
+		if (a_key.worldSpace != last.worldSpace || a_key.interiorCell != last.interiorCell ||
+			a_key.targetWidth != last.targetWidth || a_key.targetHeight != last.targetHeight)
+		{
+			a_why = perf::Reason::kWorld;
+			return false;
+		}
+
+		if (a_key.shape != last.shape || a_key.lmuShape != last.lmuShape || a_key.lmuStyle != last.lmuStyle ||
+			a_key.fogEnabled != last.fogEnabled || a_key.followYaw != last.followYaw)
+		{
+			a_why = perf::Reason::kShapeStyle;
+			return false;
+		}
+
+		// About one pixel of the picture, in world units, at the zoom it was drawn with. An engine frustum that cannot be
+		// read yet (0 wide) gives the floor, which only means redrawing more than necessary.
+		const float pixel = a_key.targetWidth > 0 ? std::clamp(a_key.frustumWidth / static_cast<float>(a_key.targetWidth), 0.25F, 64.0F) : 0.25F;
+
+		// Runs every frame - logged only when the size the position test works to changes (a zoom, a new area).
+		static float s_lastLoggedPixel = -1.0F;
+		if (std::abs(pixel - s_lastLoggedPixel) > 0.5F)
+		{
+			logger::debug("Picture reuse: one pixel of the {}x{} picture is {:.2f} world units (frustum {:.0f} wide)",
+				a_key.targetWidth, a_key.targetHeight, pixel, a_key.frustumWidth);
+			s_lastLoggedPixel = pixel;
+		}
+
+		if (std::abs(a_key.zoom - last.zoom) >= kZoomTolerance || std::abs(a_key.frustumWidth - last.frustumWidth) >= pixel ||
+			std::abs(a_key.frustumHeight - last.frustumHeight) >= pixel || !Near(a_key.boundsA, last.boundsA, 1.0F) ||
+			!Near(a_key.boundsB, last.boundsB, 1.0F))
+		{
+			a_why = perf::Reason::kZoomBounds;
+			return false;
+		}
+
+		if (std::abs(a_key.player.x - last.player.x) >= pixel || std::abs(a_key.player.y - last.player.y) >= pixel ||
+			std::abs(a_key.player.z - last.player.z) >= kZTolerance || !Near(a_key.pan, last.pan, pixel))
+		{
+			a_why = perf::Reason::kPosition;
+			return false;
+		}
+
+		if (a_key.followYaw && AngleBetween(a_key.yaw, last.yaw) >= kYawTolerance)
+		{
+			a_why = perf::Reason::kRotation;
+			return false;
+		}
+
+		return true;
+	}
+
+	bool Minimap::RenderOffScreen()
 	{
 		LMU::PixelShaderProperty::Shape prevShaderShape;
 		LMU::PixelShaderProperty::Style shaderStyle;
@@ -358,7 +622,7 @@ namespace DEM
 				warnedMissingShaderHooks = true;
 			}
 
-			return;
+			return false;
 		}
 
 		GetPixelShaderProperties(prevShaderShape, shaderStyle);
@@ -701,6 +965,8 @@ namespace DEM
 		useMapBrightnessAndContrastBoost = false;
 
 		SetPixelShaderProperties(prevShaderShape, shaderStyle);
+
+		return true;
 	}
 
 	// Terrain render passes can be allocated multiple times but only cleared once per frame.

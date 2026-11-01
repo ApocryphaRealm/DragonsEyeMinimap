@@ -118,9 +118,33 @@ namespace DEM::devbench
 				return;
 			}
 
+			// 1.8.0 measurement: the numbers (op=perf), and the switches a test needs to compare reuse off with on inside one
+			// run. Runtime only - nothing here writes the INI. All of it is plain state, safe from this listener thread.
+			if (op == "perf" || op == "perf:reset" || op == "perf:reuse:on" || op == "perf:reuse:off" || op == "perf:diag:on" || op == "perf:diag:off")
+			{
+				if (op == "perf:reuse:on" || op == "perf:reuse:off")
+				{
+					settings::performance::reusePicture = (op == "perf:reuse:on");
+					Minimap::BumpContentEpoch(perf::EpochCause::kSettings);
+					perf::Reset();
+				}
+				else if (op == "perf:diag:on" || op == "perf:diag:off")
+				{
+					settings::performance::diagnostics = (op == "perf:diag:on");
+				}
+				else if (op == "perf:reset")
+				{
+					perf::Reset();
+				}
+				const std::string reply = perf::Json();
+				a_write(a_sink, reply.c_str());
+				return;
+			}
+
 			// 1.7.5 render diagnostics (RenderDiagnostics.h): dump the local-map targets on the next pass, read the result
 			if (op == "dump")
 			{
+				Minimap::BumpContentEpoch(perf::EpochCause::kOther);   // the dump runs inside a redraw; do not wait for the age limit
 				const std::string note = rdiag::RequestDump();
 				a_write(a_sink, (R"({"ok":true,"note":")" + note + R"("})").c_str());
 				return;
@@ -157,7 +181,7 @@ namespace DEM::devbench
 				return;
 			}
 
-			a_write(a_sink, "{\"ok\":false,\"error\":\"op must be show|hide|state|strings|hudvis|markers|itemmarkers:on|itemmarkers:off\"}");
+			a_write(a_sink, "{\"ok\":false,\"error\":\"op must be show|hide|state|strings|hudvis|markers|itemmarkers:on|itemmarkers:off|dump|dumpresult|perf|perf:reset|perf:reuse:on|perf:reuse:off|perf:diag:on|perf:diag:off\"}");
 		}
 	}
 
@@ -176,7 +200,9 @@ namespace DEM::devbench
 			"\"description\":\"Drive Dragon's Eye Minimap for testing. op: show|hide (runtime toggle, "
 			"never persisted), state (ready/shown/visible, the stage rect, compass toggles), "
 			"strings (the language the settings page is drawn in, where it came from and how many "
-			"translated texts were loaded).\","
+			"translated texts were loaded), perf (ms per section, redrawn/reused/held counts, why it redrew; "
+			"since the last reset and for the last 10 s window), perf:reset, perf:reuse:on|off (runtime, also "
+			"resets), perf:diag:on|off (runtime: GPU timing, and the log line at info).\","
 			"\"inputSchema\":{\"type\":\"object\",\"properties\":{\"op\":{\"type\":\"string\"}}},"
 			"\"readOnly\":false"
 			"}";

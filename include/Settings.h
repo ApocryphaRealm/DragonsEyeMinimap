@@ -29,6 +29,10 @@ namespace settings
 	// UI::ApplyLiveSettings() to show the reloaded values in game.
 	bool Reload();
 
+	// A hash of every setting the settings page can change. The page compares it to spot a change of ANY of them, so
+	// the minimap redraws at once; only ever compared to itself.
+	std::uint64_t Fingerprint();
+
 	// Full path of the INI Init() read, or an empty string before Init() has run.
 	const std::string& GetIniPath();
 
@@ -166,6 +170,20 @@ namespace settings
 		// steps rather than glides. Nothing else about the minimap changes: the frame, the
 		// markers, the compass ring and the player arrow all still update every frame.
 		inline std::int32_t redrawIntervalMs = 0;   // iRedrawIntervalMs:Rendering
+	}
+
+	// PICTURE REUSE AND ITS MEASUREMENT (1.8.0) - INI only, as [Rendering] is.
+	namespace performance
+	{
+		// Keep the finished picture while nothing that decides it has changed, instead of redrawing the world every
+		// frame (WorldRendering.cpp, Minimap::PictureStillGood). 0 behaves as 1.7.6 did, for measuring one against the other.
+		inline bool reusePicture = true;            // bReusePicture:Performance
+
+		// The oldest a reused picture may get, in milliseconds: the safety net for a change nothing announces.
+		inline std::int32_t maxPictureAgeMs = 1000; // iMaxPictureAgeMs:Performance
+
+		// Writes the 10 s performance line at info instead of debug, and adds GPU timing of the off-screen render.
+		inline bool diagnostics = false;            // bDiagnostics:Performance
 	}
 
 	// Built-in compass ring + quest pointer (design decision, 2026-08-30) - INI-only for now

@@ -21,6 +21,33 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
+## 1.8.0 - 2026-11-01 - untested
+
+### Added
+- **The minimap stops redrawing the world when nothing in the picture has changed.** Until now, every frame the map was
+  allowed to redraw it rebuilt the fog overlay and ran the game's whole local-map pass (terrain and object culling, the
+  draw, the fog pass, the post-process), even with the player standing still. `PreRender` now first asks whether the last
+  picture still holds, after the existing settle and steadiness checks, which are not bypassed. It holds while all of
+  these are unchanged: the player's position and any hold-to-pan offset (within about one pixel of the picture at the
+  current zoom; height within 16 units), the camera turn (within 0.25 degrees, only when the map follows the camera), the
+  zoom, the camera's frame and the area bounds, the map shape, Local Map Upgrade's shader shape and style, the fog
+  setting, the worldspace, the interior cell, the render target's size, and a content counter. That counter moves on a
+  cell attaching, detaching or finishing its load, a door or destructible object being activated, a destruction stage
+  changing, ANY menu closing (`kLOCAL_MAP` is shared with the game's map menu), any settings change, and the player
+  crossing a fog grid square. No pass for 500 ms (minimap hidden, HUD not drawn) also redraws, and no picture is kept
+  longer than `iMaxPictureAgeMs` (default 1000), the safety net for a change nothing announces. Standing still now costs
+  about one redraw a second; moving costs what it always did. The engine cull behind the 2026-09-04 crashes runs that
+  much less often. Markers, the player arrow, the frame and the compass still update every frame, on the HUD thread.
+- **`[Performance]` in the INI:** `bReusePicture` (default 1; 0 behaves as 1.7.6 did), `iMaxPictureAgeMs` (default 1000,
+  100-10000), `bDiagnostics` (default 0).
+- **Measurement.** QueryPerformanceCounter timers around the fog rebuild, the off-screen render and the marker block.
+  Every 10 s one line goes to the log with average and maximum ms per section, redrawn/reused/held counts, why it redrew
+  and what moved the content counter: at debug level, or info with `bDiagnostics=1`. With `bDiagnostics=1`, D3D11
+  timestamp queries also bracket the off-screen render; they are read with `D3D11_ASYNC_GETDATA_DONOTFLUSH` from a ring of
+  six query sets, so nothing ever waits on the GPU, and a redraw with no free set simply goes unmeasured.
+- **`dem.control` ops:** `perf` (the same numbers as JSON, since the last reset and for the last 10 s window),
+  `perf:reset`, `perf:reuse:on|off` and `perf:diag:on|off` (runtime only, never written to the INI).
+
 ## 1.7.6 - 2026-10-25 - untested
 
 ### Fixed

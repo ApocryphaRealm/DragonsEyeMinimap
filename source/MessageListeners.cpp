@@ -45,6 +45,8 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 		strings::Configure("DragonsEyeMinimap");
 
 		DEM::devbench::Init(true);
+
+		DEM::Minimap::RegisterPictureEventSinks();
 	}
 
 	// If all plugins have been loaded
