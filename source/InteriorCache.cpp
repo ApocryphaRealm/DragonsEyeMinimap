@@ -37,7 +37,7 @@ namespace DEM
 		constexpr float kMaxSoften = 2.0F;                          // the most a big cell's tiles may grow before it stays live
 		constexpr float kMaxMagnification = 1.25F;                  // stored pixels stretched more than this: draw live instead
 		constexpr auto kSettle = std::chrono::milliseconds(1200);   // after the last door, cell or settings event
-		constexpr auto kMaxAge = std::chrono::seconds(30);          // the safety net for what no event announces
+		constexpr auto kMaxAge = std::chrono::minutes(5);           // the safety net for what no event announces
 
 		ID3D11Texture2D* g_texture = nullptr;
 		ID3D11ShaderResourceView* g_srv = nullptr;
@@ -622,7 +622,7 @@ float4 PS(V i) : SV_Target0 { return Picture.Sample(PictureSampler, i.uv); }
 			c.valid = true;
 			c.completedAt = std::chrono::steady_clock::now();
 			c.state = "ready";
-			BumpContentEpoch(perf::EpochCause::kOther);   // show it, and on a refresh replace what was there
+			BumpContentEpoch(perf::EpochCause::kCacheReady);   // show it, and on a refresh replace what was there
 			logger::debug("Interior cache: cell {:X} captured, {} tile(s)", c.cell, c.tilesX * c.tilesY);
 		}
 	}

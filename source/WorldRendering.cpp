@@ -437,18 +437,62 @@ namespace DEM
 			return std::abs(a_a.x - a_b.x) < a_tolerance && std::abs(a_a.y - a_b.y) < a_tolerance && std::abs(a_a.z - a_b.z) < a_tolerance;
 		}
 
+		// What the map's geometry pass can show: the cell's fixtures. Actors, projectiles and loose items are not in it,
+		// and those are what attach and detach all the time (a whole test walk's worth of them recaptured the cell).
+		bool IsMapFixture(const RE::TESObjectREFR* a_ref)
+		{
+			if (!a_ref || !a_ref->Is(RE::FormType::Reference))
+			{
+				return false;   // ACHR, and the projectile reference types
+			}
+			const RE::TESBoundObject* base = a_ref->GetBaseObject();
+			return base && base->Is(RE::FormType::Static, RE::FormType::MovableStatic, RE::FormType::Door, RE::FormType::Activator,
+							   RE::FormType::TalkingActivator, RE::FormType::Furniture, RE::FormType::Container, RE::FormType::Tree,
+							   RE::FormType::Flora);
+		}
+
+		bool IsInLoadedCell(const RE::TESObjectREFR* a_ref)
+		{
+			const RE::TESObjectCELL* cell = a_ref ? a_ref->GetParentCell() : nullptr;
+			return cell && cell->IsAttached();
+		}
+
 		// Game events only move the epoch counter. Nothing here touches Scaleform or the scene graph (past-mistakes 12737).
 		class PictureEventSink final :
 			public RE::BSTEventSink<RE::TESCellAttachDetachEvent>,
 			public RE::BSTEventSink<RE::TESCellFullyLoadedEvent>,
+			public RE::BSTEventSink<RE::TESObjectLoadedEvent>,
 			public RE::BSTEventSink<RE::TESActivateEvent>,
 			public RE::BSTEventSink<RE::TESDestructionStageChangedEvent>,
 			public RE::BSTEventSink<RE::MenuOpenCloseEvent>
 		{
 		public:
-			RE::BSEventNotifyControl ProcessEvent(const RE::TESCellAttachDetachEvent*, RE::BSTEventSource<RE::TESCellAttachDetachEvent>*) override
+			// Sent per reference, not per cell (21,212 of them in one load). An actor or a projectile changes nothing drawn.
+			RE::BSEventNotifyControl ProcessEvent(const RE::TESCellAttachDetachEvent* a_event, RE::BSTEventSource<RE::TESCellAttachDetachEvent>*) override
 			{
-				Minimap::BumpContentEpoch(perf::EpochCause::kCell);
+				const RE::TESObjectREFR* ref = a_event ? a_event->reference.get() : nullptr;
+				if (IsMapFixture(ref))
+				{
+					Minimap::BumpContentEpoch(perf::EpochCause::kCell);
+				}
+				else if (ref && ref->Is(RE::FormType::Reference))
+				{
+					Minimap::BumpContentEpoch(perf::EpochCause::kCellOther);
+				}
+				return RE::BSEventNotifyControl::kContinue;
+			}
+
+			// A script enabling or disabling something, the change no other event here announces.
+			RE::BSEventNotifyControl ProcessEvent(const RE::TESObjectLoadedEvent* a_event, RE::BSTEventSource<RE::TESObjectLoadedEvent>*) override
+			{
+				if (a_event)
+				{
+					const auto* ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_event->formID);
+					if (IsMapFixture(ref) && IsInLoadedCell(ref))
+					{
+						Minimap::BumpContentEpoch(perf::EpochCause::kObject);
+					}
+				}
 				return RE::BSEventNotifyControl::kContinue;
 			}
 
@@ -460,17 +504,39 @@ namespace DEM
 
 			RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent* a_event, RE::BSTEventSource<RE::TESActivateEvent>*) override
 			{
-				RE::TESBoundObject* base = a_event && a_event->objectActivated ? a_event->objectActivated->GetBaseObject() : nullptr;
-				if (base)
+				// This fires for every actor everywhere, including AI walking through load doors in cells that are not
+				// loaded: test 96d8 saw about three doors per 10 s at the same rate in the Bannered Mare and in Bleak Falls,
+				// with the player touching none, and each one captured the whole interior again.
+				const RE::TESObjectREFR* target = a_event ? a_event->objectActivated.get() : nullptr;
+				const RE::TESBoundObject* base = target ? target->GetBaseObject() : nullptr;
+				if (!base)
 				{
-					if (base->Is(RE::FormType::Door))
-					{
-						Minimap::BumpContentEpoch(perf::EpochCause::kDoor);
-					}
-					else if (const auto* destructible = base->As<RE::BGSDestructibleObjectForm>(); destructible && destructible->data)
-					{
-						Minimap::BumpContentEpoch(perf::EpochCause::kDestructible);
-					}
+					return RE::BSEventNotifyControl::kContinue;
+				}
+
+				const bool isDoor = base->Is(RE::FormType::Door);
+				const auto* destructible = isDoor ? nullptr : base->As<RE::BGSDestructibleObjectForm>();
+				if (!isDoor && !(destructible && destructible->data))
+				{
+					return RE::BSEventNotifyControl::kContinue;
+				}
+
+				if (!IsInLoadedCell(target))
+				{
+					if (isDoor) { perf::CountDoorElsewhere(); }
+					return RE::BSEventNotifyControl::kContinue;
+				}
+
+				// A leaf turning about its hinge is a line of a few pixels on the map, drawn again for the player's own
+				// door because it is rare and cheap. An NPC's door is left to the safety net; the live picture is still redrawn.
+				const bool byPlayer = a_event->actionRef.get() == RE::PlayerCharacter::GetSingleton();
+				if (isDoor)
+				{
+					Minimap::BumpContentEpoch(byPlayer ? perf::EpochCause::kDoor : perf::EpochCause::kDoorOther);
+				}
+				else if (byPlayer)
+				{
+					Minimap::BumpContentEpoch(perf::EpochCause::kDestructible);
 				}
 				return RE::BSEventNotifyControl::kContinue;
 			}
@@ -497,7 +563,7 @@ namespace DEM
 	void Minimap::BumpContentEpoch(perf::EpochCause a_cause)
 	{
 		contentEpoch.fetch_add(1, std::memory_order_relaxed);
-		if (a_cause == perf::EpochCause::kCell || a_cause == perf::EpochCause::kDoor ||
+		if (a_cause == perf::EpochCause::kCell || a_cause == perf::EpochCause::kObject || a_cause == perf::EpochCause::kDoor ||
 			a_cause == perf::EpochCause::kDestructible || a_cause == perf::EpochCause::kSettings)
 		{
 			cacheEpoch.fetch_add(1, std::memory_order_relaxed);
@@ -525,6 +591,7 @@ namespace DEM
 
 		holder->GetEventSource<RE::TESCellAttachDetachEvent>()->AddEventSink(&sink);
 		holder->GetEventSource<RE::TESCellFullyLoadedEvent>()->AddEventSink(&sink);
+		holder->GetEventSource<RE::TESObjectLoadedEvent>()->AddEventSink(&sink);
 		holder->GetEventSource<RE::TESActivateEvent>()->AddEventSink(&sink);
 		holder->GetEventSource<RE::TESDestructionStageChangedEvent>()->AddEventSink(&sink);
 		ui->AddEventSink<RE::MenuOpenCloseEvent>(&sink);

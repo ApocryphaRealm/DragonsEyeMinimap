@@ -7,7 +7,7 @@ WHAT CHANGED
 
 Version 1.8.0
 The map no longer redraws the world every frame when nothing in the picture has changed. Standing still now costs about one redraw a second instead of one a frame; moving costs what it always did. Markers, the player arrow, the frame and the compass still update every frame, and a door opening, a cell loading, a menu closing or a settings change redraws at once.
-Interiors are now drawn once and kept in graphics memory, one interior at a time, nothing on disk; each frame shows the part around you. Fog of war, markers, shape and style stay live, and a door, a destructible object or a settings change draws it again.
+Interiors are now drawn once and kept in graphics memory, one interior at a time, nothing on disk; each frame shows the part around you. Fog of war, markers, shape and style stay live, and a door you use, something destroyed or a settings change draws it again.
 The fog of war overlay is rebuilt only when it can have changed, which was the largest cost of the map outdoors.
 Added a Performance section to the INI: bInteriorCache and bFogOnChange turn those two off, bReusePicture turns picture reuse off, iMaxPictureAgeMs sets the oldest a kept picture may get, and bDiagnostics writes what each part of the map costs to the log every 10 seconds.
 

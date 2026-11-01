@@ -22,7 +22,7 @@ namespace perf
 			"reuseOff", "first", "epoch", "age", "gap", "world", "shapeStyle", "zoomBounds", "position", "rotation"
 		};
 		constexpr std::array<const char*, static_cast<int>(EpochCause::kCount)> kCauseNames = {
-			"cell", "door", "destructible", "menuClosed", "settings", "fogGrid", "display", "other"
+			"cell", "cellOther", "object", "door", "doorOther", "destructible", "menuClosed", "settings", "fogGrid", "display", "cacheReady", "other"
 		};
 
 		struct Stat
@@ -55,6 +55,7 @@ namespace perf
 		std::mutex g_lastLock;
 		std::string g_lastWindowJson = "{}";
 
+		std::atomic<std::uint64_t> g_doorsElsewhere{ 0 };
 		std::atomic<std::uint64_t> g_cacheBytes{ 0 };
 		std::atomic<std::uint32_t> g_cacheTilesX{ 0 };
 		std::atomic<std::uint32_t> g_cacheTilesY{ 0 };
@@ -269,6 +270,11 @@ namespace perf
 		g_total.causes[i].fetch_add(1, std::memory_order_relaxed);
 	}
 
+	void CountDoorElsewhere()
+	{
+		g_doorsElsewhere.fetch_add(1, std::memory_order_relaxed);
+	}
+
 	void SetCacheInfo(std::uint64_t a_bytes, std::uint32_t a_tilesX, std::uint32_t a_tilesY, const char* a_state)
 	{
 		g_cacheBytes.store(a_bytes, std::memory_order_relaxed);
@@ -359,11 +365,11 @@ namespace perf
 
 		return std::format("{{\"ok\":true,\"op\":\"perf\",\"reusePicture\":{},\"maxPictureAgeMs\":{},\"diagnostics\":{},\"redrawIntervalMs\":{},"
 						   "\"interiorCache\":{},\"fogOnChange\":{},\"cache\":{{\"state\":\"{}\",\"tilesX\":{},\"tilesY\":{},\"megabytes\":{:.1f}}},"
-						   "\"gpuTiming\":\"{}\",\"gpuUnmeasured\":{},\"sinceReset\":{},\"lastWindow\":{}}}",
+						   "\"doorsElsewhere\":{},\"gpuTiming\":\"{}\",\"gpuUnmeasured\":{},\"sinceReset\":{},\"lastWindow\":{}}}",
 			settings::performance::reusePicture, settings::performance::maxPictureAgeMs, settings::performance::diagnostics,
 			settings::rendering::redrawIntervalMs, settings::performance::interiorCache, settings::performance::fogOnChange,
 			g_cacheState.load(), g_cacheTilesX.load(), g_cacheTilesY.load(), static_cast<double>(g_cacheBytes.load()) / (1024.0 * 1024.0),
-			gpu, g_gpuUnmeasured.load(), ScopeJson(g_total, totalSeconds), lastWindow);
+			g_doorsElsewhere.load(), gpu, g_gpuUnmeasured.load(), ScopeJson(g_total, totalSeconds), lastWindow);
 	}
 
 	void Reset()
@@ -371,6 +377,7 @@ namespace perf
 		Zero(g_total);
 		g_totalStart.store(Now());
 		g_gpuUnmeasured.store(0);
+		g_doorsElsewhere.store(0);
 		logger::debug("Performance: since-reset numbers cleared");
 	}
 }

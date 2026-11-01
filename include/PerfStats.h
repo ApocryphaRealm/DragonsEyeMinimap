@@ -38,7 +38,16 @@ namespace perf
 	// What raised the content epoch.
 	enum class EpochCause : int
 	{
-		kCell, kDoor, kDestructible, kMenuClosed, kSettings, kFogGrid, kDisplay, kOther, kCount
+		kCell,          // a fixture attached, detached or a cell finished loading: recapture
+		kCellOther,     // a loose item attached or detached: the picture is redrawn, the interior is not captured again
+		kObject,        // a fixture's 3D loaded or unloaded, as a script enabling or disabling it does: recapture
+		kDoor,          // the PLAYER activated a door in a loaded cell: recapture
+		kDoorOther,     // someone else did: the picture is redrawn, the interior is not captured again
+		kDestructible,  // a destruction stage changed, or the player activated something destructible: recapture
+		kMenuClosed, kSettings, kFogGrid, kDisplay,
+		kCacheReady,    // a capture finished, and the new picture is to be shown
+		kOther,
+		kCount
 	};
 
 	std::int64_t Now();
@@ -46,6 +55,9 @@ namespace perf
 	void Count(Outcome a_outcome);
 	void Count(Reason a_reason);
 	void Count(EpochCause a_cause);
+
+	// A door activated in a cell that is not loaded (AI travelling elsewhere in the world): counted, changes nothing.
+	void CountDoorElsewhere();
 
 	class ScopedTimer
 	{

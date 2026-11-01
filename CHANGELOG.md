@@ -45,8 +45,10 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   tile is what the camera frames at its closest zoom, so the closest zoom stays sharp. Each redraw then draws the part the
   live camera sees into `kLOCAL_MAP_SWAP` with one textured triangle (device state saved and restored), and the fog pass and
   ISLocalMap run as before, so edges, style, shape, the fade and fog stay live. No file, one interior kept, released on
-  leaving. Drawn again on a door, destructible, cell load or settings event (after 1.2 s, so a door has finished), and
-  every 30 s as the safety net; replaced at a new resolution or camera frame. Above 128 MB after doubling the tile size, or
+  leaving. Drawn again (after 1.2 s, so a door has finished) on a fixture attaching or a script enabling or disabling one,
+  a door or destructible the player activates, a destruction stage changing, or a settings change, and every 5 minutes as
+  the safety net. Not on what cannot change the map: doors AI activates in cells that are not loaded (test 96d8: about 3 per
+  10 s anywhere, 47 full recaptures in a 5-minute walk), an NPC's door, actors, projectiles or loose items. Replaced at a new resolution or camera frame. Above 128 MB after doubling the tile size, or
   when the current zoom would stretch stored pixels by more than 1.25, it draws live as outdoors. A menu closing recomposes;
   it does not capture again.
 - **The fog overlay is rebuilt only when it can have changed (`[Performance] bFogOnChange`, default 1).** It cannot be
@@ -59,7 +61,7 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
   six query sets, so nothing ever waits on the GPU, and a redraw with no free set simply goes unmeasured.
 - **`dem.control` ops:** `perf` (the same numbers as JSON, since the last reset and for the last 10 s window),
   `perf:reset`, `perf:reuse:on|off`, `perf:cache:on|off`, `perf:fog:on|off` and `perf:diag:on|off` (runtime only, never
-  written to the INI). `perf` also gives composed, fogRebuilt and fogKept counts, compose, cacheRender and gpuCompose timers,
+  written to the INI). `perf` also gives doorsElsewhere, composed, fogRebuilt and fogKept counts, compose, cacheRender and gpuCompose timers,
   and the cache's state, tile grid and megabytes.
 
 ## 1.7.6 - 2026-10-25 - untested
