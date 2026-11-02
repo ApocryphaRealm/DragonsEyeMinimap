@@ -204,8 +204,8 @@ namespace DEM::compassring
 	// so on, and shows them again after. The compass clip was drawn on the HUD root outside that
 	// list, gated only by GameIsPaused(), so it followed no mode at all. It now registers itself
 	// in HudElements and owns exactly the modes the vanilla compass (CompassShoutMeterHolder) owns:
-	// All, Favor, DialogueMode, StealthMode, Swimming, HorseMode, WarHorseMode - and hidden in dialogue
-	// with the minimap (the owner, 2026-11-02: DialogueMode dropped), hidden in every menu mode like the compass. A marker property keeps a clip
+	// All, Favor, DialogueMode, StealthMode, Swimming, HorseMode, WarHorseMode - less DialogueMode (the owner,
+	// 2026-11-02: it hides in conversation with the minimap), and hidden in every menu mode like the compass. A marker property keeps a clip
 	// adopted after Reset() from being pushed twice.
 	static constexpr const char* kHudModes[] = { "All", "Favor", "StealthMode", "Swimming", "HorseMode", "WarHorseMode" };
 	static constexpr const char* kRegisteredMarker = "demCompassInHudElements";
