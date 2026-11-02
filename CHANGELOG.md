@@ -21,6 +21,11 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
+## 1.8.2 - 2026-11-02 - untested
+
+### Fixed
+- The compass ring now hides in conversation along with the minimap, instead of appearing in its corner when the map hid.
+
 ## 1.8.1 - 2026-11-01 - working
 
 ### Fixed

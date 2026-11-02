@@ -204,10 +204,10 @@ namespace DEM::compassring
 	// so on, and shows them again after. The compass clip was drawn on the HUD root outside that
 	// list, gated only by GameIsPaused(), so it followed no mode at all. It now registers itself
 	// in HudElements and owns exactly the modes the vanilla compass (CompassShoutMeterHolder) owns:
-	// All, Favor, DialogueMode, StealthMode, Swimming, HorseMode, WarHorseMode - visible in dialogue
-	// like the compass, hidden in every menu mode like the compass. A marker property keeps a clip
+	// All, Favor, DialogueMode, StealthMode, Swimming, HorseMode, WarHorseMode - and hidden in dialogue
+	// with the minimap (the owner, 2026-11-02: DialogueMode dropped), hidden in every menu mode like the compass. A marker property keeps a clip
 	// adopted after Reset() from being pushed twice.
-	static constexpr const char* kHudModes[] = { "All", "Favor", "DialogueMode", "StealthMode", "Swimming", "HorseMode", "WarHorseMode" };
+	static constexpr const char* kHudModes[] = { "All", "Favor", "StealthMode", "Swimming", "HorseMode", "WarHorseMode" };
 	static constexpr const char* kRegisteredMarker = "demCompassInHudElements";
 
 	static void RegisterWithHud(RE::GFxMovieView* a_view)
@@ -234,7 +234,7 @@ namespace DEM::compassring
 			g_clip.SetMember(kRegisteredMarker, RE::GFxValue{ true });
 		}
 		g_hudRegistered = true;
-		logger::info("CompassRing: registered in HudElements (now {} elements) with modes All, Favor, DialogueMode, StealthMode, Swimming, HorseMode, WarHorseMode", elements.GetArraySize());
+		logger::info("CompassRing: registered in HudElements (now {} elements) with modes All, Favor, StealthMode, Swimming, HorseMode, WarHorseMode", elements.GetArraySize());
 	}
 
 	// For the driving tool: the HUD's current mode stack, whether the clip is registered and what
