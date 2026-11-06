@@ -68,6 +68,10 @@ namespace UI
 
 		constexpr const char* const kAnchorKeys[] = { "DEM_Corner_TopLeft", "DEM_Corner_TopRight", "DEM_Corner_BottomLeft", "DEM_Corner_BottomRight" };
 		constexpr const char* const kAnchorLabels[] = { "Top left", "Top right", "Bottom left", "Bottom right" };
+		// 1.9.0: the compass style combo, settings::compass::compassStyle (0 Nordic, 1 Simple).
+		constexpr const char* const kCompassStyleKeys[] = { "DEM_CompassStyle_Nordic", "DEM_CompassStyle_Simple" };
+		constexpr const char* const kCompassStyleLabels[] = { "Nordic", "Simple" };
+		constexpr int kCompassStyleCount = 2;
 		constexpr int kAnchorCount = 4;
 
 		constexpr const char* const kLogLevelKeys[] = { "DEM_Log_Trace", "DEM_Log_Debug", "DEM_Log_Info", "DEM_Log_Warning", "DEM_Log_Error", "DEM_Log_Critical", "DEM_Log_Off" };
@@ -924,6 +928,14 @@ namespace UI
 
 			ImGuiMCP::Toggle(strings::TR("DEM_CompassRing", "Compass ring"), &compass::compassRing);
 			HelpMarker(strings::TR("DEM_HelpCompassRing", "The compass ring that takes the minimap's corner while the map is hidden. Off = nothing is drawn there when the map is hidden."));
+
+			int style = static_cast<int>(compass::compassStyle);
+			if (ComboTR(strings::TR("DEM_CompassStyle", "Compass style"), &style, kCompassStyleKeys, kCompassStyleLabels, kCompassStyleCount))
+			{
+				compass::compassStyle = static_cast<std::uint32_t>(style);
+				logger::debug("Compass style set to {} from the settings page", style == 0 ? "Nordic" : "Simple");
+			}
+			HelpMarker(strings::TR("DEM_HelpCompassStyle", "Nordic: a carved stone compass whose bronze rose turns with the camera and whose red needle points to the nearest quest objective. Simple: the plain drawn ring with letters."));
 
 			ImGuiMCP::Toggle(strings::TR("DEM_QuestPointer", "Quest pointer"), &compass::questPointer);
 			HelpMarker(strings::TR("DEM_HelpQuestPointer", "The vanilla-style quest marker with the distance readout, riding the ring or the visible map. Off = never drawn."));

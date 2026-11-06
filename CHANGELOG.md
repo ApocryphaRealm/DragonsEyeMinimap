@@ -21,7 +21,15 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 >   through `rules-version.ps1 -Action bump`, both of which take their arithmetic from that same
 >   tool. A number typed by hand is wrong until the tool agrees.
 
-## 1.8.2 - 2026-11-02 - untested
+## 1.9.0 - 2026-11-06 - untested
+
+1.8.2 (untested, never posted) is withdrawn; its two fixes are carried here, since this release adds a feature (minor).
+
+### Added
+- **A Nordic compass, rendered in Blender** (the owner, 2026-11-06: "a much higher quality graphic generated with Blender that looks like a real compass ... the quest compass arm is a separate compass arm"; "make it nordic looking"). While the map is hidden, its circle now holds a carved compass in four layers: the fixed body (stone rim with Elder Futhark runes, iron bezel with a lubber wedge at the top, slate face with bronze-inlaid ticks), a bronze knotwork rose with N/E/S/W in angular rune-cut letters that turns against the camera heading, a separate red-enamelled quest needle turned to the nearest displayed objective's bearing, and a fixed iron boss with a glass sheen. The scene is `tools/compass/compass_scene.py` (procedural; no outside art or fonts); `tools/compass/build_compass.py --render` re-renders it and writes `dist/Interface/DragonsEyeMinimap/compass.swf`.
+- The art ships as a SWF of four named sprites (body, rose, needle, cap) with embedded lossless bitmaps, loaded into the HUD with loadMovie, not as DDS: Scaleform cannot load a loose DDS (past-mistakes library, LMU 1.3.3). If it has not arrived after 600 frames, the Simple ring is drawn for the session and the log says why.
+- `uCompassStyle` in [Compass] (0 Nordic, the default; 1 Simple, the drawn ring) and a Compass style row on the settings page, in all eleven languages. Restore defaults resets it.
+- In Nordic style the distance readout sits on the stone rim at the bottom; with the map shown, the quest pointer is still the notched arrowhead on the map's edge. uDiscAlpha now also sets the stone body's opacity. The driving tool's HUD probe reports style, art state, rose and needle rotation.
 
 ### Fixed
 - The compass ring turns with the camera, as the game's own compass does, not with the way the character faces

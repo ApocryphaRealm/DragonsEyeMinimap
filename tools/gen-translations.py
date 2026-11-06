@@ -368,6 +368,27 @@ TRANSLATIONS["DEM_HelpMetricUnits"] = T(
     "Odczyt odległości w metrach zamiast w stopach.",
     "Údaj o vzdálenosti v metrech místo ve stopách.")
 
+TRANSLATIONS["DEM_CompassStyle"] = T(
+    "コンパスの外観", "나침반 스타일", "罗盘样式", "Стиль компаса", "Kompassstil",
+    "Style de la boussole", "Estilo de la brújula", "Stile della bussola", "Styl kompasu", "Styl kompasu")
+TRANSLATIONS["DEM_CompassStyle_Nordic"] = T(
+    "ノルド風", "노르드", "北欧", "Нордский", "Nordisch",
+    "Nordique", "Nórdico", "Nordico", "Nordycki", "Severský")
+TRANSLATIONS["DEM_CompassStyle_Simple"] = T(
+    "シンプル", "단순", "简洁", "Простой", "Einfach",
+    "Simple", "Sencillo", "Semplice", "Prosty", "Jednoduchý")
+TRANSLATIONS["DEM_HelpCompassStyle"] = T(
+    "ノルド風: 石彫りのコンパス。青銅のローズはカメラに合わせて回り、赤い針は最も近いクエスト目標を指します。シンプル: 文字付きの描画リングです。",
+    "노르드: 돌을 깎아 만든 나침반으로, 청동 장미는 카메라를 따라 돌고 붉은 바늘은 가장 가까운 퀘스트 목표를 가리킵니다. 단순: 글자가 있는 평범한 고리입니다.",
+    "北欧：石刻罗盘，青铜罗盘玫瑰随镜头转动，红色指针指向最近的任务目标。简洁：带方位字母的简单圆环。",
+    "Нордский: резной каменный компас, бронзовая роза которого поворачивается вместе с камерой, а красная стрелка указывает на ближайшую цель задания. Простой: обычное нарисованное кольцо с буквами.",
+    "Nordisch: ein gemeißelter Steinkompass, dessen Bronzerose sich mit der Kamera dreht und dessen rote Nadel auf das nächste Questziel zeigt. Einfach: der schlichte gezeichnete Ring mit Buchstaben.",
+    "Nordique : une boussole en pierre sculptée dont la rose en bronze tourne avec la caméra et dont l'aiguille rouge indique l'objectif de quête le plus proche. Simple : l'anneau dessiné avec ses lettres.",
+    "Nórdico: una brújula de piedra tallada cuya rosa de bronce gira con la cámara y cuya aguja roja señala el objetivo de misión más cercano. Sencillo: el anillo dibujado con letras.",
+    "Nordico: una bussola di pietra scolpita la cui rosa di bronzo ruota con la telecamera e il cui ago rosso indica l'obiettivo della missione più vicino. Semplice: il semplice anello disegnato con le lettere.",
+    "Nordycki: rzeźbiony kamienny kompas, którego brązowa róża obraca się z kamerą, a czerwona igła wskazuje najbliższy cel zadania. Prosty: zwykły rysowany pierścień z literami.",
+    "Severský: tesaný kamenný kompas, jehož bronzová růžice se otáčí s kamerou a červená střelka ukazuje k nejbližšímu cíli úkolu. Jednoduchý: prostý kreslený kruh s písmeny.")
+
 # --- Controls -----------------------------------------------------------------------------------
 TRANSLATIONS["DEM_SecControls"] = T(
     "操作", "조작", "控制", "Управление", "Steuerung",

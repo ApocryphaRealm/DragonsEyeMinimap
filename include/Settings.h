@@ -201,6 +201,9 @@ namespace settings
 		inline bool compassRing = true;        // bCompassRing:Compass
 		inline bool questPointer = true;       // bQuestPointer:Compass
 		inline bool metricUnits = false;       // bMetricUnits:Compass - feet by default, like the vanilla compass
+		// 1.9.0: how the compass looks while the map is hidden. 0 = Nordic (the Blender-rendered art in
+		// Interface/DragonsEyeMinimap/compass.swf: a turning rose and a separate quest needle), 1 = Simple (the drawn ring).
+		inline std::uint32_t compassStyle = 0; // uCompassStyle:Compass
 		// Stage-pixel conversions of the old separate widget's SCREEN-pixel defaults (the HUD
 		// movie scales ~2.5x onto a 3200-wide screen), so the built-in compass keeps its look.
 		inline float ringGap = 2.4F;           // fRingGap:Compass - inward of the map frame's inscribed circle

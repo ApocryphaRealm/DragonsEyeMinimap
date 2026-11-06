@@ -1,3 +1,5 @@
 .vs/
 build/
 swf/HUDMenu/
+tools/compass/render/
+__pycache__/

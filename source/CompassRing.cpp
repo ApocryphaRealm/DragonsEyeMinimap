@@ -23,6 +23,29 @@ namespace DEM::compassring
 		bool g_loggedFirstDraw = false;
 
 		constexpr const char* kClipName = "DEMCompassRing";
+
+		// 1.9.0 NORDIC STYLE (the owner, 2026-11-06: "a much higher quality graphic generated with Blender that looks like a
+		// real compass ... the quest compass arm is a separate compass arm that points in its direction" - "make it nordic
+		// looking"). The art is rendered by tools/compass/compass_scene.py and packed by build_compass.py into a SWF of four
+		// named sprites, each centred on (0, 0): body (fixed), rose (turns with the camera heading), needle (turns to the
+		// quest bearing), cap (fixed). It is a SWF, not a DDS, because Scaleform cannot load a loose DDS (img:// only finds
+		// images the game registered - past-mistakes library, LMU 1.3.3); loadMovie of a SWF under Interface is the route
+		// HUD Position Manager's widgets already prove. Loaded into demNordic.art, a child of our clip at a NEGATIVE depth
+		// so the distance text fields (depths 0..4) stay above it.
+		constexpr const char* kArtUrl = "DragonsEyeMinimap/compass.swf";
+		constexpr double kArtOuterRadius = 0.98 * 256.0;   // build_compass.py: OUTER_FRACTION of the 512 px art's half-width
+		constexpr int kArtLoadFrames = 600;                // ~5-10 s; after that the Simple ring is drawn for the session
+		RE::GFxValue g_nordic;     // holder: position, scale, visibility
+		RE::GFxValue g_over;       // above the art: the distance readout's above/below glyph in Nordic style
+		bool g_artRequested = false;
+		bool g_artLoaded = false;
+		bool g_artFailed = false;
+		int g_artWaitFrames = 0;
+		// last values written, for the driving tool (main thread only)
+		double g_lastRoseRot = 0.0;
+		double g_lastNeedleRot = 0.0;
+		bool g_lastNeedleShown = false;
+		bool g_lastNordicShown = false;
 		constexpr const char* kFont = "$EverywhereBoldFont";  // the vanilla HUD's embedded face
 
 		double ToRgb(std::uint32_t a_rgb) { return static_cast<double>(a_rgb & 0xFFFFFFu); }
@@ -122,6 +145,76 @@ namespace DEM::compassring
 			field.SetMember("_y", RE::GFxValue{ a_y });
 		}
 
+		bool Child(RE::GFxValue& a_parent, const char* a_name, RE::GFxValue& a_out)
+		{
+			return a_parent.IsDisplayObject() && a_parent.GetMember(a_name, &a_out) && a_out.IsDisplayObject();
+		}
+
+		bool MakeChildClip(RE::GFxValue& a_parent, const char* a_name, double a_depth, RE::GFxValue& a_out)
+		{
+			if (Child(a_parent, a_name, a_out)) { return true; }
+			std::array<RE::GFxValue, 2> create{ RE::GFxValue{ a_name }, RE::GFxValue{ a_depth } };
+			return a_parent.Invoke("createEmptyMovieClip", &a_out, create.data(), create.size()) && a_out.IsDisplayObject();
+		}
+
+		// Creates the holder, asks for the art once and reports whether it has arrived. Runs whenever the Nordic style is
+		// chosen, shown or not, so the art is there by the time the map is hidden. Not ready = draw the Simple ring.
+		bool EnsureNordicArt()
+		{
+			if (g_artFailed) { return false; }
+			if (!g_nordic.IsDisplayObject())
+			{
+				if (!MakeChildClip(g_clip, "demNordic", -100.0, g_nordic))
+				{
+					g_artFailed = true;
+					logger::warn("CompassRing: could not create the Nordic holder clip; the Simple ring is drawn instead");
+					return false;
+				}
+				g_nordic.SetMember("_visible", RE::GFxValue{ false });
+				g_artRequested = g_artLoaded = false;
+				g_artWaitFrames = 0;
+			}
+			RE::GFxValue art;
+			if (!MakeChildClip(g_nordic, "art", 1.0, art))
+			{
+				g_artFailed = true;
+				logger::warn("CompassRing: could not create the Nordic art clip; the Simple ring is drawn instead");
+				return false;
+			}
+			if (!g_artRequested)
+			{
+				g_artRequested = true;
+				g_artWaitFrames = 0;
+				RE::GFxValue url{ kArtUrl };
+				const bool called = art.Invoke("loadMovie", nullptr, &url, 1);
+				logger::info("CompassRing: Nordic art loadMovie(\"{}\") {}", kArtUrl, called ? "called" : "FAILED");
+			}
+			if (g_artLoaded) { return true; }
+			RE::GFxValue rose, needle, body;
+			if (Child(art, "rose", rose) && Child(art, "needle", needle) && Child(art, "body", body))
+			{
+				g_artLoaded = true;
+				RE::GFxValue u;
+				logger::info("CompassRing: Nordic art loaded after {} frame(s) from {}", g_artWaitFrames,
+							 art.GetMember("_url", &u) && u.IsString() ? u.GetString() : "(no _url)");
+				return true;
+			}
+			if (++g_artWaitFrames > kArtLoadFrames)
+			{
+				g_artFailed = true;
+				g_nordic.SetMember("_visible", RE::GFxValue{ false });
+				RE::GFxValue u;
+				logger::warn("CompassRing: the Nordic art did not arrive within {} frames (Interface/{} missing or unreadable? art _url {}); the Simple ring is drawn instead",
+							 kArtLoadFrames, kArtUrl, art.GetMember("_url", &u) && u.IsString() ? u.GetString() : "(none)");
+			}
+			return false;
+		}
+
+		void SetNum(RE::GFxValue& a_obj, const char* a_member, double a_value)
+		{
+			a_obj.SetMember(a_member, RE::GFxValue{ a_value });
+		}
+
 		// The way the camera looks, as the game's own compass turns, not the way the body faces (the owner, 2026-11-06: the ring
 		// turned with the character, not the camera). The same yaw the minimap's camera follow reads.
 		float PlayerHeading()
@@ -198,6 +291,10 @@ namespace DEM::compassring
 		g_clip = RE::GFxValue{};
 		g_fieldsMade = false;
 		g_hudRegistered = false;
+		g_nordic = RE::GFxValue{};
+		g_over = RE::GFxValue{};
+		g_artRequested = g_artLoaded = g_artFailed = false;
+		g_artWaitFrames = 0;
 	}
 
 	// THE HUD'S OWN HIDE-IN-MENU FLAGS (the owner, 2026-09-17: "make sure the compass widget has the
@@ -263,8 +360,14 @@ namespace DEM::compassring
 			inList = g_clip.HasMember(kRegisteredMarker);
 			RE::GFxValue v; if (g_clip.GetMember("_visible", &v) && v.IsBool()) { clipVisible = v.GetBool() ? 1 : 0; }
 		}
+		char nordic[256];
+		std::snprintf(nordic, sizeof(nordic),
+					  ",\"style\":\"%s\",\"nordicArt\":\"%s\",\"nordicShown\":%s,\"roseRotation\":%.1f,\"needleShown\":%s,\"needleRotation\":%.1f",
+					  settings::compass::compassStyle == 0 ? "Nordic" : "Simple",
+					  g_artFailed ? "failed" : (g_artLoaded ? "loaded" : (g_artRequested ? "loading" : "not requested")),
+					  g_lastNordicShown ? "true" : "false", g_lastRoseRot, g_lastNeedleShown ? "true" : "false", g_lastNeedleRot);
 		return "{\"modes\":\"" + modes + "\",\"hudElements\":" + std::to_string(count) + ",\"registered\":" + (inList ? "true" : "false") +
-			",\"clipVisible\":" + std::to_string(clipVisible) + ",\"vanillaCompassVisible\":" + std::to_string(holderVisible) + "}";
+			",\"clipVisible\":" + std::to_string(clipVisible) + ",\"vanillaCompassVisible\":" + std::to_string(holderVisible) + nordic + "}";
 	}
 
 	void Update()
@@ -350,8 +453,17 @@ namespace DEM::compassring
 		}
 
 		(void)g_clip.Invoke("clear");
+		if (!g_over.IsDisplayObject()) { (void)MakeChildClip(g_clip, "demOver", 50.0, g_over); }
+		if (g_over.IsDisplayObject()) { (void)g_over.Invoke("clear"); }
 
 		const bool ringNow = ringOn && gameplay && !mapVisible;
+		const bool nordicChosen = settings::compass::compassStyle == 0;
+		const bool artReady = nordicChosen && EnsureNordicArt();
+		const bool nordic = ringNow && artReady;
+		if (!nordic && g_nordic.IsDisplayObject() && g_lastNordicShown) { g_nordic.SetMember("_visible", RE::GFxValue{ false }); }
+		if (nordic != g_lastNordicShown) { logger::debug("CompassRing: Nordic compass {}", nordic ? "shown" : "hidden"); }
+		g_lastNordicShown = nordic;
+		if (!nordic) { g_lastNeedleShown = false; }
 
 		// 1.6.6: the owner asked whether the ring shows in the Tween menu, where the minimap is hidden -
 		// which is exactly the case the ring exists for. `gameplay` is !GameIsPaused(), and a paused
@@ -368,8 +480,9 @@ namespace DEM::compassring
 		}
 		const bool pointerNow = pointerOn && gameplay;
 		const char* labels[4] = { "labN", "labE", "labS", "labW" };
-		if (!ringNow)
+		if (!ringNow || nordic)
 		{
+			// Nordic: the letters are carved into the rose art
 			for (const char* n : labels) { SetField(n, "", 0, 0, false); }
 		}
 		if (!ringNow && !pointerNow)
@@ -396,7 +509,35 @@ namespace DEM::compassring
 		}
 
 		constexpr double kPi = std::numbers::pi;
-		if (ringNow)
+		constexpr double kDeg = 180.0 / std::numbers::pi;
+		// the Nordic compass fills the map's inscribed circle - exactly the place the map was
+		const double nordicOuter = radius + settings::compass::ringGap;
+		RE::GFxValue art, needleClip;
+		if (nordic)
+		{
+			const double scale = nordicOuter / kArtOuterRadius * 100.0;
+			SetNum(g_nordic, "_x", cx);
+			SetNum(g_nordic, "_y", cy);
+			SetNum(g_nordic, "_xscale", scale);
+			SetNum(g_nordic, "_yscale", scale);
+			g_nordic.SetMember("_visible", RE::GFxValue{ true });
+			if (Child(g_nordic, "art", art))
+			{
+				RE::GFxValue body, rose;
+				// the backing disc's opacity setting carries over to the stone body
+				if (Child(art, "body", body)) { SetNum(body, "_alpha", static_cast<double>(std::min<std::uint32_t>(settings::compass::discAlpha, 100))); }
+				// the card turns AGAINST the heading, so north on the card stays on the world's north
+				g_lastRoseRot = -static_cast<double>(heading) * kDeg;
+				if (Child(art, "rose", rose)) { SetNum(rose, "_rotation", g_lastRoseRot); }
+				(void)Child(art, "needle", needleClip);
+				if (!pointerNow && needleClip.IsDisplayObject())
+				{
+					needleClip.SetMember("_visible", RE::GFxValue{ false });   // the quest pointer is switched off
+					g_lastNeedleShown = false;
+				}
+			}
+		}
+		if (ringNow && !nordic)
 		{
 			// Backing disc (lineTo circle), then the ring as a SEGMENTED QUAD STRIP - every
 			// element on the proven moveTo/lineTo/beginFill primitives only (curveTo renders
@@ -459,6 +600,13 @@ namespace DEM::compassring
 			static bool have = false;
 			static int frame = 0;
 			if (player && (frame++ % 30) == 0) { have = NearestObjective(player->GetPosition(), target, dist); }
+			const bool needleNow = nordic && player && have;
+			if (needleClip.IsDisplayObject())
+			{
+				needleClip.SetMember("_visible", RE::GFxValue{ needleNow });
+				if (needleNow != g_lastNeedleShown) { logger::debug("CompassRing: quest needle {}", needleNow ? "shown" : "hidden (no displayed objective)"); }
+				g_lastNeedleShown = needleNow;
+			}
 			if (player && have && (ringNow || mapVisible))
 			{
 				const RE::NiPoint3 from = player->GetPosition();
@@ -473,9 +621,18 @@ namespace DEM::compassring
 				const double blX = baseX - rx * half, blY = baseY - ry * half;
 				const double brX = baseX + rx * half, brY = baseY + ry * half;
 				const double nX = baseX + ux * settings::compass::pointerSize * 0.38, nY = baseY + uy * settings::compass::pointerSize * 0.38;
-				// The vanilla compass's notched arrowhead: two triangles sharing tip and notch.
-				FillPoly(g_clip, settings::compass::pointerColor, 100.0, { { tipX, tipY }, { blX, blY }, { nX, nY } });
-				FillPoly(g_clip, settings::compass::pointerColor, 100.0, { { tipX, tipY }, { nX, nY }, { brX, brY } });
+				if (nordic)
+				{
+					// the red needle turns to the bearing, in the art's own frame (up = 0, clockwise)
+					g_lastNeedleRot = a * kDeg;
+					if (needleClip.IsDisplayObject()) { SetNum(needleClip, "_rotation", g_lastNeedleRot); }
+				}
+				else
+				{
+					// The vanilla compass's notched arrowhead: two triangles sharing tip and notch.
+					FillPoly(g_clip, settings::compass::pointerColor, 100.0, { { tipX, tipY }, { blX, blY }, { nX, nY } });
+					FillPoly(g_clip, settings::compass::pointerColor, 100.0, { { tipX, tipY }, { nX, nY }, { brX, brY } });
+				}
 
 				if (g_fieldsMade)
 				{
@@ -495,14 +652,21 @@ namespace DEM::compassring
 										  0.5 * (tw * std::abs(std::sin(a)) + settings::compass::labelSize * std::abs(std::cos(a)));
 					double lx, ly;
 					onRing(bearing, radius - inward, lx, ly);
+					if (nordic)
+					{
+						// Nordic: on the stone rim at the bottom, where nothing turns under it
+						lx = cx;
+						ly = cy + nordicOuter * 0.89;
+					}
 					SetField("labDist", buf, lx, ly - settings::compass::labelSize * 0.7, true);
 					// Above/below the target: the old widget's small triangle beside the number,
 					// not a text caret.
+					RE::GFxValue& glyphClip = (nordic && g_over.IsDisplayObject()) ? g_over : g_clip;   // above the art
 					if (up || down)
 					{
 						const double gx = lx + tw * 0.5 + 4.0, gy = ly;
-						if (up) { FillPoly(g_clip, settings::compass::pointerColor, 100.0, { { gx, gy - 2.4 }, { gx - 2.0, gy + 1.6 }, { gx + 2.0, gy + 1.6 } }); }
-						else { FillPoly(g_clip, settings::compass::pointerColor, 100.0, { { gx, gy + 2.4 }, { gx - 2.0, gy - 1.6 }, { gx + 2.0, gy - 1.6 } }); }
+						if (up) { FillPoly(glyphClip, settings::compass::pointerColor, 100.0, { { gx, gy - 2.4 }, { gx - 2.0, gy + 1.6 }, { gx + 2.0, gy + 1.6 } }); }
+						else { FillPoly(glyphClip, settings::compass::pointerColor, 100.0, { { gx, gy + 2.4 }, { gx - 2.0, gy - 1.6 }, { gx + 2.0, gy - 1.6 } }); }
 					}
 					distShown = true;
 				}

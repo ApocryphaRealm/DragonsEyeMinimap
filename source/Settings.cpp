@@ -63,6 +63,8 @@ namespace settings
 			bool diagnostics;
 			bool interiorCache;
 			bool fogOnChange;
+
+			std::uint32_t compassStyle;
 		};
 
 		Defaults defaults;
@@ -91,6 +93,7 @@ namespace settings
 			defaults.diagnostics = performance::diagnostics;
 			defaults.interiorCache = performance::interiorCache;
 			defaults.fogOnChange = performance::fogOnChange;
+			defaults.compassStyle = compass::compassStyle;
 
 			logger::debug("Captured built-in defaults: anchor={}, scale={:.2f}, shape={}, hideKey={}, zoomToggleKey={}",
 				defaults.anchor, defaults.scale, defaults.shape, defaults.hideKeyCode, defaults.zoomToggleKeyCode);
@@ -629,6 +632,8 @@ namespace settings
 				compass::compassRing = Read<bool>(c, "bCompassRing:Compass", compass::compassRing);
 				compass::questPointer = Read<bool>(c, "bQuestPointer:Compass", compass::questPointer);
 				compass::metricUnits = Read<bool>(c, "bMetricUnits:Compass", compass::metricUnits);
+				compass::compassStyle = Read<std::uint32_t>(c, "uCompassStyle:Compass", compass::compassStyle);
+				if (compass::compassStyle > 1) { logger::warn("uCompassStyle={} is not 0 or 1; using 0 (Nordic)", compass::compassStyle); compass::compassStyle = 0; }
 				compass::ringGap = Read<float>(c, "fRingGap:Compass", compass::ringGap);
 				compass::ringThickness = Read<float>(c, "fRingThickness:Compass", compass::ringThickness);
 				compass::pointerSize = Read<float>(c, "fPointerSize:Compass", compass::pointerSize);
@@ -719,6 +724,7 @@ namespace settings
 			add("bCompassRing:Compass", compassRing);
 			add("bQuestPointer:Compass", questPointer);
 			add("bMetricUnits:Compass", metricUnits);
+			add("uCompassStyle:Compass", compassStyle);
 			add("fRingGap:Compass", ringGap);
 			add("fRingThickness:Compass", ringThickness);
 			add("fPointerSize:Compass", pointerSize);
@@ -845,6 +851,7 @@ namespace settings
 		ok &= WriteBool(kCompassSection, "bCompassRing", compass::compassRing);
 		ok &= WriteBool(kCompassSection, "bQuestPointer", compass::questPointer);
 		ok &= WriteBool(kCompassSection, "bMetricUnits", compass::metricUnits);
+		ok &= WriteUInt(kCompassSection, "uCompassStyle", compass::compassStyle);
 
 		ok &= WriteBool(kRenderingSection, "bSkipWhileWorldSettles", rendering::skipWhileWorldSettles);
 		ok &= WriteInt(kRenderingSection, "iSettleMs", rendering::settleMs);
@@ -941,6 +948,8 @@ namespace settings
 		performance::diagnostics = defaults.diagnostics;
 		performance::interiorCache = defaults.interiorCache;
 		performance::fogOnChange = defaults.fogOnChange;
+
+		compass::compassStyle = defaults.compassStyle;
 	}
 
 	std::uint64_t Fingerprint()
@@ -972,6 +981,7 @@ namespace settings
 		mix(compass::compassRing);
 		mix(compass::questPointer);
 		mix(compass::metricUnits);
+		mix(compass::compassStyle);
 		mix(rendering::skipWhileWorldSettles);
 		mix(rendering::settleMs);
 		mix(rendering::redrawIntervalMs);
