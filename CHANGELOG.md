@@ -24,6 +24,7 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 ## 1.8.2 - 2026-11-02 - untested
 
 ### Fixed
+- The compass ring turns with the camera, as the game's own compass does, not with the way the character faces
 - The compass ring now hides in conversation along with the minimap, instead of appearing in its corner when the map hid.
 
 ## 1.8.1 - 2026-11-01 - working

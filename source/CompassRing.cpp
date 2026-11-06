@@ -122,8 +122,11 @@ namespace DEM::compassring
 			field.SetMember("_y", RE::GFxValue{ a_y });
 		}
 
+		// The way the camera looks, as the game's own compass turns, not the way the body faces (the owner, 2026-11-06: the ring
+		// turned with the character, not the camera). The same yaw the minimap's camera follow reads.
 		float PlayerHeading()
 		{
+			if (auto* camera = RE::PlayerCamera::GetSingleton()) { return camera->GetRuntimeData2().yaw; }
 			if (auto* player = RE::PlayerCharacter::GetSingleton()) { return player->GetAngleZ(); }
 			return 0.0F;
 		}
