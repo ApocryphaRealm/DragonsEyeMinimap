@@ -12,9 +12,10 @@ Why a SWF and not DDS: the compass is drawn in Skyrim's HUD movie (Scaleform), a
 route HUD Position Manager's widgets already prove. The bitmaps are embedded lossless (DefineBitsLossless2, premultiplied
 ARGB) and filled into a square shape with a SMOOTHED clipped bitmap fill, so a rotated layer stays clean.
 
-The SWF's main timeline holds four named sprites, each centred on (0, 0) and 512 px across (the compass's outer edge is
-radius 0.98 of the half-width, 251 px): body, rose, needle, cap - stacked in that order. The DLL sets rose._rotation and
-needle._rotation and scales the whole movie to the minimap's circle. A reskin keeps the names and replaces the art.
+The SWF's main timeline holds five named sprites, each centred on (0, 0) and 512 px across (the compass's outer edge is
+radius 0.98 of the half-width, 251 px): body, rose, north, needle, cap - stacked in that order. The DLL sets
+rose._rotation and north._rotation (both against the heading: they point at world north) and needle._rotation (the quest
+bearing) and scales the whole movie to the minimap's circle. A reskin keeps the names and replaces the art.
 
 --previews <dir> writes each layer plus two composites (north up; turned 45 degrees with the needle elsewhere) there.
 """
@@ -33,7 +34,7 @@ sys.path.insert(0, HERE)
 import swfgen  # noqa: E402  (HUD Position Manager's writer, vendored)
 
 REPO = os.path.dirname(os.path.dirname(HERE))
-LAYERS = ["body", "rose", "needle", "cap"]
+LAYERS = ["body", "rose", "north", "needle", "cap"]
 SIZE = 512
 OUTER_FRACTION = 0.98   # outer edge radius as a fraction of the half-width; the DLL uses the same number
 
@@ -162,14 +163,14 @@ def previews(out_dir):
         c = backdrop()
         for n in LAYERS:
             img = L[n]
-            if n == "rose":
+            if n in ("rose", "north"):
                 img = img.rotate(heading_deg, resample=Image.BICUBIC)         # card turns AGAINST the heading
             elif n == "needle":
                 img = img.rotate(-needle_screen_deg, resample=Image.BICUBIC)  # clockwise screen angle
             c = Image.alpha_composite(c, img)
         return c
 
-    north = compose(0, 0)
+    north = compose(0, 120)          # camera facing north, objective bearing 120 (ESE)
     north.save(os.path.join(out_dir, "composite-north-up.png"))
     turned = compose(45, 120 - 45)   # camera heading 45 (NE), objective bearing 120 (ESE)
     turned.save(os.path.join(out_dir, "composite-heading45-quest120.png"))

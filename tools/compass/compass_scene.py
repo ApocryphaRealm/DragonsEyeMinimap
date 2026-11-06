@@ -3,7 +3,7 @@ r"""Dragon's Eye Minimap - the Nordic compass, built and rendered in Blender (DE
 Run (Blender 5.x, no GUI):
     blender --background --factory-startup --python tools/compass/compass_scene.py -- <out_dir> [size]
 
-Everything is procedural: no image, font or model comes from outside this file. It renders four
+Everything is procedural: no image, font or model comes from outside this file. It renders five
 transparent PNG layers, each seen straight down through an orthographic camera that covers -1..1 in X and Y
 (the compass's outer edge is radius 0.98, its centre the image centre):
 
@@ -12,13 +12,15 @@ transparent PNG layers, each seen straight down through an orthographic camera t
     rose.png    the compass card that TURNS with the camera heading: a faceted eight-point rose in
                 aged bronze, an interlaced (over-under) knotwork band, N / E / S / W in angular,
                 rune-cut letterforms - north up in the image
-    needle.png  the quest needle that turns to the objective's bearing: a red-enamelled spear arm on
-                an iron spine, a counterweight tail - pointing up in the image
+    north.png   the NORTH arm, which turns with the rose so it always points to world north: a
+                red-enamelled spear arm on an iron spine, a counterweight tail - pointing up in the image
+    needle.png  the quest needle, a separate smaller gilded arrowhead that turns to the objective's
+                bearing - pointing up in the image
     cap.png     fixed, on top: the iron boss over the pivot and a faint glass sheen
 
-The rose, needle and cap each throw their shadow onto a shadow catcher at the face's height, so the
-shadow is in that layer's alpha and moves with it. The DLL stacks the four in this order and sets the
-rose's and the needle's _rotation; tools/compass/build_compass.py turns these PNGs into the SWF.
+The rose, north arm, needle and cap each throw their shadow onto a shadow catcher at the face's height, so the
+shadow is in that layer's alpha and moves with it. The DLL stacks the five in this order and sets the
+rose's, the north arm's and the needle's _rotation; tools/compass/build_compass.py turns these PNGs into the SWF.
 """
 import math
 import sys
@@ -559,16 +561,32 @@ def spear(scale_w, tip_y, blade_base, blade_w, shaft_w, tail_y):
     left = [(-x, y) for x, y in reversed(pts[1:-1])]
     return pts + left
 
+# THE NORTH ARM (layer "north"; the owner, 2026-11-06: "have the red compass north arm point north"). The red-enamelled
+# spear turns with the rose, so it always points to world north.
 iron_outline = spear(1.0, 0.748, 0.53, 0.075, 0.021, -0.26)
-outline_poly(iron_outline, 0.10, "NeedleIron", "needle", iron, z_top=0.118, bevel=0.003)
+outline_poly(iron_outline, 0.10, "NorthIron", "north", iron, z_top=0.118, bevel=0.003)
 enamel_inner = spear(0.62, 0.715, 0.545, 0.075, 0.021, -0.225)
-outline_poly(enamel_inner, 0.118, "NeedleEnamel", "needle", enamel, z_top=0.124)
+outline_poly(enamel_inner, 0.118, "NorthEnamel", "north", enamel, z_top=0.124)
 # a cold-steel spine down the blade
-strokes_mesh("NeedleSpine", "needle", [((0.0, 0.70), (0.0, 0.56))], 0.007, 0.124, 0.13, bevel=0.002)
-assign(bpy.data.objects["NeedleSpine"], silver_iron)
-# the pivot ring of the needle
-pr = revolve("NeedleRing", "needle", [(0.03, 0.118), (0.045, 0.128), (0.06, 0.118), (0.06, 0.1)], segs=64)
+strokes_mesh("NorthSpine", "north", [((0.0, 0.70), (0.0, 0.56))], 0.007, 0.124, 0.13, bevel=0.002)
+assign(bpy.data.objects["NorthSpine"], silver_iron)
+# the pivot ring of the arms
+pr = revolve("NorthRing", "north", [(0.03, 0.118), (0.045, 0.128), (0.06, 0.118), (0.06, 0.1)], segs=64)
 assign(pr, iron)
+
+# THE QUEST NEEDLE (layer "needle"): a separate, smaller pointer that must never be mistaken for the north arm -
+# a gilded barbed arrowhead on a slender shaft, no red, no forked tail, riding above the north arm.
+gilt = principled("Gilt", (0.78, 0.58, 0.22), metallic=1.0, rough=0.24, noise_bump=0.03, noise_scale=170.0, color_var=0.25)
+
+def arrow(sx, tip, barb_y, barb_w, notch_y, shaft_w, tail_y):
+    right = [(0.0, tip), (barb_w * sx, barb_y), (shaft_w * sx * 1.6, notch_y), (shaft_w * sx, notch_y - 0.02),
+             (shaft_w * sx, tail_y + 0.05), (shaft_w * sx * 2.6, tail_y), (0.0, tail_y + 0.02)]
+    return right + [(-x, y) for x, y in reversed(right[1:-1])]
+
+outline_poly(arrow(1.0, 0.665, 0.53, 0.062, 0.565, 0.013, -0.15), 0.135, "QuestIron", "needle", dark_bronze, z_top=0.147, bevel=0.002)
+outline_poly(arrow(0.6, 0.635, 0.545, 0.062, 0.572, 0.013, -0.125), 0.147, "QuestGilt", "needle", gilt, z_top=0.152)
+qr = revolve("QuestRing", "needle", [(0.02, 0.15), (0.032, 0.158), (0.044, 0.15), (0.044, 0.135)], segs=64)
+assign(qr, gilt)
 
 # ================================================================================================ CAP
 boss = revolve("Boss", "cap", [(0.0, 0.17), (0.02, 0.168), (0.035, 0.16), (0.045, 0.145), (0.05, 0.13), (0.05, 0.125)], segs=96)
@@ -625,7 +643,8 @@ catcher.is_shadow_catcher = True
 
 # ------------------------------------------------------------------------------------------------ render each layer
 # each moving layer's shadow falls just under it, so a shadow that turns with its layer stays short
-LAYERS = [("body", [], 0.0), ("rose", ["catcher"], 0.0), ("needle", ["catcher"], 0.075), ("cap", ["catcher"], 0.11)]
+LAYERS = [("body", [], 0.0), ("rose", ["catcher"], 0.0), ("north", ["catcher"], 0.075), ("needle", ["catcher"], 0.11),
+          ("cap", ["catcher"], 0.12)]
 for layer, extra, catcher_z in LAYERS:
     catcher.location.z = catcher_z
     for name, c in collections.items():

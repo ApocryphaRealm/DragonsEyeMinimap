@@ -935,7 +935,7 @@ namespace UI
 				compass::compassStyle = static_cast<std::uint32_t>(style);
 				logger::debug("Compass style set to {} from the settings page", style == 0 ? "Nordic" : "Simple");
 			}
-			HelpMarker(strings::TR("DEM_HelpCompassStyle", "Nordic: a carved stone compass whose bronze rose turns with the camera and whose red needle points to the nearest quest objective. Simple: the plain drawn ring with letters."));
+			HelpMarker(strings::TR("DEM_HelpCompassStyle", "Nordic: a carved stone compass whose red arm always points north and whose gold arrow points to the nearest quest objective. Simple: the plain drawn ring with letters."));
 
 			ImGuiMCP::Toggle(strings::TR("DEM_QuestPointer", "Quest pointer"), &compass::questPointer);
 			HelpMarker(strings::TR("DEM_HelpQuestPointer", "The vanilla-style quest marker with the distance readout, riding the ring or the visible map. Off = never drawn."));
