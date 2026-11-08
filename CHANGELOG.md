@@ -33,6 +33,7 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 - In Nordic style the distance readout sits on the stone rim at the bottom; with the map shown, the quest pointer is still the notched arrowhead on the map's edge. uDiscAlpha now also sets the stone body's opacity. The driving tool's HUD probe reports style, art state, rose and needle rotation.
 
 ### Fixed
+- Switching the quest pointer off while the compass ring is off now removes it at once; it used to stay on screen until the minimap was toggled.
 - The compass ring turns with the camera, as the game's own compass does, not with the way the character faces
 - The compass ring now hides in conversation along with the minimap, instead of appearing in its corner when the map hid.
 

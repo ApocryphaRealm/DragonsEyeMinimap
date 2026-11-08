@@ -375,7 +375,15 @@ namespace DEM::compassring
 	{
 		const bool ringOn = settings::compass::compassRing;
 		const bool pointerOn = settings::compass::questPointer;
-		if (!ringOn && !pointerOn) { return; }
+		// With both off, one more pass still runs: it clears what the last frame drew. Returning at once left the quest
+		// pointer on screen after it was switched off with the compass ring already off (a Nexus report, 2026-11-08).
+		static bool s_cleared = false;
+		if (!ringOn && !pointerOn)
+		{
+			if (s_cleared) { return; }
+			s_cleared = true;
+		}
+		else { s_cleared = false; }
 
 		auto* mini = Minimap::GetSingleton();
 		if (!mini || !mini->IsReady()) { return; }
