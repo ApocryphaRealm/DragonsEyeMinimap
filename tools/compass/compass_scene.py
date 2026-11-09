@@ -12,7 +12,7 @@ transparent PNG layers, each seen straight down through an orthographic camera t
     rose.png    the compass card that TURNS with the camera heading: a faceted eight-point rose in
                 aged bronze, an interlaced (over-under) knotwork band, N / E / S / W in angular,
                 rune-cut letterforms (the N gilt) - north up in the image
-    needle.png  the QUEST needle: a red-enamelled spear arm on an iron spine, a counterweight tail, turned to
+    needle.png  the QUEST needle: a slender red-enamelled needle with a sharp point, iron-edged, a thin counterweight tail, turned to
                 the objective's bearing - pointing up in the image; short enough that its whole length stays
                 inside the braided cord, so it never covers the gilt N or the other letters
     cap.png     fixed, on top: the iron boss over the pivot and a faint glass sheen
@@ -547,43 +547,28 @@ def outline_poly(points, z, name, layer, mat, z_top=None, bevel=0.0):
         m = o.modifiers.new("Bevel", "BEVEL"); m.width = bevel; m.segments = 2; m.limit_method = "ANGLE"
     return o
 
-def spear(scale_w, tip_y, blade_base, blade_w, shaft_w, tail_y):
-    """The needle's outline, pointing up: a leaf-shaped spearhead, a shaft, a forked tail."""
-    pts = []
-    # right side, tip to tail
-    pts.append((0.0, tip_y))
-    for k in range(1, 9):
-        t = k / 9
-        y = tip_y - (tip_y - blade_base) * t
-        w = blade_w * math.sin(math.pi * (0.15 + 0.85 * t) ** 0.9 * 0.82) * scale_w
-        pts.append((w, y))
-    pts.append((shaft_w * scale_w * 1.6, blade_base - 0.005))
-    pts.append((shaft_w * scale_w, blade_base - 0.03))
-    pts.append((shaft_w * scale_w, tail_y + 0.06))
-    pts.append((shaft_w * scale_w * 3.2, tail_y - 0.005))
-    pts.append((shaft_w * scale_w * 1.2, tail_y + 0.025))
-    pts.append((0.0, tail_y + 0.01))
-    left = [(-x, y) for x, y in reversed(pts[1:-1])]
-    return pts + left
-
 # THE QUEST NEEDLE (layer "needle"). The owner, 2026-11-09: "keep the red compass arm and get rid of the golden one and
 # just have the red one point at the compass quest marker"; and confine the red arm "within the band of gold that looks
 # like braided gold ... doesn't leave the exterior bounds of the golden cord". The needle turns to any bearing against
 # the rose, so its tip must stay inside the cord's outer edge at the cord's narrowest: the two knot bands swing
 # 0.43 +- 0.045 in opposite phase (tube radius 0.0135), so the outer edge is 0.43 + 0.045|sin 8t| + 0.0135 - never
-# closer in than ~0.444, at the sixteen crossings. The spear is drawn at the old proportions and shrunk: lengths by
-# ARM_K (tip 0.748 -> 0.37), widths by ARM_W, so it ends inside the cord at every angle - its soft shadow included,
-# which reaches ~0.04 past the metal - and never reaches the letters at radius 0.56 and beyond. build_compass.py measures this on the pixels (--check).
-ARM_K = 0.37 / 0.748
-ARM_W = 0.72
-def arm(pts):
-    return [(x * ARM_W, y * ARM_K) for x, y in pts]
-iron_outline = arm(spear(1.0, 0.748, 0.53, 0.075, 0.021, -0.26))
-outline_poly(iron_outline, 0.10, "NeedleIron", "needle", iron, z_top=0.118, bevel=0.003)
-enamel_inner = arm(spear(0.62, 0.715, 0.545, 0.075, 0.021, -0.225))
+# closer in than ~0.444, at the sixteen crossings. The needle's tip is at 0.37, so it ends inside the cord at every
+# angle - its soft shadow included, which reaches ~0.04 past the metal - and never reaches the letters at radius 0.56
+# and beyond. build_compass.py measures this on the pixels (--check).
+# The owner, 2026-11-09, after the previews: "Make the compass's red arm pointy, not bulbous." So it is no longer the
+# shrunk leaf spear: a slender needle drawn at its final size, widest (0.036 each side) just past the pivot, its edges
+# slightly concave as they narrow to a sharp point at 0.37, and a thin counterweight tail to -0.13.
+def needle_outline(k):
+    """Right side from the tip down, mirrored; k scales the widths (the enamel inlay is a narrower copy)."""
+    right = [(0.0, 0.37), (0.006 * k, 0.30), (0.015 * k, 0.20), (0.027 * k, 0.08), (0.036 * k, 0.02),
+             (0.016 * k, -0.03), (0.010 * k, -0.10), (0.020 * k, -0.13), (0.0, -0.115)]
+    return right + [(-x, y) for x, y in reversed(right[1:-1])]
+iron_outline = needle_outline(1.0)
+outline_poly(iron_outline, 0.10, "NeedleIron", "needle", iron, z_top=0.118, bevel=0.002)
+enamel_inner = [(x, y * 0.94 if y > 0 else y * 0.85) for x, y in needle_outline(0.72)]
 outline_poly(enamel_inner, 0.118, "NeedleEnamel", "needle", enamel, z_top=0.124)
-# a cold-steel spine down the blade
-strokes_mesh("NeedleSpine", "needle", [((0.0, 0.70 * ARM_K), (0.0, 0.56 * ARM_K))], 0.006, 0.124, 0.13, bevel=0.002)
+# a cold-steel spine down the middle of the blade
+strokes_mesh("NeedleSpine", "needle", [((0.0, 0.07), (0.0, 0.25))], 0.004, 0.124, 0.128, bevel=0.001)
 assign(bpy.data.objects["NeedleSpine"], silver_iron)
 # the pivot ring
 pr = revolve("NeedleRing", "needle", [(0.03, 0.118), (0.045, 0.128), (0.06, 0.118), (0.06, 0.1)], segs=64)
