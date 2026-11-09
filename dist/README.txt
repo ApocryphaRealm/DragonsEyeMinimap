@@ -7,7 +7,7 @@ WHAT CHANGED
 
 Version 1.9.0
 The compass that takes the map's place while the map is hidden is now a carved Nordic compass: a stone rim cut with runes, an iron bezel, and a bronze knotwork rose that turns with the camera.
-On that compass the red-enamelled arm always points north, and the quest pointer is its own smaller gold arrow, which points to the nearest quest objective. The rim stays still.
+On that compass the red-enamelled arm points to the nearest quest objective and stays inside the braided gold cord; the gilt N on the rose shows north. With no objective, or with the quest pointer switched off, the arm is hidden. The rim stays still.
 Added a Compass style setting (uCompassStyle in the INI): Nordic, or Simple for the drawn ring as before.
 The compass turns with the camera, as the game's own compass does, rather than with the way the character faces.
 The compass now hides in conversation along with the minimap.

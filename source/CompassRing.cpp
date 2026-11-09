@@ -26,9 +26,11 @@ namespace DEM::compassring
 
 		// 1.9.0 NORDIC STYLE (the owner, 2026-11-06: "a much higher quality graphic generated with Blender that looks like a
 		// real compass ... the quest compass arm is a separate compass arm that points in its direction" - "make it nordic
-		// looking"). The art is rendered by tools/compass/compass_scene.py and packed by build_compass.py into a SWF of five
-		// named sprites, each centred on (0, 0): body (fixed), rose and north (the red north arm; both turn against the camera
-		// heading, so they point at world north), needle (the gilded quest arm, turns to the quest bearing), cap (fixed). It is a SWF, not a DDS, because Scaleform cannot load a loose DDS (img:// only finds
+		// looking"). The art is rendered by tools/compass/compass_scene.py and packed by build_compass.py into a SWF of four
+		// named sprites, each centred on (0, 0): body (fixed), rose (turns against the camera heading, so its N points at world
+		// north), needle (the red arm, turned to the quest bearing - the owner, 2026-11-09: "keep the red compass arm and get
+		// rid of the golden one and just have the red one point at the compass quest marker"), cap (fixed). It is a SWF, not a
+		// DDS, because Scaleform cannot load a loose DDS (img:// only finds
 		// images the game registered - past-mistakes library, LMU 1.3.3); loadMovie of a SWF under Interface is the route
 		// HUD Position Manager's widgets already prove. Loaded into demNordic.art, a child of our clip at a NEGATIVE depth
 		// so the distance text fields (depths 0..4) stay above it.
@@ -46,7 +48,6 @@ namespace DEM::compassring
 		double g_lastNeedleRot = 0.0;
 		bool g_lastNeedleShown = false;
 		bool g_lastNordicShown = false;
-		bool g_lastNorthShown = false;
 		constexpr const char* kFont = "$EverywhereBoldFont";  // the vanilla HUD's embedded face
 
 		double ToRgb(std::uint32_t a_rgb) { return static_cast<double>(a_rgb & 0xFFFFFFu); }
@@ -363,10 +364,10 @@ namespace DEM::compassring
 		}
 		char nordic[256];
 		std::snprintf(nordic, sizeof(nordic),
-					  ",\"style\":\"%s\",\"nordicArt\":\"%s\",\"nordicShown\":%s,\"roseRotation\":%.1f,\"northArm\":%s,\"needleShown\":%s,\"needleRotation\":%.1f",
+					  ",\"style\":\"%s\",\"nordicArt\":\"%s\",\"nordicShown\":%s,\"roseRotation\":%.1f,\"needleShown\":%s,\"needleRotation\":%.1f",
 					  settings::compass::compassStyle == 0 ? "Nordic" : "Simple",
 					  g_artFailed ? "failed" : (g_artLoaded ? "loaded" : (g_artRequested ? "loading" : "not requested")),
-					  g_lastNordicShown ? "true" : "false", g_lastRoseRot, g_lastNorthShown ? "true" : "false", g_lastNeedleShown ? "true" : "false", g_lastNeedleRot);
+					  g_lastNordicShown ? "true" : "false", g_lastRoseRot, g_lastNeedleShown ? "true" : "false", g_lastNeedleRot);
 		return "{\"modes\":\"" + modes + "\",\"hudElements\":" + std::to_string(count) + ",\"registered\":" + (inList ? "true" : "false") +
 			",\"clipVisible\":" + std::to_string(clipVisible) + ",\"vanillaCompassVisible\":" + std::to_string(holderVisible) + nordic + "}";
 	}
@@ -538,12 +539,8 @@ namespace DEM::compassring
 				// the card turns AGAINST the heading, so north on the card stays on the world's north
 				g_lastRoseRot = -static_cast<double>(heading) * kDeg;
 				if (Child(art, "rose", rose)) { SetNum(rose, "_rotation", g_lastRoseRot); }
-				// the red NORTH arm turns with the rose: it always points to world north (the owner, 2026-11-06: "have
-				// the red compass north arm point north ... the compass rim or graphic stays stationary"). The quest
-				// needle below is a separate, gilded arm.
-				RE::GFxValue northArm;
-				g_lastNorthShown = Child(art, "north", northArm);
-				if (g_lastNorthShown) { SetNum(northArm, "_rotation", g_lastRoseRot); }
+				// the red arm is the quest needle (2026-11-09); it is turned to the objective's bearing below and hidden
+				// while there is no displayed objective
 				(void)Child(art, "needle", needleClip);
 				if (!pointerNow && needleClip.IsDisplayObject())
 				{
@@ -638,7 +635,7 @@ namespace DEM::compassring
 				const double nX = baseX + ux * settings::compass::pointerSize * 0.38, nY = baseY + uy * settings::compass::pointerSize * 0.38;
 				if (nordic)
 				{
-					// the gilded quest needle turns to the bearing, in the art's own frame (up = 0, clockwise)
+					// the red quest needle turns to the bearing, in the art's own frame (up = 0, clockwise)
 					g_lastNeedleRot = a * kDeg;
 					if (needleClip.IsDisplayObject()) { SetNum(needleClip, "_rotation", g_lastNeedleRot); }
 				}

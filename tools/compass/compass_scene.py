@@ -3,7 +3,7 @@ r"""Dragon's Eye Minimap - the Nordic compass, built and rendered in Blender (DE
 Run (Blender 5.x, no GUI):
     blender --background --factory-startup --python tools/compass/compass_scene.py -- <out_dir> [size]
 
-Everything is procedural: no image, font or model comes from outside this file. It renders five
+Everything is procedural: no image, font or model comes from outside this file. It renders four
 transparent PNG layers, each seen straight down through an orthographic camera that covers -1..1 in X and Y
 (the compass's outer edge is radius 0.98, its centre the image centre):
 
@@ -11,16 +11,15 @@ transparent PNG layers, each seen straight down through an orthographic camera t
                 wedge at the top, a dark slate face with engraved circles and bronze-inlaid ticks
     rose.png    the compass card that TURNS with the camera heading: a faceted eight-point rose in
                 aged bronze, an interlaced (over-under) knotwork band, N / E / S / W in angular,
-                rune-cut letterforms - north up in the image
-    north.png   the NORTH arm, which turns with the rose so it always points to world north: a
-                red-enamelled spear arm on an iron spine, a counterweight tail - pointing up in the image
-    needle.png  the quest needle, a separate smaller gilded arrowhead that turns to the objective's
-                bearing - pointing up in the image
+                rune-cut letterforms (the N gilt) - north up in the image
+    needle.png  the QUEST needle: a red-enamelled spear arm on an iron spine, a counterweight tail, turned to
+                the objective's bearing - pointing up in the image; short enough that its whole length stays
+                inside the braided cord, so it never covers the gilt N or the other letters
     cap.png     fixed, on top: the iron boss over the pivot and a faint glass sheen
 
-The rose, north arm, needle and cap each throw their shadow onto a shadow catcher at the face's height, so the
-shadow is in that layer's alpha and moves with it. The DLL stacks the five in this order and sets the
-rose's, the north arm's and the needle's _rotation; tools/compass/build_compass.py turns these PNGs into the SWF.
+The rose, needle and cap each throw their shadow onto a shadow catcher at the face's height, so the shadow is in that
+layer's alpha and moves with it. The DLL stacks the four in this order and sets the rose's and the needle's _rotation;
+tools/compass/build_compass.py turns these PNGs into the SWF.
 """
 import math
 import sys
@@ -33,6 +32,7 @@ from mathutils import Vector
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = argv[0] if argv else "."
 SIZE = int(argv[1]) if len(argv) > 1 else 1024
+ONLY = set(argv[2].split(",")) if len(argv) > 2 and argv[2] else None   # render only these layers (e.g. "rose,needle")
 
 R_OUT = 0.98      # stone rim outer edge
 R_RIM_IN = 0.80   # stone rim inner edge
@@ -389,6 +389,7 @@ iron = principled("Iron", (0.16, 0.165, 0.175), metallic=1.0, rough=0.42, noise_
 bronze = principled("Bronze", (0.36, 0.255, 0.14), metallic=1.0, rough=0.4, noise_bump=0.05, noise_scale=160.0, color_var=0.4)
 dark_bronze = principled("DarkBronze", (0.22, 0.16, 0.095), metallic=1.0, rough=0.46, noise_bump=0.06, noise_scale=140.0, color_var=0.45)
 silver_iron = principled("ColdSteel", (0.55, 0.58, 0.62), metallic=1.0, rough=0.28, noise_bump=0.04, noise_scale=150.0, color_var=0.2)
+gilt = principled("Gilt", (0.78, 0.58, 0.22), metallic=1.0, rough=0.24, noise_bump=0.03, noise_scale=170.0, color_var=0.25)
 enamel = principled("RedEnamel", (0.42, 0.025, 0.02), rough=0.3, coat=1.0, noise_bump=0.02, noise_scale=60.0, color_var=0.15)
 
 rim = revolve("Rim", "body", [(R_RIM_IN, 0.045), (0.812, 0.072), (0.84, 0.084), (0.945, 0.084), (0.968, 0.07), (R_OUT, 0.035), (R_OUT, 0.0)])
@@ -489,7 +490,9 @@ for rr in (0.355, 0.505):
 hub = revolve("Hub", "rose", [(0.0, 0.1), (0.07, 0.098), (0.11, 0.085), (0.125, 0.07), (0.125, 0.05)], segs=96)
 assign(hub, bronze)
 
-# N E S W, angular letterforms cut like runes, raised in cold steel (N) and bronze, standing on the card
+# N E S W, angular letterforms cut like runes, raised on the card: N in bright gilt, E S W in bronze. The N sits outside
+# the braided cord, clear of the shortened red needle (the owner, 2026-11-09: "I want to be able to see the north golden
+# letter"); in cold steel it read as a dark grey shape on the slate, and the old long arm covered all of it.
 LETTERS = {
     "N": (0.62, [((0, 0), (0, 1)), ((0.62, 0), (0.62, 1)), ((0, 1), (0.62, 0)), ((0, 0), (-0.06, -0.04)), ((0.62, 1), (0.68, 1.04))]),
     "E": (0.5, [((0, 0), (0, 1)), ((0, 1), (0.5, 1.06)), ((0, 0.52), (0.36, 0.52)), ((0, 0.0), (0.5, -0.06))]),
@@ -498,18 +501,20 @@ LETTERS = {
 }
 R_LETTER = 0.632
 LETTER_H = 0.105
+N_LETTER_H = 0.125   # the N a little taller and bolder than E S W
 for i, ch in enumerate("NESW"):
     a = i * math.pi / 2
     w_box, segs = LETTERS[ch]
     cx, cy = polar(R_LETTER, a)
-    lw = 0.024 if ch == "N" else 0.019
-    obj = strokes_mesh(f"L_{ch}", "rose", place_glyph(segs, cx, cy, LETTER_H, 0.0, w_box), lw, 0.03, 0.06, bevel=0.004)
+    lw = 0.028 if ch == "N" else 0.019
+    lh = N_LETTER_H if ch == "N" else LETTER_H
+    obj = strokes_mesh(f"L_{ch}", "rose", place_glyph(segs, cx, cy, lh, 0.0, w_box), lw, 0.03, 0.06, bevel=0.004)
     # letters stand upright on the card with north up: their base faces the centre on every side would be
     # the nautical style; upright reading (all upright when north is up) is the vanilla compass's. Keep them radial:
     obj.rotation_euler = (0, 0, 0)
     # rotate about the card centre so each letter's up points outward
     obj.select_set(False)
-    assign(obj, silver_iron if ch == "N" else bronze)
+    assign(obj, gilt if ch == "N" else bronze)
 # radial orientation: rebuild each letter rotated so its top faces outward (the card turns, so radial reads best)
 for i, ch in enumerate("NESW"):
     obj = bpy.data.objects[f"L_{ch}"]
@@ -561,32 +566,28 @@ def spear(scale_w, tip_y, blade_base, blade_w, shaft_w, tail_y):
     left = [(-x, y) for x, y in reversed(pts[1:-1])]
     return pts + left
 
-# THE NORTH ARM (layer "north"; the owner, 2026-11-06: "have the red compass north arm point north"). The red-enamelled
-# spear turns with the rose, so it always points to world north.
-iron_outline = spear(1.0, 0.748, 0.53, 0.075, 0.021, -0.26)
-outline_poly(iron_outline, 0.10, "NorthIron", "north", iron, z_top=0.118, bevel=0.003)
-enamel_inner = spear(0.62, 0.715, 0.545, 0.075, 0.021, -0.225)
-outline_poly(enamel_inner, 0.118, "NorthEnamel", "north", enamel, z_top=0.124)
+# THE QUEST NEEDLE (layer "needle"). The owner, 2026-11-09: "keep the red compass arm and get rid of the golden one and
+# just have the red one point at the compass quest marker"; and confine the red arm "within the band of gold that looks
+# like braided gold ... doesn't leave the exterior bounds of the golden cord". The needle turns to any bearing against
+# the rose, so its tip must stay inside the cord's outer edge at the cord's narrowest: the two knot bands swing
+# 0.43 +- 0.045 in opposite phase (tube radius 0.0135), so the outer edge is 0.43 + 0.045|sin 8t| + 0.0135 - never
+# closer in than ~0.444, at the sixteen crossings. The spear is drawn at the old proportions and shrunk: lengths by
+# ARM_K (tip 0.748 -> 0.37), widths by ARM_W, so it ends inside the cord at every angle - its soft shadow included,
+# which reaches ~0.04 past the metal - and never reaches the letters at radius 0.56 and beyond. build_compass.py measures this on the pixels (--check).
+ARM_K = 0.37 / 0.748
+ARM_W = 0.72
+def arm(pts):
+    return [(x * ARM_W, y * ARM_K) for x, y in pts]
+iron_outline = arm(spear(1.0, 0.748, 0.53, 0.075, 0.021, -0.26))
+outline_poly(iron_outline, 0.10, "NeedleIron", "needle", iron, z_top=0.118, bevel=0.003)
+enamel_inner = arm(spear(0.62, 0.715, 0.545, 0.075, 0.021, -0.225))
+outline_poly(enamel_inner, 0.118, "NeedleEnamel", "needle", enamel, z_top=0.124)
 # a cold-steel spine down the blade
-strokes_mesh("NorthSpine", "north", [((0.0, 0.70), (0.0, 0.56))], 0.007, 0.124, 0.13, bevel=0.002)
-assign(bpy.data.objects["NorthSpine"], silver_iron)
-# the pivot ring of the arms
-pr = revolve("NorthRing", "north", [(0.03, 0.118), (0.045, 0.128), (0.06, 0.118), (0.06, 0.1)], segs=64)
+strokes_mesh("NeedleSpine", "needle", [((0.0, 0.70 * ARM_K), (0.0, 0.56 * ARM_K))], 0.006, 0.124, 0.13, bevel=0.002)
+assign(bpy.data.objects["NeedleSpine"], silver_iron)
+# the pivot ring
+pr = revolve("NeedleRing", "needle", [(0.03, 0.118), (0.045, 0.128), (0.06, 0.118), (0.06, 0.1)], segs=64)
 assign(pr, iron)
-
-# THE QUEST NEEDLE (layer "needle"): a separate, smaller pointer that must never be mistaken for the north arm -
-# a gilded barbed arrowhead on a slender shaft, no red, no forked tail, riding above the north arm.
-gilt = principled("Gilt", (0.78, 0.58, 0.22), metallic=1.0, rough=0.24, noise_bump=0.03, noise_scale=170.0, color_var=0.25)
-
-def arrow(sx, tip, barb_y, barb_w, notch_y, shaft_w, tail_y):
-    right = [(0.0, tip), (barb_w * sx, barb_y), (shaft_w * sx * 1.6, notch_y), (shaft_w * sx, notch_y - 0.02),
-             (shaft_w * sx, tail_y + 0.05), (shaft_w * sx * 2.6, tail_y), (0.0, tail_y + 0.02)]
-    return right + [(-x, y) for x, y in reversed(right[1:-1])]
-
-outline_poly(arrow(1.0, 0.665, 0.53, 0.062, 0.565, 0.013, -0.15), 0.135, "QuestIron", "needle", dark_bronze, z_top=0.147, bevel=0.002)
-outline_poly(arrow(0.6, 0.635, 0.545, 0.062, 0.572, 0.013, -0.125), 0.147, "QuestGilt", "needle", gilt, z_top=0.152)
-qr = revolve("QuestRing", "needle", [(0.02, 0.15), (0.032, 0.158), (0.044, 0.15), (0.044, 0.135)], segs=64)
-assign(qr, gilt)
 
 # ================================================================================================ CAP
 boss = revolve("Boss", "cap", [(0.0, 0.17), (0.02, 0.168), (0.035, 0.16), (0.045, 0.145), (0.05, 0.13), (0.05, 0.125)], segs=96)
@@ -643,9 +644,10 @@ catcher.is_shadow_catcher = True
 
 # ------------------------------------------------------------------------------------------------ render each layer
 # each moving layer's shadow falls just under it, so a shadow that turns with its layer stays short
-LAYERS = [("body", [], 0.0), ("rose", ["catcher"], 0.0), ("north", ["catcher"], 0.075), ("needle", ["catcher"], 0.11),
-          ("cap", ["catcher"], 0.12)]
+LAYERS = [("body", [], 0.0), ("rose", ["catcher"], 0.0), ("needle", ["catcher"], 0.075), ("cap", ["catcher"], 0.12)]
 for layer, extra, catcher_z in LAYERS:
+    if ONLY is not None and layer not in ONLY:
+        continue
     catcher.location.z = catcher_z
     for name, c in collections.items():
         c.hide_render = not (name == layer or name in extra)
